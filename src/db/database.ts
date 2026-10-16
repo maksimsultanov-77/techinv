@@ -30,12 +30,43 @@ export interface Category {
   description: string;
 }
 
+export interface Employee {
+  id: number;
+  full_name: string;
+  gender: 'male' | 'female';
+  department: string;
+  phone: string;
+  email: string;
+  work_mode: 'office' | 'remote' | 'hybrid';
+  created_at: string;
+  updated_at: string;
+}
+
 interface DatabaseSchema {
   categories: Category[];
   equipment: Equipment[];
+  employees: Employee[];
   nextCategoryId: number;
   nextEquipmentId: number;
+  nextEmployeeId: number;
 }
+
+export const DEPARTMENTS = [
+  'ИТ-отдел',
+  'Бухгалтерия',
+  'Отдел кадров',
+  'Отдел продаж',
+  'Отдел маркетинга',
+  'Юридический отдел',
+  'Отдел логистики',
+  'Отдел разработки',
+  'Отдел тестирования',
+  'Служба поддержки',
+  'Администрация',
+  'Отдел безопасности',
+  'Финансовый отдел',
+  'Отдел закупок',
+];
 
 let db: DatabaseSchema;
 
@@ -60,6 +91,9 @@ export function initDatabase(): Promise<void> {
     if (savedDb) {
       try {
         db = JSON.parse(savedDb);
+        // Миграция: добавляем поля сотрудников если их нет
+        if (!db.employees) db.employees = [];
+        if (!db.nextEmployeeId) db.nextEmployeeId = 1;
       } catch (e) {
         console.error('Error loading database:', e);
         db = createDefaultDatabase();
@@ -76,8 +110,10 @@ function createDefaultDatabase(): DatabaseSchema {
   return {
     categories: [...defaultCategories],
     equipment: [],
+    employees: [],
     nextCategoryId: defaultCategories.length + 1,
     nextEquipmentId: 1,
+    nextEmployeeId: 1,
   };
 }
 
@@ -320,4 +356,107 @@ export function getStats(): { total: number; byCategory: { name: string; icon: s
   })).sort((a, b) => b.count - a.count);
 
   return { total, byCategory };
+}
+
+// ============ СОТРУДНИКИ ============
+
+export function getAllEmployees(searchQuery?: string, department?: string, workMode?: string): Employee[] {
+  let result = [...db.employees];
+
+  if (department) {
+    result = result.filter(emp => emp.department === department);
+  }
+
+  if (workMode) {
+    result = result.filter(emp => emp.work_mode === workMode);
+  }
+
+  if (searchQuery) {
+    const query = searchQuery.toLowerCase();
+    result = result.filter(emp =>
+      emp.full_name.toLowerCase().includes(query) ||
+      emp.phone.toLowerCase().includes(query) ||
+      emp.email.toLowerCase().includes(query) ||
+      emp.department.toLowerCase().includes(query)
+    );
+  }
+
+  return result.sort((a, b) => a.full_name.localeCompare(b.full_name, 'ru'));
+}
+
+export function getEmployeeById(id: number): Employee | null {
+  return db.employees.find(emp => emp.id === id) || null;
+}
+
+export function addEmployee(data: Omit<Employee, 'id' | 'created_at' | 'updated_at'>): number {
+  const now = new Date().toISOString();
+  const newEmployee: Employee = {
+    id: db.nextEmployeeId++,
+    full_name: data.full_name,
+    gender: data.gender,
+    department: data.department,
+    phone: data.phone || '',
+    email: data.email || '',
+    work_mode: data.work_mode || 'office',
+    created_at: now,
+    updated_at: now,
+  };
+  db.employees.push(newEmployee);
+  saveDatabase();
+  return newEmployee.id;
+}
+
+export function updateEmployee(id: number, data: Omit<Employee, 'id' | 'created_at' | 'updated_at'>): void {
+  const index = db.employees.findIndex(emp => emp.id === id);
+  if (index === -1) return;
+  const existing = db.employees[index];
+  db.employees[index] = {
+    ...existing,
+    full_name: data.full_name,
+    gender: data.gender,
+    department: data.department,
+    phone: data.phone || '',
+    email: data.email || '',
+    work_mode: data.work_mode || 'office',
+    updated_at: new Date().toISOString(),
+  };
+  saveDatabase();
+}
+
+export function deleteEmployee(id: number): void {
+  db.employees = db.employees.filter(emp => emp.id !== id);
+  saveDatabase();
+}
+
+export function getEmployeeStats(): {
+  total: number;
+  byDepartment: { name: string; count: number }[];
+  byWorkMode: { mode: string; label: string; icon: string; count: number }[];
+  byGender: { gender: string; count: number }[];
+} {
+  const total = db.employees.length;
+
+  const byDepartment = DEPARTMENTS.map(dep => ({
+    name: dep,
+    count: db.employees.filter(e => e.department === dep).length,
+  })).filter(d => d.count > 0).sort((a, b) => b.count - a.count);
+
+  const modeLabels: Record<string, { label: string; icon: string }> = {
+    office: { label: 'В офисе', icon: '🏢' },
+    remote: { label: 'Удалённо', icon: '🏠' },
+    hybrid: { label: 'Гибрид', icon: '🔄' },
+  };
+  const byWorkMode = (['office', 'remote', 'hybrid'] as const).map(mode => ({
+    mode,
+    label: modeLabels[mode].label,
+    icon: modeLabels[mode].icon,
+    count: db.employees.filter(e => e.work_mode === mode).length,
+  }));
+
+  const byGender = [
+    { gender: 'male', count: db.employees.filter(e => e.gender === 'male').length },
+    { gender: 'female', count: db.employees.filter(e => e.gender === 'female').length },
+  ];
+
+  return { total, byDepartment, byWorkMode, byGender };
 }
