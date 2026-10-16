@@ -14,6 +14,8 @@ import {
   updateEmployee,
   deleteEmployee,
   getEmployeeStats,
+  generateTestEmployees,
+  clearAllEmployees,
   DEPARTMENTS,
   Category,
   Equipment,
@@ -63,6 +65,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showEmpTestConfirm, setShowEmpTestConfirm] = useState(false);
+  const [showEmpClearConfirm, setShowEmpClearConfirm] = useState(false);
 
   useEffect(() => {
     initDatabase()
@@ -172,6 +176,19 @@ function App() {
     clearAllEquipment();
     setShowClearConfirm(false);
     loadEquipment();
+  };
+
+  const handleGenerateTestEmployees = () => {
+    const count = generateTestEmployees();
+    setShowEmpTestConfirm(false);
+    loadEmployees();
+    alert(`✅ Создано ${count} тестовых сотрудников`);
+  };
+
+  const handleClearAllEmployees = () => {
+    clearAllEmployees();
+    setShowEmpClearConfirm(false);
+    loadEmployees();
   };
 
   if (loading) {
@@ -377,7 +394,23 @@ function App() {
         {activeView === 'employees' && (
           <>
             {/* Employee Action Buttons */}
-            <div className="flex justify-end gap-2 mb-4">
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              <button
+                onClick={() => setShowEmpTestConfirm(true)}
+                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+                title="Создать случайный набор сотрудников"
+              >
+                🎲 Тестовые данные
+              </button>
+              {empStats.total > 0 && (
+                <button
+                  onClick={() => setShowEmpClearConfirm(true)}
+                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                  title="Удалить всех сотрудников"
+                >
+                  🗑️ Очистить
+                </button>
+              )}
               <button
                 onClick={() => { setShowEmpForm(true); setEditingEmployee(null); }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
@@ -589,6 +622,74 @@ function App() {
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
                 >
                   Удалить всё
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Test Data Confirm Modal */}
+      {showEmpTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <div className="text-5xl text-center mb-4">🎲</div>
+              <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+                Создать тестовых сотрудников?
+              </h3>
+              <p className="text-gray-600 text-center mb-4">
+                Будет сгенерировано от <strong>10 до 50 сотрудников</strong> со случайными данными.
+              </p>
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-purple-800">
+                  💡 <strong>Примечание:</strong> Сотрудники добавятся к существующим записям.
+                  Будут сгенерированы ФИО, подразделения, телефоны, email, города и часовые пояса.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowEmpTestConfirm(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleGenerateTestEmployees}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                >
+                  Создать
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Clear All Confirm Modal */}
+      {showEmpClearConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <div className="text-5xl text-center mb-4">⚠️</div>
+              <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+                Удалить всех сотрудников?
+              </h3>
+              <p className="text-gray-600 text-center mb-4">
+                Будет удалено <strong>{empStats.total}</strong> сотрудников. Это действие нельзя отменить.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowEmpClearConfirm(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleClearAllEmployees}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                >
+                  Удалить всех
                 </button>
               </div>
             </div>

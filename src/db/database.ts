@@ -497,3 +497,75 @@ export function getEmployeeStats(): {
 
   return { total, byDepartment, byWorkMode, byGender };
 }
+
+// Генерация тестовых сотрудников
+export function generateTestEmployees(): number {
+  const count = Math.floor(Math.random() * 41) + 10; // 10..50
+  const now = new Date().toISOString();
+
+  const maleFirstNames = ['Иван', 'Пётр', 'Сергей', 'Алексей', 'Дмитрий', 'Андрей', 'Михаил', 'Николай', 'Владимир', 'Олег', 'Артём', 'Максим', 'Евгений', 'Александр', 'Константин'];
+  const femaleFirstNames = ['Анна', 'Мария', 'Елена', 'Ольга', 'Татьяна', 'Наталья', 'Ирина', 'Светлана', 'Екатерина', 'Юлия', 'Оксана', 'Виктория', 'Дарья', 'Анастасия', 'Полина'];
+  const maleLastNames = ['Иванов', 'Петров', 'Сидоров', 'Смирнов', 'Кузнецов', 'Попов', 'Васильев', 'Соколов', 'Михайлов', 'Новиков', 'Фёдоров', 'Морозов', 'Волков', 'Алексеев', 'Лебедев', 'Козлов', 'Степанов', 'Николаев', 'Орлов', 'Андреев'];
+  const femaleLastNames = ['Иванова', 'Петрова', 'Сидорова', 'Смирнова', 'Кузнецова', 'Попова', 'Васильева', 'Соколова', 'Михайлова', 'Новикова', 'Фёдорова', 'Морозова', 'Волкова', 'Алексеева', 'Лебедева', 'Козлова', 'Степанова', 'Николаева', 'Орлова', 'Андреева'];
+  const middleNames = ['Иванович', 'Петрович', 'Сергеевич', 'Александрович', 'Михайлович', 'Николаевич', 'Владимирович', 'Андреевич', 'Дмитриевич', 'Евгеньевич'];
+  const femaleMiddleNames = ['Ивановна', 'Петровна', 'Сергеевна', 'Александровна', 'Михайловна', 'Николаевна', 'Владимировна', 'Андреевна', 'Дмитриевна', 'Евгеньевна'];
+  
+  const cities = ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань', 'Нижний Новгород', 'Челябинск', 'Самара', 'Омск', 'Ростов-на-Дону', 'Уфа', 'Красноярск', 'Воронеж', 'Пермь', 'Волгоград', 'Краснодар', 'Саратов', 'Тюмень', 'Тольятти', 'Ижевск'];
+  const workModes: ('office' | 'remote' | 'hybrid')[] = ['office', 'office', 'office', 'remote', 'remote', 'hybrid'];
+
+  for (let i = 0; i < count; i++) {
+    const gender: 'male' | 'female' = Math.random() > 0.5 ? 'female' : 'male';
+    const firstName = gender === 'male' 
+      ? maleFirstNames[Math.floor(Math.random() * maleFirstNames.length)]
+      : femaleFirstNames[Math.floor(Math.random() * femaleFirstNames.length)];
+    const lastName = gender === 'male'
+      ? maleLastNames[Math.floor(Math.random() * maleLastNames.length)]
+      : femaleLastNames[Math.floor(Math.random() * femaleLastNames.length)];
+    const middleName = gender === 'male'
+      ? middleNames[Math.floor(Math.random() * middleNames.length)]
+      : femaleMiddleNames[Math.floor(Math.random() * femaleMiddleNames.length)];
+    
+    const fullName = `${lastName} ${firstName} ${middleName}`;
+    const department = DEPARTMENTS[Math.floor(Math.random() * DEPARTMENTS.length)];
+    const city = cities[Math.floor(Math.random() * cities.length)];
+    const timezone = TIMEZONES[Math.floor(Math.random() * TIMEZONES.length)].value;
+    const workMode = workModes[Math.floor(Math.random() * workModes.length)];
+    
+    // Генерация телефона
+    const phoneCode = ['903', '905', '906', '909', '910', '915', '916', '917', '919', '920', '921', '925', '926', '927', '929', '930', '936', '937', '938', '939'][Math.floor(Math.random() * 20)];
+    const phoneNum = String(Math.floor(Math.random() * 10000000)).padStart(7, '0');
+    const phone = `+7 (${phoneCode}) ${phoneNum.slice(0, 3)}-${phoneNum.slice(3, 5)}-${phoneNum.slice(5)}`;
+    
+    // Генерация email
+    const translit: Record<string, string> = { 'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya' };
+    const toTranslit = (s: string) => s.toLowerCase().split('').map(c => translit[c] || c).join('');
+    const emailName = toTranslit(lastName) + '.' + toTranslit(firstName).charAt(0);
+    const domains = ['company.ru', 'corp.ru', 'office.ru', 'firm.ru', 'work.ru'];
+    const email = `${emailName}@${domains[Math.floor(Math.random() * domains.length)]}`;
+
+    const newEmployee: Employee = {
+      id: db.nextEmployeeId++,
+      full_name: fullName,
+      gender,
+      department,
+      phone,
+      email,
+      work_mode: workMode,
+      city,
+      timezone,
+      created_at: now,
+      updated_at: now,
+    };
+
+    db.employees.push(newEmployee);
+  }
+
+  saveDatabase();
+  return count;
+}
+
+export function clearAllEmployees(): void {
+  db.employees = [];
+  db.nextEmployeeId = 1;
+  saveDatabase();
+}
