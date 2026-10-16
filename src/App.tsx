@@ -7,6 +7,8 @@ import {
   updateEquipment,
   deleteEquipment,
   getStats,
+  generateTestData,
+  clearAllEquipment,
   Category,
   Equipment,
 } from './db/database';
@@ -28,6 +30,8 @@ function App() {
   const [viewingItem, setViewingItem] = useState<Equipment | null>(null);
   const [stats, setStats] = useState<{ total: number; byCategory: { name: string; icon: string; count: number }[] }>({ total: 0, byCategory: [] });
   const [loading, setLoading] = useState(true);
+  const [showTestConfirm, setShowTestConfirm] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
     initDatabase()
@@ -93,6 +97,19 @@ function App() {
     }
   };
 
+  const handleGenerateTest = () => {
+    const count = generateTestData();
+    setShowTestConfirm(false);
+    loadData();
+    alert(`✅ Создано ${count} единиц тестового оборудования`);
+  };
+
+  const handleClearAll = () => {
+    clearAllEquipment();
+    setShowClearConfirm(false);
+    loadData();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -135,7 +152,23 @@ function App() {
                 <p className="text-sm text-gray-500">Система управления оборудованием</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setShowTestConfirm(true)}
+                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+                title="Создать случайный набор данных"
+              >
+                🎲 Тестовые данные
+              </button>
+              {stats.total > 0 && (
+                <button
+                  onClick={() => setShowClearConfirm(true)}
+                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                  title="Удалить все записи"
+                >
+                  🗑️ Очистить
+                </button>
+              )}
               <button
                 onClick={handleExport}
                 className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
@@ -273,6 +306,74 @@ function App() {
             setViewingItem(null);
           }}
         />
+      )}
+
+      {/* Модальное окно подтверждения генерации тестовых данных */}
+      {showTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <div className="text-5xl text-center mb-4">🎲</div>
+              <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+                Создать тестовые данные?
+              </h3>
+              <p className="text-gray-600 text-center mb-4">
+                Будет сгенерировано от <strong>10 до 100 единиц</strong> оборудования для каждой из 12 категорий.
+              </p>
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-purple-800">
+                  💡 <strong>Примечание:</strong> Данные добавятся к существующим записям. 
+                  Ожидаемое количество: <strong>120–1200 единиц</strong>.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowTestConfirm(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleGenerateTest}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                >
+                  Создать
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно подтверждения очистки */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <div className="text-5xl text-center mb-4">⚠️</div>
+              <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+                Удалить все записи?
+              </h3>
+              <p className="text-gray-600 text-center mb-4">
+                Будет удалено <strong>{stats.total}</strong> единиц оборудования. Это действие нельзя отменить.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleClearAll}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                >
+                  Удалить всё
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
