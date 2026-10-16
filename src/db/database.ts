@@ -117,9 +117,25 @@ export function getEquipmentById(id: number): Equipment | null {
   return db.equipment.find(eq => eq.id === id) || null;
 }
 
-export function addEquipment(data: Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>): number {
+function generateInventoryNumber(): string {
+  // Находим максимальный номер в базе
+  let maxNum = 0;
+  db.equipment.forEach(eq => {
+    const match = eq.inventory_number.match(/^INV-(\d+)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num > maxNum) maxNum = num;
+    }
+  });
+  // Генерируем следующий номер с 4 цифрами
+  const nextNum = maxNum + 1;
+  return `INV-${String(nextNum).padStart(4, '0')}`;
+}
+
+export function addEquipment(data: Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'inventory_number' | 'created_at' | 'updated_at'>): number {
   const category = db.categories.find(c => c.id === data.category_id);
   const now = new Date().toISOString();
+  const inventoryNumber = generateInventoryNumber();
   
   const newEquipment: Equipment = {
     id: db.nextEquipmentId++,
@@ -128,7 +144,7 @@ export function addEquipment(data: Omit<Equipment, 'id' | 'category_name' | 'cat
     category_icon: category?.icon || '',
     name: data.name,
     serial_number: data.serial_number || '',
-    inventory_number: data.inventory_number || '',
+    inventory_number: inventoryNumber,
     manufacturer: data.manufacturer || '',
     model: data.model || '',
     location: data.location || '',

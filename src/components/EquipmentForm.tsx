@@ -21,7 +21,6 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, equipment, on
     category_id: equipment?.category_id || (categories[0]?.id || 1),
     name: equipment?.name || '',
     serial_number: equipment?.serial_number || '',
-    inventory_number: equipment?.inventory_number || '',
     manufacturer: equipment?.manufacturer || '',
     model: equipment?.model || '',
     location: equipment?.location || '',
@@ -39,11 +38,18 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, equipment, on
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
+    const submitData = {
       ...formData,
       category_id: Number(formData.category_id),
       purchase_price: formData.purchase_price ? Number(formData.purchase_price) : null,
-    });
+    };
+    // При редактировании сохраняем существующий инвентарный номер
+    if (equipment) {
+      onSave({ ...submitData, inventory_number: equipment.inventory_number });
+    } else {
+      // При создании инвентарный номер будет сгенерирован автоматически
+      onSave(submitData);
+    }
   };
 
   return (
@@ -97,17 +103,18 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, equipment, on
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Инвентарный номер</label>
-              <input
-                type="text"
-                name="inventory_number"
-                value={formData.inventory_number}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="INV-0001"
-              />
-            </div>
+            {equipment && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Инвентарный номер</label>
+                <input
+                  type="text"
+                  value={equipment.inventory_number}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
+                />
+                <p className="text-xs text-gray-400 mt-1">Присваивается автоматически</p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Производитель</label>
