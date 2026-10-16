@@ -29,11 +29,21 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Проверка: для штатных сотрудников подразделение обязательно
+    if (formData.employee_type === 'staff' && !formData.department_id) {
+      alert('Для штатного сотрудника необходимо выбрать подразделение');
+      return;
+    }
+    
     onSave({
       ...formData,
       department_id: formData.department_id ? Number(formData.department_id) : null,
     });
   };
+  
+  // Определяем, обязательно ли подразделение
+  const isDepartmentRequired = formData.employee_type === 'staff';
 
   // Строим дерево подразделений для select
   const rootDepts = departments.filter(d => d.parent_id === null);
@@ -104,7 +114,9 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSa
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Подразделение</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Подразделение {isDepartmentRequired && '*'}
+              </label>
               <select
                 name="department_id"
                 value={formData.department_id}
@@ -121,6 +133,9 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSa
               </select>
               {departments.length === 0 && (
                 <p className="text-xs text-amber-600 mt-1">⚠️ Сначала создайте оргструктуру</p>
+              )}
+              {!isDepartmentRequired && (
+                <p className="text-xs text-gray-500 mt-1">Необязательно для внешних сотрудников и подрядчиков</p>
               )}
             </div>
 
