@@ -336,6 +336,11 @@ function randomDate(startYear: number, endYear: number): string {
 }
 
 export function generateTestData(): number {
+  // Проверка: нельзя генерировать без сотрудников
+  if (db.employees.length === 0) {
+    throw new Error('Невозможно создать тестовые данные: сначала добавьте сотрудников');
+  }
+  
   let count = 0;
   const now = new Date().toISOString();
   

@@ -166,10 +166,14 @@ function App() {
   };
 
   const handleGenerateTest = () => {
-    const count = generateTestData();
-    setShowTestConfirm(false);
-    loadEquipment();
-    alert(`✅ Создано ${count} единиц тестового оборудования`);
+    try {
+      const count = generateTestData();
+      setShowTestConfirm(false);
+      loadEquipment();
+      alert(`✅ Создано ${count} единиц тестового оборудования`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Ошибка при создании тестовых данных');
+    }
   };
 
   const handleClearAll = () => {
@@ -278,8 +282,13 @@ function App() {
             <div className="flex justify-end gap-2 mb-4">
               <button
                 onClick={() => setShowTestConfirm(true)}
-                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
-                title="Создать случайный набор данных"
+                disabled={employees.length === 0}
+                className={`px-3 py-2 text-sm rounded-lg transition-colors font-medium shadow-sm ${
+                  employees.length === 0
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                }`}
+                title={employees.length === 0 ? 'Сначала добавьте сотрудников' : 'Создать случайный набор данных'}
               >
                 🎲 Тестовые данные
               </button>
@@ -299,6 +308,14 @@ function App() {
                 ➕ Добавить
               </button>
             </div>
+            {employees.length === 0 && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                <span className="text-amber-600">⚠️</span>
+                <div className="text-sm text-amber-800">
+                  <strong>Невозможно создать тестовые данные.</strong> Сначала добавьте сотрудников в разделе «Сотрудники».
+                </div>
+              </div>
+            )}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
@@ -576,12 +593,21 @@ function App() {
               <p className="text-gray-600 text-center mb-4">
                 Будет сгенерировано от <strong>10 до 100 единиц</strong> оборудования для каждой из 12 категорий.
               </p>
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-purple-800">
-                  💡 <strong>Примечание:</strong> Данные добавятся к существующим записям.
-                  Ожидаемое количество: <strong>120–1200 единиц</strong>.
-                </p>
-              </div>
+              {employees.length === 0 ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-red-800">
+                    ⚠️ <strong>Невозможно создать тестовые данные.</strong> Сначала добавьте сотрудников в разделе «Сотрудники».
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-purple-800">
+                    💡 <strong>Примечание:</strong> Данные добавятся к существующим записям. 
+                    Ожидаемое количество: <strong>120–1200 единиц</strong>.
+                    <br/>Сотрудников в базе: <strong>{employees.length}</strong>
+                  </p>
+                </div>
+              )}
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowTestConfirm(false)}
@@ -591,7 +617,12 @@ function App() {
                 </button>
                 <button
                   onClick={handleGenerateTest}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                  disabled={employees.length === 0}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors font-medium ${
+                    employees.length === 0
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-purple-600 text-white hover:bg-purple-700'
+                  }`}
                 >
                   Создать
                 </button>
@@ -600,7 +631,6 @@ function App() {
           </div>
         </div>
       )}
-
       {/* Clear All Confirm Modal */}
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
