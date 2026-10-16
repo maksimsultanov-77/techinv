@@ -71,6 +71,7 @@ function App() {
   const [editingDept, setEditingDept] = useState<Department | null>(null);
   const [newDeptName, setNewDeptName] = useState('');
   const [newDeptParent, setNewDeptParent] = useState<string>('');
+  const [collapsedDepts, setCollapsedDepts] = useState<Set<number>>(new Set());
 
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
@@ -248,6 +249,18 @@ function App() {
     alert(`✅ Создано ${count} подразделений`);
   };
 
+  const toggleDeptCollapse = (id: number) => {
+    setCollapsedDepts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -359,38 +372,56 @@ function App() {
               </button>
             </div>
 
-            {departments.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-                <div className="text-6xl mb-4">🏢</div>
-                <h3 className="text-xl font-medium text-gray-500 mb-2">Оргструктура не создана</h3>
-                <p className="text-gray-400 mb-4">Добавьте подразделения вручную или сгенерируйте тестовую структуру</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {deptTree.map(dept => (
+            <div className="space-y-3">
+              {deptTree.map(dept => {
+                const isCollapsed = collapsedDepts.has(dept.id);
+                const isSystem = dept.id === 1 || dept.id === 2;
+                const icon = isSystem ? (dept.id === 1 ? '👥' : '📝') : '🏢';
+                const bgColor = isSystem ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100';
+                
+                return (
                   <div key={dept.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     {/* Root department */}
-                    <div className="p-4 flex items-center justify-between bg-blue-50 border-b border-blue-100">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">🏢</span>
+                    <div className={`p-4 flex items-center justify-between border-b ${bgColor}`}>
+                      <div className="flex items-center gap-3 flex-1">
+                        {dept.children.length > 0 && (
+                          <button
+                            onClick={() => toggleDeptCollapse(dept.id)}
+                            className="p-1 hover:bg-white/50 rounded transition-colors"
+                            title={isCollapsed ? 'Развернуть' : 'Свернуть'}
+                          >
+                            <span className="text-lg">{isCollapsed ? '▶️' : '▼️'}</span>
+                          </button>
+                        )}
+                        {dept.children.length === 0 && <div className="w-7" />}
+                        <span className="text-2xl">{icon}</span>
                         <div>
-                          <h3 className="font-bold text-gray-800">{dept.name}</h3>
+                          <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                            {dept.name}
+                            {isSystem && (
+                              <span className="text-xs bg-white/70 px-2 py-0.5 rounded-full text-gray-600">
+                                системное
+                              </span>
+                            )}
+                          </h3>
                           <div className="text-xs text-gray-500 flex gap-3">
                             <span>👥 {dept.employeeCount} сотр.</span>
                             {dept.children.length > 0 && <span>📁 {dept.children.length} подразд.</span>}
                           </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteDepartment(dept.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Удалить"
-                      >
-                        🗑️
-                      </button>
+                      {!isSystem && (
+                        <button
+                          onClick={() => handleDeleteDepartment(dept.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Удалить"
+                        >
+                          🗑️
+                        </button>
+                      )}
                     </div>
                     {/* Children */}
-                    {dept.children.length > 0 && (
+                    {dept.children.length > 0 && !isCollapsed && (
                       <div className="p-2 space-y-1">
                         {dept.children.map(child => (
                           <div key={child.id} className="flex items-center justify-between p-2 ml-6 rounded-lg hover:bg-gray-50">
@@ -413,9 +444,9 @@ function App() {
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
 
             {/* Department Form Modal */}
             {showDeptForm && (
@@ -497,11 +528,8 @@ function App() {
             <div className="flex justify-end gap-2 mb-4 flex-wrap">
               <button
                 onClick={() => setShowEmpTestConfirm(true)}
-                disabled={departments.length === 0}
-                className={`px-3 py-2 text-sm rounded-lg transition-colors font-medium shadow-sm ${
-                  departments.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'
-                }`}
-                title={departments.length === 0 ? 'Сначала создайте оргструктуру' : 'Создать тестовых сотрудников'}
+                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+                title="Создать тестовых сотрудников"
               >
                 🎲 Тестовые данные
               </button>
@@ -517,15 +545,6 @@ function App() {
                 ➕ Добавить сотрудника
               </button>
             </div>
-
-            {departments.length === 0 && (
-              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-                <span className="text-amber-600">⚠️</span>
-                <div className="text-sm text-amber-800">
-                  <strong>Сначала создайте оргструктуру.</strong> Перейдите на вкладку «Оргструктура» и добавьте подразделения.
-                </div>
-              </div>
-            )}
 
             {/* Employee Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
@@ -791,18 +810,13 @@ function App() {
             <div className="text-5xl text-center mb-4">🎲</div>
             <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Создать тестовых сотрудников?</h3>
             <p className="text-gray-600 text-center mb-4">Будет сгенерировано от <strong>10 до 50 сотрудников</strong>.</p>
-            {departments.length === 0 ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-red-800">⚠️ <strong>Невозможно.</strong> Сначала создайте оргструктуру.</p>
-              </div>
-            ) : (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-purple-800">💡 Подразделений: <strong>{departments.length}</strong></p>
-              </div>
-            )}
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-purple-800">💡 Подразделений: <strong>{departments.length}</strong></p>
+              <p className="text-xs text-purple-600 mt-1">Сотрудники будут распределены по подразделениям. Если оргструктура не создана, все попадут в «Штат».</p>
+            </div>
             <div className="flex gap-3">
               <button onClick={() => setShowEmpTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
-              <button onClick={handleGenerateTestEmployees} disabled={departments.length === 0} className={`flex-1 px-4 py-2 rounded-lg font-medium ${departments.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}>Создать</button>
+              <button onClick={handleGenerateTestEmployees} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Создать</button>
             </div>
           </div>
         </div>

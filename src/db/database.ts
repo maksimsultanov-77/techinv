@@ -123,7 +123,29 @@ export function initDatabase(): Promise<void> {
         if (!db.employees) db.employees = [];
         if (!db.nextEmployeeId) db.nextEmployeeId = 1;
         if (!db.departments) db.departments = [];
-        if (!db.nextDepartmentId) db.nextDepartmentId = 1;
+        if (!db.nextDepartmentId) db.nextDepartmentId = 3;
+        
+        // Миграция: добавляем обязательные виртуальные подразделения если их нет
+        if (!db.departments.find(d => d.id === 1)) {
+          db.departments.unshift({
+            id: 1,
+            name: 'Штат',
+            parent_id: null,
+            head_employee_id: null,
+            created_at: new Date().toISOString(),
+          });
+        }
+        if (!db.departments.find(d => d.id === 2)) {
+          // Вставляем после "Штат"
+          const idx = db.departments.findIndex(d => d.id === 1);
+          db.departments.splice(idx + 1, 0, {
+            id: 2,
+            name: 'Подрядчики',
+            parent_id: null,
+            head_employee_id: null,
+            created_at: new Date().toISOString(),
+          });
+        }
         // Миграция: добавляем city и timezone для существующих сотрудников
         db.employees = db.employees.map(emp => ({
           ...emp,
@@ -151,7 +173,7 @@ export function initDatabase(): Promise<void> {
 }
 
 function createDefaultDatabase(): DatabaseSchema {
-  return {
+  const db: DatabaseSchema = {
     categories: [...defaultCategories],
     equipment: [],
     employees: [],
@@ -159,8 +181,26 @@ function createDefaultDatabase(): DatabaseSchema {
     nextCategoryId: defaultCategories.length + 1,
     nextEquipmentId: 1,
     nextEmployeeId: 1,
-    nextDepartmentId: 1,
+    nextDepartmentId: 3, // Начинаем с 3, т.к. 1 и 2 зарезервированы
   };
+  
+  // Создаём обязательные виртуальные подразделения
+  db.departments.push({
+    id: 1,
+    name: 'Штат',
+    parent_id: null,
+    head_employee_id: null,
+    created_at: new Date().toISOString(),
+  });
+  db.departments.push({
+    id: 2,
+    name: 'Подрядчики',
+    parent_id: null,
+    head_employee_id: null,
+    created_at: new Date().toISOString(),
+  });
+  
+  return db;
 }
 
 function saveDatabase(): void {
@@ -562,13 +602,11 @@ export function getEmployeeStats(): {
 
 // Генерация тестовых сотрудников
 export function generateTestEmployees(): number {
-  // Проверка: нельзя генерировать без подразделений
-  if (db.departments.length === 0) {
-    throw new Error('Невозможно создать тестовых сотрудников: сначала создайте оргструктуру');
-  }
-  
   const count = Math.floor(Math.random() * 41) + 10; // 10..50
   const now = new Date().toISOString();
+  
+  // Получаем только пользовательские подразделения (не системные)
+  const userDepartments = db.departments.filter(d => d.id !== 1 && d.id !== 2);
 
   const maleFirstNames = ['Иван', 'Пётр', 'Сергей', 'Алексей', 'Дмитрий', 'Андрей', 'Михаил', 'Николай', 'Владимир', 'Олег', 'Артём', 'Максим', 'Евгений', 'Александр', 'Константин'];
   const femaleFirstNames = ['Анна', 'Мария', 'Елена', 'Ольга', 'Татьяна', 'Наталья', 'Ирина', 'Светлана', 'Екатерина', 'Юлия', 'Оксана', 'Виктория', 'Дарья', 'Анастасия', 'Полина'];
@@ -595,9 +633,13 @@ export function generateTestEmployees(): number {
       : femaleMiddleNames[Math.floor(Math.random() * femaleMiddleNames.length)];
     
     const fullName = `${lastName} ${firstName} ${middleName}`;
-    const department = db.departments[Math.floor(Math.random() * db.departments.length)];
+    // Выбираем подразделение: если есть пользовательские, используем их, иначе "Штат"
+    const department = userDepartments.length > 0 
+      ? userDepartments[Math.floor(Math.random() * userDepartments.length)]
+      : db.departments.find(d => d.id === 1)!; // Штат
     const position = positions[Math.floor(Math.random() * positions.length)];
-    const employeeType = employeeTypes[Math.floor(Math.random() * employeeTypes.length)];
+    // Тип сотрудника зависит от подразделения
+    const employeeType = department.id === 2 ? 'contractor' : (employeeTypes[Math.floor(Math.random() * employeeTypes.length)]);
     const city = cities[Math.floor(Math.random() * cities.length)];
     const timezone = TIMEZONES[Math.floor(Math.random() * TIMEZONES.length)].value;
     const workMode = workModes[Math.floor(Math.random() * workModes.length)];
@@ -704,7 +746,16 @@ export function updateDepartment(id: number, name: string, parentId: number | nu
   saveDatabase();
 }
 
+export function isSystemDepartment(id: number): boolean {
+  return id === 1 || id === 2; // Штат и Подрядчики
+}
+
 export function deleteDepartment(id: number): { success: boolean; message: string } {
+  // Проверяем, является ли подразделение системным
+  if (isSystemDepartment(id)) {
+    return { success: false, message: 'Нельзя удалить системное подразделение' };
+  }
+  
   // Проверяем, есть ли дочерние подразделения
   const children = db.departments.filter(d => d.parent_id === id);
   if (children.length > 0) {
@@ -735,7 +786,7 @@ export function generateTestDepartments(): number {
     'Руководство', 'ИТ-департамент', 'Финансовый отдел', 'Отдел продаж',
     'Отдел маркетинга', 'Отдел кадров', 'Юридический отдел', 'Отдел логистики',
     'Производственный отдел', 'Отдел разработки', 'Служба безопасности', 'Бухгалтерия',
-  ];
+  ].filter(name => name !== 'Штат' && name !== 'Подрядчики'); // Исключаем системные
 
   const subDeptNames: Record<string, string[]> = {
     'ИТ-департамент': ['Сетевой отдел', 'Отдел разработки', 'Техподдержка', 'Отдел информационной безопасности'],
