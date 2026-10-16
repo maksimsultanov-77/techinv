@@ -1,8 +1,9 @@
 import React from 'react';
-import { Employee, TIMEZONES } from '../db/database';
+import { Employee, Department, TIMEZONES, EMPLOYEE_TYPES, getDepartmentName } from '../db/database';
 
 interface EmployeeDetailProps {
   employee: Employee;
+  departments: Department[];
   onClose: () => void;
   onEdit: () => void;
 }
@@ -13,10 +14,12 @@ const workModeLabels: Record<string, { label: string; icon: string; color: strin
   hybrid: { label: 'Гибрид', icon: '🔄', color: 'bg-purple-100 text-purple-800' },
 };
 
-const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, onClose, onEdit }) => {
+const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, departments, onClose, onEdit }) => {
   const modeInfo = workModeLabels[employee.work_mode] || workModeLabels.office;
   const genderIcon = employee.gender === 'female' ? '👩' : '👨';
   const genderLabel = employee.gender === 'female' ? 'Женский' : 'Мужской';
+  const typeInfo = EMPLOYEE_TYPES.find(t => t.value === employee.employee_type) || EMPLOYEE_TYPES[0];
+  const deptName = getDepartmentName(employee.department_id);
 
   const getTzLabel = (tz: string): string => {
     const found = TIMEZONES.find(t => t.value === tz);
@@ -27,7 +30,9 @@ const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, onClose, onEd
     { label: 'ID', value: String(employee.id) },
     { label: 'ФИО', value: employee.full_name },
     { label: 'Пол', value: `${genderIcon} ${genderLabel}` },
-    { label: 'Подразделение', value: employee.department },
+    { label: 'Тип сотрудника', value: `${typeInfo.icon} ${typeInfo.label}` },
+    { label: 'Подразделение', value: deptName },
+    { label: 'Должность', value: employee.position },
     { label: 'Телефон', value: employee.phone },
     { label: 'Email', value: employee.email },
     { label: 'Режим работы', value: `${modeInfo.icon} ${modeInfo.label}` },
@@ -50,9 +55,14 @@ const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, onClose, onEd
             <span className="text-4xl">{genderIcon}</span>
             <div>
               <h3 className="text-xl font-bold text-gray-800">{employee.full_name}</h3>
-              <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${modeInfo.color}`}>
-                {modeInfo.icon} {modeInfo.label}
-              </span>
+              <div className="flex gap-2 mt-1">
+                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${modeInfo.color}`}>
+                  {modeInfo.icon} {modeInfo.label}
+                </span>
+                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                  {typeInfo.icon} {typeInfo.label}
+                </span>
+              </div>
             </div>
           </div>
 

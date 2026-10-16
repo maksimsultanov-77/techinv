@@ -16,10 +16,18 @@ import {
   getEmployeeStats,
   generateTestEmployees,
   clearAllEmployees,
-  DEPARTMENTS,
+  getAllDepartments,
+  addDepartment,
+  updateDepartment,
+  deleteDepartment,
+  getDepartmentTree,
+  getDepartmentName,
+  generateTestDepartments,
+  clearAllDepartments,
   Category,
   Equipment,
   Employee,
+  Department,
 } from './db/database';
 import EquipmentForm from './components/EquipmentForm';
 import EquipmentList from './components/EquipmentList';
@@ -28,14 +36,14 @@ import EmployeeForm from './components/EmployeeForm';
 import EmployeeList from './components/EmployeeList';
 import EmployeeDetail from './components/EmployeeDetail';
 
-type ViewMode = 'equipment' | 'employees';
+type ViewMode = 'equipment' | 'employees' | 'structure';
 type EquipmentFormData = Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>;
 type EmployeeFormData = Omit<Employee, 'id' | 'created_at' | 'updated_at'>;
 
 function App() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<ViewMode>('equipment');
+  const [activeView, setActiveView] = useState<ViewMode>('structure');
 
   // Equipment state
   const [categories, setCategories] = useState<Category[]>([]);
@@ -49,24 +57,27 @@ function App() {
 
   // Employee state
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [empSearchQuery, setEmpSearchQuery] = useState('');
-  const [empDepartment, setEmpDepartment] = useState<string | undefined>(undefined);
+  const [empDepartment, setEmpDepartment] = useState<number | undefined>(undefined);
   const [empWorkMode, setEmpWorkMode] = useState<string | undefined>(undefined);
   const [showEmpForm, setShowEmpForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
-  const [empStats, setEmpStats] = useState<{
-    total: number;
-    byDepartment: { name: string; count: number }[];
-    byWorkMode: { mode: string; label: string; icon: string; count: number }[];
-    byGender: { gender: string; count: number }[];
-  }>({ total: 0, byDepartment: [], byWorkMode: [], byGender: [] });
+  const [empStats, setEmpStats] = useState<any>({ total: 0, byDepartment: [], byWorkMode: [], byGender: [], byType: [] });
+
+  // Structure state
+  const [showDeptForm, setShowDeptForm] = useState(false);
+  const [editingDept, setEditingDept] = useState<Department | null>(null);
+  const [newDeptName, setNewDeptName] = useState('');
+  const [newDeptParent, setNewDeptParent] = useState<string>('');
 
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showEmpTestConfirm, setShowEmpTestConfirm] = useState(false);
   const [showEmpClearConfirm, setShowEmpClearConfirm] = useState(false);
+  const [showDeptTestConfirm, setShowDeptTestConfirm] = useState(false);
 
   useEffect(() => {
     initDatabase()
@@ -100,17 +111,27 @@ function App() {
       setEmployees(items);
       const s = getEmployeeStats();
       setEmpStats(s);
+      setDepartments(getAllDepartments());
     } catch (err) {
       console.error('Error loading employees:', err);
     }
   }, [empSearchQuery, empDepartment, empWorkMode]);
 
+  const loadDepartments = useCallback(() => {
+    try {
+      setDepartments(getAllDepartments());
+    } catch (err) {
+      console.error('Error loading departments:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (dbReady) {
       loadEquipment();
       loadEmployees();
+      loadDepartments();
     }
-  }, [dbReady, loadEquipment, loadEmployees]);
+  }, [dbReady, loadEquipment, loadEmployees, loadDepartments]);
 
   // Equipment handlers
   const handleAdd = (data: EquipmentFormData) => {
@@ -152,6 +173,26 @@ function App() {
     loadEmployees();
   };
 
+  // Department handlers
+  const handleAddDepartment = () => {
+    if (!newDeptName.trim()) return;
+    addDepartment(newDeptName.trim(), newDeptParent ? Number(newDeptParent) : null);
+    setNewDeptName('');
+    setNewDeptParent('');
+    setShowDeptForm(false);
+    loadDepartments();
+    loadEmployees();
+  };
+
+  const handleDeleteDepartment = (id: number) => {
+    const result = deleteDepartment(id);
+    if (!result.success) {
+      alert(result.message);
+      return;
+    }
+    loadDepartments();
+  };
+
   const handleExport = () => {
     const data = localStorage.getItem('equipment_inventory_db');
     if (data) {
@@ -183,16 +224,28 @@ function App() {
   };
 
   const handleGenerateTestEmployees = () => {
-    const count = generateTestEmployees();
-    setShowEmpTestConfirm(false);
-    loadEmployees();
-    alert(`✅ Создано ${count} тестовых сотрудников`);
+    try {
+      const count = generateTestEmployees();
+      setShowEmpTestConfirm(false);
+      loadEmployees();
+      alert(`✅ Создано ${count} тестовых сотрудников`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Ошибка');
+    }
   };
 
   const handleClearAllEmployees = () => {
     clearAllEmployees();
     setShowEmpClearConfirm(false);
     loadEmployees();
+  };
+
+  const handleGenerateTestDepartments = () => {
+    const count = generateTestDepartments();
+    setShowDeptTestConfirm(false);
+    loadDepartments();
+    loadEmployees();
+    alert(`✅ Создано ${count} подразделений`);
   };
 
   if (loading) {
@@ -213,16 +266,16 @@ function App() {
           <div className="text-5xl mb-4">❌</div>
           <h2 className="text-xl font-bold text-red-600 mb-2">Ошибка загрузки</h2>
           <p className="text-gray-600 mb-4">{dbError}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
+          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             Перезагрузить
           </button>
         </div>
       </div>
     );
   }
+
+  type DeptTreeNode = Department & { children: DeptTreeNode[]; employeeCount: number };
+  const deptTree = getDepartmentTree() as DeptTreeNode[];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -234,15 +287,11 @@ function App() {
               <span className="text-3xl">🖥️</span>
               <div>
                 <h1 className="text-2xl font-bold text-gray-800">Учет техники</h1>
-                <p className="text-sm text-gray-500">Система управления оборудованием и сотрудниками</p>
+                <p className="text-sm text-gray-500">Система управления оборудованием, сотрудниками и оргструктурой</p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={handleExport}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
-                title="Экспорт базы данных"
-              >
+              <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700">
                 💾 Экспорт
               </button>
             </div>
@@ -251,24 +300,28 @@ function App() {
           {/* Navigation Tabs */}
           <div className="flex gap-2 mt-4 border-b border-gray-200 -mb-4">
             <button
-              onClick={() => setActiveView('equipment')}
+              onClick={() => setActiveView('structure')}
               className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-                activeView === 'equipment'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                activeView === 'structure' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              🖥️ Оборудование <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{stats.total}</span>
+              🏢 Оргструктура <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{departments.length}</span>
             </button>
             <button
               onClick={() => setActiveView('employees')}
               className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-                activeView === 'employees'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                activeView === 'employees' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               👥 Сотрудники <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{empStats.total}</span>
+            </button>
+            <button
+              onClick={() => setActiveView('equipment')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                activeView === 'equipment' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              🖥️ Оборудование <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{stats.total}</span>
             </button>
           </div>
         </div>
@@ -276,28 +329,292 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* ============ ОРГСТРУКТУРА ============ */}
+        {activeView === 'structure' && (
+          <>
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              <button
+                onClick={() => setShowDeptTestConfirm(true)}
+                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+              >
+                🎲 Тестовая структура
+              </button>
+              {departments.length > 0 && employees.length === 0 && (
+                <button
+                  onClick={() => {
+                    const result = clearAllDepartments();
+                    if (!result.success) alert(result.message);
+                    else { loadDepartments(); }
+                  }}
+                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  🗑️ Очистить
+                </button>
+              )}
+              <button
+                onClick={() => { setShowDeptForm(true); setNewDeptName(''); setNewDeptParent(''); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+              >
+                ➕ Добавить подразделение
+              </button>
+            </div>
+
+            {departments.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+                <div className="text-6xl mb-4">🏢</div>
+                <h3 className="text-xl font-medium text-gray-500 mb-2">Оргструктура не создана</h3>
+                <p className="text-gray-400 mb-4">Добавьте подразделения вручную или сгенерируйте тестовую структуру</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {deptTree.map(dept => (
+                  <div key={dept.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    {/* Root department */}
+                    <div className="p-4 flex items-center justify-between bg-blue-50 border-b border-blue-100">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🏢</span>
+                        <div>
+                          <h3 className="font-bold text-gray-800">{dept.name}</h3>
+                          <div className="text-xs text-gray-500 flex gap-3">
+                            <span>👥 {dept.employeeCount} сотр.</span>
+                            {dept.children.length > 0 && <span>📁 {dept.children.length} подразд.</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteDepartment(dept.id)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Удалить"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                    {/* Children */}
+                    {dept.children.length > 0 && (
+                      <div className="p-2 space-y-1">
+                        {dept.children.map(child => (
+                          <div key={child.id} className="flex items-center justify-between p-2 ml-6 rounded-lg hover:bg-gray-50">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">📁</span>
+                              <div>
+                                <span className="text-sm font-medium text-gray-700">{child.name}</span>
+                                <span className="text-xs text-gray-400 ml-2">👥 {child.employeeCount}</span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteDepartment(child.id)}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                              title="Удалить"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Department Form Modal */}
+            {showDeptForm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+                  <div className="p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-bold text-gray-800">➕ Новое подразделение</h2>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                      <input
+                        type="text"
+                        value={newDeptName}
+                        onChange={(e) => setNewDeptName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Например: ИТ-отдел"
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Родительское подразделение</label>
+                      <select
+                        value={newDeptParent}
+                        onChange={(e) => setNewDeptParent(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">— Корневое подразделение —</option>
+                        {departments.map(d => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t">
+                      <button onClick={() => setShowDeptForm(false)} className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Отмена
+                      </button>
+                      <button
+                        onClick={handleAddDepartment}
+                        disabled={!newDeptName.trim()}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        Создать
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Dept Test Confirm Modal */}
+            {showDeptTestConfirm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+                  <div className="p-6">
+                    <div className="text-5xl text-center mb-4">🎲</div>
+                    <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Создать тестовую оргструктуру?</h3>
+                    <p className="text-gray-600 text-center mb-4">
+                      Будет создано <strong>5–10 корневых</strong> подразделений с дочерними отделами.
+                    </p>
+                    <div className="flex gap-3">
+                      <button onClick={() => setShowDeptTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Отмена
+                      </button>
+                      <button onClick={handleGenerateTestDepartments} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">
+                        Создать
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ============ СОТРУДНИКИ ============ */}
+        {activeView === 'employees' && (
+          <>
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              <button
+                onClick={() => setShowEmpTestConfirm(true)}
+                disabled={departments.length === 0}
+                className={`px-3 py-2 text-sm rounded-lg transition-colors font-medium shadow-sm ${
+                  departments.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'
+                }`}
+                title={departments.length === 0 ? 'Сначала создайте оргструктуру' : 'Создать тестовых сотрудников'}
+              >
+                🎲 Тестовые данные
+              </button>
+              {empStats.total > 0 && (
+                <button onClick={() => setShowEmpClearConfirm(true)} className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50">
+                  🗑️ Очистить
+                </button>
+              )}
+              <button
+                onClick={() => { setShowEmpForm(true); setEditingEmployee(null); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+              >
+                ➕ Добавить сотрудника
+              </button>
+            </div>
+
+            {departments.length === 0 && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                <span className="text-amber-600">⚠️</span>
+                <div className="text-sm text-amber-800">
+                  <strong>Сначала создайте оргструктуру.</strong> Перейдите на вкладку «Оргструктура» и добавьте подразделения.
+                </div>
+              </div>
+            )}
+
+            {/* Employee Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <div className="bg-white rounded-xl p-4 border border-gray-200">
+                <div className="text-2xl mb-1">👥</div>
+                <div className="text-2xl font-bold text-gray-800">{empStats.total}</div>
+                <div className="text-xs text-gray-500">Всего сотрудников</div>
+              </div>
+              {empStats.byWorkMode?.map((mode: any) => (
+                <div
+                  key={mode.mode}
+                  className={`bg-white rounded-xl p-4 border cursor-pointer transition-all ${
+                    empWorkMode === mode.mode ? 'border-blue-500 shadow-md ring-2 ring-blue-100' : 'border-gray-200 hover:shadow-sm'
+                  }`}
+                  onClick={() => setEmpWorkMode(empWorkMode === mode.mode ? undefined : mode.mode)}
+                >
+                  <div className="text-2xl mb-1">{mode.icon}</div>
+                  <div className="text-2xl font-bold text-gray-800">{mode.count}</div>
+                  <div className="text-xs text-gray-500">{mode.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Employee Search and Filters */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                  <input
+                    type="text"
+                    value={empSearchQuery}
+                    onChange={(e) => setEmpSearchQuery(e.target.value)}
+                    placeholder="Поиск по ФИО, телефону, email, должности, городу..."
+                    className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {empSearchQuery && (
+                    <button onClick={() => setEmpSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
+                  )}
+                </div>
+                <select
+                  value={empDepartment || ''}
+                  onChange={(e) => setEmpDepartment(e.target.value ? Number(e.target.value) : undefined)}
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[180px]"
+                >
+                  <option value="">Все подразделения</option>
+                  {departments.map(dep => (
+                    <option key={dep.id} value={dep.id}>{dep.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-sm text-gray-500">
+                <span>Найдено: <strong>{employees.length}</strong> сотрудников</span>
+                {(empSearchQuery || empDepartment || empWorkMode) && (
+                  <button
+                    onClick={() => { setEmpSearchQuery(''); setEmpDepartment(undefined); setEmpWorkMode(undefined); }}
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Сбросить фильтры
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <EmployeeList
+              employees={employees}
+              departments={departments}
+              onEdit={(emp) => { setEditingEmployee(emp); setShowEmpForm(false); }}
+              onDelete={handleDeleteEmployee}
+              onView={(emp) => setViewingEmployee(emp)}
+            />
+          </>
+        )}
+
+        {/* ============ ОБОРУДОВАНИЕ ============ */}
         {activeView === 'equipment' && (
           <>
-            {/* Equipment Action Buttons */}
             <div className="flex justify-end gap-2 mb-4">
               <button
                 onClick={() => setShowTestConfirm(true)}
                 disabled={employees.length === 0}
                 className={`px-3 py-2 text-sm rounded-lg transition-colors font-medium shadow-sm ${
-                  employees.length === 0
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                  employees.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'
                 }`}
                 title={employees.length === 0 ? 'Сначала добавьте сотрудников' : 'Создать случайный набор данных'}
               >
                 🎲 Тестовые данные
               </button>
               {stats.total > 0 && (
-                <button
-                  onClick={() => setShowClearConfirm(true)}
-                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                  title="Удалить все записи"
-                >
+                <button onClick={() => setShowClearConfirm(true)} className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50">
                   🗑️ Очистить
                 </button>
               )}
@@ -312,7 +629,7 @@ function App() {
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
                 <span className="text-amber-600">⚠️</span>
                 <div className="text-sm text-amber-800">
-                  <strong>Невозможно создать тестовые данные.</strong> Сначала добавьте сотрудников в разделе «Сотрудники».
+                  <strong>Невозможно создать тестовые данные.</strong> Сначала добавьте сотрудников.
                 </div>
               </div>
             )}
@@ -323,7 +640,7 @@ function App() {
                 className={`bg-white rounded-xl p-4 border cursor-pointer transition-all ${
                   !selectedCategory ? 'border-blue-500 shadow-md ring-2 ring-blue-100' : 'border-gray-200 hover:shadow-sm'
                 }`}
-                onClick={() => { setSelectedCategory(undefined); }}
+                onClick={() => setSelectedCategory(undefined)}
               >
                 <div className="text-2xl mb-1">📊</div>
                 <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
@@ -334,16 +651,11 @@ function App() {
                   key={cat.name}
                   className={`bg-white rounded-xl p-4 border cursor-pointer transition-all ${
                     selectedCategory === categories.find(c => c.name === cat.name)?.id
-                      ? 'border-blue-500 shadow-md ring-2 ring-blue-100'
-                      : 'border-gray-200 hover:shadow-sm'
+                      ? 'border-blue-500 shadow-md ring-2 ring-blue-100' : 'border-gray-200 hover:shadow-sm'
                   }`}
                   onClick={() => {
                     const catId = categories.find(c => c.name === cat.name)?.id;
-                    if (selectedCategory === catId) {
-                      setSelectedCategory(undefined);
-                    } else {
-                      setSelectedCategory(catId);
-                    }
+                    setSelectedCategory(selectedCategory === catId ? undefined : catId);
                   }}
                 >
                   <div className="text-2xl mb-1">{cat.icon}</div>
@@ -366,12 +678,7 @@ function App() {
                     className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      ✕
-                    </button>
+                    <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
                   )}
                 </div>
                 <select
@@ -398,7 +705,6 @@ function App() {
               </div>
             </div>
 
-            {/* Equipment List */}
             <EquipmentList
               equipment={equipment}
               onEdit={(item) => { setEditingItem(item); setShowForm(false); }}
@@ -407,324 +713,124 @@ function App() {
             />
           </>
         )}
-
-        {activeView === 'employees' && (
-          <>
-            {/* Employee Action Buttons */}
-            <div className="flex justify-end gap-2 mb-4 flex-wrap">
-              <button
-                onClick={() => setShowEmpTestConfirm(true)}
-                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
-                title="Создать случайный набор сотрудников"
-              >
-                🎲 Тестовые данные
-              </button>
-              {empStats.total > 0 && (
-                <button
-                  onClick={() => setShowEmpClearConfirm(true)}
-                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                  title="Удалить всех сотрудников"
-                >
-                  🗑️ Очистить
-                </button>
-              )}
-              <button
-                onClick={() => { setShowEmpForm(true); setEditingEmployee(null); }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-              >
-                ➕ Добавить сотрудника
-              </button>
-            </div>
-
-            {/* Employee Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              <div className="bg-white rounded-xl p-4 border border-gray-200">
-                <div className="text-2xl mb-1">👥</div>
-                <div className="text-2xl font-bold text-gray-800">{empStats.total}</div>
-                <div className="text-xs text-gray-500">Всего сотрудников</div>
-              </div>
-              {empStats.byWorkMode.map(mode => (
-                <div
-                  key={mode.mode}
-                  className={`bg-white rounded-xl p-4 border cursor-pointer transition-all ${
-                    empWorkMode === mode.mode
-                      ? 'border-blue-500 shadow-md ring-2 ring-blue-100'
-                      : 'border-gray-200 hover:shadow-sm'
-                  }`}
-                  onClick={() => {
-                    if (empWorkMode === mode.mode) {
-                      setEmpWorkMode(undefined);
-                    } else {
-                      setEmpWorkMode(mode.mode);
-                    }
-                  }}
-                >
-                  <div className="text-2xl mb-1">{mode.icon}</div>
-                  <div className="text-2xl font-bold text-gray-800">{mode.count}</div>
-                  <div className="text-xs text-gray-500">{mode.label}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Employee Search and Filters */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
-                  <input
-                    type="text"
-                    value={empSearchQuery}
-                    onChange={(e) => setEmpSearchQuery(e.target.value)}
-                    placeholder="Поиск по ФИО, телефону, email, подразделению, городу..."
-                    className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  {empSearchQuery && (
-                    <button
-                      onClick={() => setEmpSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-                <select
-                  value={empDepartment || ''}
-                  onChange={(e) => setEmpDepartment(e.target.value || undefined)}
-                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[180px]"
-                >
-                  <option value="">Все подразделения</option>
-                  {DEPARTMENTS.map(dep => (
-                    <option key={dep} value={dep}>{dep}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-sm text-gray-500">
-                <span>Найдено: <strong>{employees.length}</strong> сотрудников</span>
-                {(empSearchQuery || empDepartment || empWorkMode) && (
-                  <button
-                    onClick={() => { setEmpSearchQuery(''); setEmpDepartment(undefined); setEmpWorkMode(undefined); }}
-                    className="text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Сбросить фильтры
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Employee List */}
-            <EmployeeList
-              employees={employees}
-              onEdit={(emp) => { setEditingEmployee(emp); setShowEmpForm(false); }}
-              onDelete={handleDeleteEmployee}
-              onView={(emp) => setViewingEmployee(emp)}
-            />
-          </>
-        )}
       </main>
 
       {/* Equipment Modals */}
       {showForm && (
-        <EquipmentForm
-          categories={categories}
-          employees={employees}
-          onSave={handleAdd}
-          onCancel={() => setShowForm(false)}
-        />
+        <EquipmentForm categories={categories} employees={employees} onSave={handleAdd} onCancel={() => setShowForm(false)} />
       )}
-
       {editingItem && (
-        <EquipmentForm
-          categories={categories}
-          employees={employees}
-          equipment={editingItem}
-          onSave={handleEdit}
-          onCancel={() => setEditingItem(null)}
-        />
+        <EquipmentForm categories={categories} employees={employees} equipment={editingItem} onSave={handleEdit} onCancel={() => setEditingItem(null)} />
       )}
-
       {viewingItem && (
         <EquipmentDetail
           equipment={viewingItem}
           employees={employees}
           onClose={() => setViewingItem(null)}
-          onEdit={() => {
-            setEditingItem(viewingItem);
-            setViewingItem(null);
-          }}
+          onEdit={() => { setEditingItem(viewingItem); setViewingItem(null); }}
         />
       )}
 
       {/* Employee Modals */}
       {showEmpForm && (
-        <EmployeeForm
-          onSave={handleAddEmployee}
-          onCancel={() => setShowEmpForm(false)}
-        />
+        <EmployeeForm departments={departments} onSave={handleAddEmployee} onCancel={() => setShowEmpForm(false)} />
       )}
-
       {editingEmployee && (
-        <EmployeeForm
-          employee={editingEmployee}
-          onSave={handleEditEmployee}
-          onCancel={() => setEditingEmployee(null)}
-        />
+        <EmployeeForm departments={departments} employee={editingEmployee} onSave={handleEditEmployee} onCancel={() => setEditingEmployee(null)} />
       )}
-
       {viewingEmployee && (
         <EmployeeDetail
           employee={viewingEmployee}
+          departments={departments}
           onClose={() => setViewingEmployee(null)}
-          onEdit={() => {
-            setEditingEmployee(viewingEmployee);
-            setViewingEmployee(null);
-          }}
+          onEdit={() => { setEditingEmployee(viewingEmployee); setViewingEmployee(null); }}
         />
       )}
 
-      {/* Test Data Confirm Modal */}
+      {/* Test Data Confirm Modals */}
       {showTestConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6">
-              <div className="text-5xl text-center mb-4">🎲</div>
-              <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
-                Создать тестовые данные?
-              </h3>
-              <p className="text-gray-600 text-center mb-4">
-                Будет сгенерировано от <strong>10 до 100 единиц</strong> оборудования для каждой из 12 категорий.
-              </p>
-              {employees.length === 0 ? (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-red-800">
-                    ⚠️ <strong>Невозможно создать тестовые данные.</strong> Сначала добавьте сотрудников в разделе «Сотрудники».
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-purple-800">
-                    💡 <strong>Примечание:</strong> Данные добавятся к существующим записям. 
-                    Ожидаемое количество: <strong>120–1200 единиц</strong>.
-                    <br/>Сотрудников в базе: <strong>{employees.length}</strong>
-                  </p>
-                </div>
-              )}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowTestConfirm(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={handleGenerateTest}
-                  disabled={employees.length === 0}
-                  className={`flex-1 px-4 py-2 rounded-lg transition-colors font-medium ${
-                    employees.length === 0
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-purple-600 text-white hover:bg-purple-700'
-                  }`}
-                >
-                  Создать
-                </button>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="text-5xl text-center mb-4">🎲</div>
+            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Создать тестовые данные?</h3>
+            <p className="text-gray-600 text-center mb-4">Будет сгенерировано от <strong>10 до 100 единиц</strong> оборудования для каждой категории.</p>
+            {employees.length === 0 ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-red-800">⚠️ <strong>Невозможно.</strong> Сначала добавьте сотрудников.</p>
               </div>
+            ) : (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-purple-800">💡 Сотрудников в базе: <strong>{employees.length}</strong></p>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => setShowTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
+              <button onClick={handleGenerateTest} disabled={employees.length === 0} className={`flex-1 px-4 py-2 rounded-lg font-medium ${employees.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}>Создать</button>
             </div>
           </div>
         </div>
       )}
-      {/* Clear All Confirm Modal */}
+
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6">
-              <div className="text-5xl text-center mb-4">⚠️</div>
-              <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
-                Удалить все записи?
-              </h3>
-              <p className="text-gray-600 text-center mb-4">
-                Будет удалено <strong>{stats.total}</strong> единиц оборудования. Это действие нельзя отменить.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowClearConfirm(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={handleClearAll}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-                >
-                  Удалить всё
-                </button>
-              </div>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="text-5xl text-center mb-4">⚠️</div>
+            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Удалить все записи?</h3>
+            <p className="text-gray-600 text-center mb-4">Будет удалено <strong>{stats.total}</strong> единиц оборудования.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowClearConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
+              <button onClick={handleClearAll} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Удалить всё</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Employee Test Data Confirm Modal */}
       {showEmpTestConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6">
-              <div className="text-5xl text-center mb-4">🎲</div>
-              <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
-                Создать тестовых сотрудников?
-              </h3>
-              <p className="text-gray-600 text-center mb-4">
-                Будет сгенерировано от <strong>10 до 50 сотрудников</strong> со случайными данными.
-              </p>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="text-5xl text-center mb-4">🎲</div>
+            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Создать тестовых сотрудников?</h3>
+            <p className="text-gray-600 text-center mb-4">Будет сгенерировано от <strong>10 до 50 сотрудников</strong>.</p>
+            {departments.length === 0 ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-red-800">⚠️ <strong>Невозможно.</strong> Сначала создайте оргструктуру.</p>
+              </div>
+            ) : (
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-purple-800">
-                  💡 <strong>Примечание:</strong> Сотрудники добавятся к существующим записям.
-                  Будут сгенерированы ФИО, подразделения, телефоны, email, города и часовые пояса.
-                </p>
+                <p className="text-sm text-purple-800">💡 Подразделений: <strong>{departments.length}</strong></p>
               </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowEmpTestConfirm(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={handleGenerateTestEmployees}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-                >
-                  Создать
-                </button>
-              </div>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => setShowEmpTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
+              <button onClick={handleGenerateTestEmployees} disabled={departments.length === 0} className={`flex-1 px-4 py-2 rounded-lg font-medium ${departments.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}>Создать</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Employee Clear All Confirm Modal */}
       {showEmpClearConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6">
-              <div className="text-5xl text-center mb-4">⚠️</div>
-              <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
-                Удалить всех сотрудников?
-              </h3>
-              <p className="text-gray-600 text-center mb-4">
-                Будет удалено <strong>{empStats.total}</strong> сотрудников. Это действие нельзя отменить.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowEmpClearConfirm(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={handleClearAllEmployees}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-                >
-                  Удалить всех
-                </button>
-              </div>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="text-5xl text-center mb-4">⚠️</div>
+            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Удалить всех сотрудников?</h3>
+            <p className="text-gray-600 text-center mb-4">Будет удалено <strong>{empStats.total}</strong> сотрудников.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowEmpClearConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
+              <button onClick={handleClearAllEmployees} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Удалить всех</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeptTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="text-5xl text-center mb-4">🎲</div>
+            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Создать тестовую оргструктуру?</h3>
+            <p className="text-gray-600 text-center mb-4">Будет создано <strong>5–10 корневых</strong> подразделений с дочерними отделами.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeptTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
+              <button onClick={handleGenerateTestDepartments} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Создать</button>
             </div>
           </div>
         </div>

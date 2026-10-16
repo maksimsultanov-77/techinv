@@ -1,5 +1,5 @@
 import React from 'react';
-import { Equipment, Employee } from '../db/database';
+import { Equipment, Employee, getDepartmentName } from '../db/database';
 import { statusOptions } from './EquipmentForm';
 
 interface EquipmentDetailProps {
@@ -69,7 +69,8 @@ const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees,
               </h4>
               <div className="space-y-1 text-sm">
                 <p><strong>ФИО:</strong> {linkedEmployee.full_name}</p>
-                <p><strong>Подразделение:</strong> {linkedEmployee.department}</p>
+                <p><strong>Подразделение:</strong> {getDepartmentName(linkedEmployee.department_id)}</p>
+                {linkedEmployee.position && <p><strong>Должность:</strong> {linkedEmployee.position}</p>}
                 {linkedEmployee.phone && <p><strong>Телефон:</strong> {linkedEmployee.phone}</p>}
                 {linkedEmployee.email && <p><strong>Email:</strong> {linkedEmployee.email}</p>}
                 {linkedEmployee.city && <p><strong>Город:</strong> {linkedEmployee.city}</p>}

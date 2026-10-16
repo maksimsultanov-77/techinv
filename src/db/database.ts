@@ -35,7 +35,9 @@ export interface Employee {
   id: number;
   full_name: string;
   gender: 'male' | 'female';
-  department: string;
+  department_id: number | null;
+  position: string;
+  employee_type: 'staff' | 'external' | 'contractor';
   phone: string;
   email: string;
   work_mode: 'office' | 'remote' | 'hybrid';
@@ -43,6 +45,14 @@ export interface Employee {
   timezone: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface Department {
+  id: number;
+  name: string;
+  parent_id: number | null;
+  head_employee_id: number | null;
+  created_at: string;
 }
 
 export const TIMEZONES = [
@@ -73,26 +83,17 @@ interface DatabaseSchema {
   categories: Category[];
   equipment: Equipment[];
   employees: Employee[];
+  departments: Department[];
   nextCategoryId: number;
   nextEquipmentId: number;
   nextEmployeeId: number;
+  nextDepartmentId: number;
 }
 
-export const DEPARTMENTS = [
-  'ИТ-отдел',
-  'Бухгалтерия',
-  'Отдел кадров',
-  'Отдел продаж',
-  'Отдел маркетинга',
-  'Юридический отдел',
-  'Отдел логистики',
-  'Отдел разработки',
-  'Отдел тестирования',
-  'Служба поддержки',
-  'Администрация',
-  'Отдел безопасности',
-  'Финансовый отдел',
-  'Отдел закупок',
+export const EMPLOYEE_TYPES = [
+  { value: 'staff', label: 'Штатный сотрудник', icon: '👤' },
+  { value: 'external', label: 'Внешний сотрудник', icon: '🌐' },
+  { value: 'contractor', label: 'Подрядчик', icon: '📝' },
 ];
 
 let db: DatabaseSchema;
@@ -121,11 +122,16 @@ export function initDatabase(): Promise<void> {
         // Миграция: добавляем поля сотрудников если их нет
         if (!db.employees) db.employees = [];
         if (!db.nextEmployeeId) db.nextEmployeeId = 1;
+        if (!db.departments) db.departments = [];
+        if (!db.nextDepartmentId) db.nextDepartmentId = 1;
         // Миграция: добавляем city и timezone для существующих сотрудников
         db.employees = db.employees.map(emp => ({
           ...emp,
           city: emp.city || '',
           timezone: emp.timezone || 'Europe/Moscow',
+          department_id: emp.department_id ?? null,
+          position: emp.position || '',
+          employee_type: emp.employee_type || 'staff',
         }));
         // Миграция: добавляем responsible_employee_id для существующего оборудования
         db.equipment = db.equipment.map(eq => ({
@@ -149,9 +155,11 @@ function createDefaultDatabase(): DatabaseSchema {
     categories: [...defaultCategories],
     equipment: [],
     employees: [],
+    departments: [],
     nextCategoryId: defaultCategories.length + 1,
     nextEquipmentId: 1,
     nextEmployeeId: 1,
+    nextDepartmentId: 1,
   };
 }
 
@@ -415,26 +423,33 @@ export function getStats(): { total: number; byCategory: { name: string; icon: s
 
 // ============ СОТРУДНИКИ ============
 
-export function getAllEmployees(searchQuery?: string, department?: string, workMode?: string): Employee[] {
+export function getAllEmployees(searchQuery?: string, departmentId?: number, workMode?: string, employeeType?: string): Employee[] {
   let result = [...db.employees];
 
-  if (department) {
-    result = result.filter(emp => emp.department === department);
+  if (departmentId !== undefined) {
+    result = result.filter(emp => emp.department_id === departmentId);
   }
 
   if (workMode) {
     result = result.filter(emp => emp.work_mode === workMode);
   }
 
+  if (employeeType) {
+    result = result.filter(emp => emp.employee_type === employeeType);
+  }
+
   if (searchQuery) {
     const query = searchQuery.toLowerCase();
-    result = result.filter(emp =>
-      emp.full_name.toLowerCase().includes(query) ||
-      emp.phone.toLowerCase().includes(query) ||
-      emp.email.toLowerCase().includes(query) ||
-      emp.department.toLowerCase().includes(query) ||
-      emp.city.toLowerCase().includes(query)
-    );
+    result = result.filter(emp => {
+      const dept = emp.department_id ? db.departments.find(d => d.id === emp.department_id) : null;
+      const deptName = dept ? dept.name.toLowerCase() : '';
+      return emp.full_name.toLowerCase().includes(query) ||
+        emp.phone.toLowerCase().includes(query) ||
+        emp.email.toLowerCase().includes(query) ||
+        deptName.includes(query) ||
+        emp.position.toLowerCase().includes(query) ||
+        emp.city.toLowerCase().includes(query);
+    });
   }
 
   return result.sort((a, b) => a.full_name.localeCompare(b.full_name, 'ru'));
@@ -450,7 +465,9 @@ export function addEmployee(data: Omit<Employee, 'id' | 'created_at' | 'updated_
     id: db.nextEmployeeId++,
     full_name: data.full_name,
     gender: data.gender,
-    department: data.department,
+    department_id: data.department_id || null,
+    position: data.position || '',
+    employee_type: data.employee_type || 'staff',
     phone: data.phone || '',
     email: data.email || '',
     work_mode: data.work_mode || 'office',
@@ -472,7 +489,9 @@ export function updateEmployee(id: number, data: Omit<Employee, 'id' | 'created_
     ...existing,
     full_name: data.full_name,
     gender: data.gender,
-    department: data.department,
+    department_id: data.department_id || null,
+    position: data.position || '',
+    employee_type: data.employee_type || 'staff',
     phone: data.phone || '',
     email: data.email || '',
     work_mode: data.work_mode || 'office',
@@ -496,15 +515,17 @@ export function deleteEmployee(id: number): void {
 
 export function getEmployeeStats(): {
   total: number;
-  byDepartment: { name: string; count: number }[];
+  byDepartment: { id: number; name: string; count: number }[];
   byWorkMode: { mode: string; label: string; icon: string; count: number }[];
   byGender: { gender: string; count: number }[];
+  byType: { type: string; label: string; icon: string; count: number }[];
 } {
   const total = db.employees.length;
 
-  const byDepartment = DEPARTMENTS.map(dep => ({
-    name: dep,
-    count: db.employees.filter(e => e.department === dep).length,
+  const byDepartment = db.departments.map(dep => ({
+    id: dep.id,
+    name: dep.name,
+    count: db.employees.filter(e => e.department_id === dep.id).length,
   })).filter(d => d.count > 0).sort((a, b) => b.count - a.count);
 
   const modeLabels: Record<string, { label: string; icon: string }> = {
@@ -524,11 +545,28 @@ export function getEmployeeStats(): {
     { gender: 'female', count: db.employees.filter(e => e.gender === 'female').length },
   ];
 
-  return { total, byDepartment, byWorkMode, byGender };
+  const typeLabels: Record<string, { label: string; icon: string }> = {
+    staff: { label: 'Штатный', icon: '👤' },
+    external: { label: 'Внешний', icon: '🌐' },
+    contractor: { label: 'Подрядчик', icon: '📝' },
+  };
+  const byType = (['staff', 'external', 'contractor'] as const).map(type => ({
+    type,
+    label: typeLabels[type].label,
+    icon: typeLabels[type].icon,
+    count: db.employees.filter(e => e.employee_type === type).length,
+  }));
+
+  return { total, byDepartment, byWorkMode, byGender, byType };
 }
 
 // Генерация тестовых сотрудников
 export function generateTestEmployees(): number {
+  // Проверка: нельзя генерировать без подразделений
+  if (db.departments.length === 0) {
+    throw new Error('Невозможно создать тестовых сотрудников: сначала создайте оргструктуру');
+  }
+  
   const count = Math.floor(Math.random() * 41) + 10; // 10..50
   const now = new Date().toISOString();
 
@@ -539,6 +577,8 @@ export function generateTestEmployees(): number {
   const middleNames = ['Иванович', 'Петрович', 'Сергеевич', 'Александрович', 'Михайлович', 'Николаевич', 'Владимирович', 'Андреевич', 'Дмитриевич', 'Евгеньевич'];
   const femaleMiddleNames = ['Ивановна', 'Петровна', 'Сергеевна', 'Александровна', 'Михайловна', 'Николаевна', 'Владимировна', 'Андреевна', 'Дмитриевна', 'Евгеньевна'];
   
+  const positions = ['Директор', 'Заместитель директора', 'Начальник отдела', 'Руководитель группы', 'Ведущий специалист', 'Старший специалист', 'Специалист', 'Младший специалист', 'Стажёр', 'Менеджер', 'Инженер', 'Аналитик', 'Бухгалтер', 'Юрист', 'HR-менеджер'];
+  const employeeTypes: ('staff' | 'external' | 'contractor')[] = ['staff', 'staff', 'staff', 'staff', 'external', 'contractor'];
   const cities = ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань', 'Нижний Новгород', 'Челябинск', 'Самара', 'Омск', 'Ростов-на-Дону', 'Уфа', 'Красноярск', 'Воронеж', 'Пермь', 'Волгоград', 'Краснодар', 'Саратов', 'Тюмень', 'Тольятти', 'Ижевск'];
   const workModes: ('office' | 'remote' | 'hybrid')[] = ['office', 'office', 'office', 'remote', 'remote', 'hybrid'];
 
@@ -555,7 +595,9 @@ export function generateTestEmployees(): number {
       : femaleMiddleNames[Math.floor(Math.random() * femaleMiddleNames.length)];
     
     const fullName = `${lastName} ${firstName} ${middleName}`;
-    const department = DEPARTMENTS[Math.floor(Math.random() * DEPARTMENTS.length)];
+    const department = db.departments[Math.floor(Math.random() * db.departments.length)];
+    const position = positions[Math.floor(Math.random() * positions.length)];
+    const employeeType = employeeTypes[Math.floor(Math.random() * employeeTypes.length)];
     const city = cities[Math.floor(Math.random() * cities.length)];
     const timezone = TIMEZONES[Math.floor(Math.random() * TIMEZONES.length)].value;
     const workMode = workModes[Math.floor(Math.random() * workModes.length)];
@@ -576,7 +618,9 @@ export function generateTestEmployees(): number {
       id: db.nextEmployeeId++,
       full_name: fullName,
       gender,
-      department,
+      department_id: department.id,
+      position,
+      employee_type: employeeType,
       phone,
       email,
       work_mode: workMode,
@@ -597,4 +641,154 @@ export function clearAllEmployees(): void {
   db.employees = [];
   db.nextEmployeeId = 1;
   saveDatabase();
+}
+
+// ============ ОРГСТРУКТУРА (ПОДРАЗДЕЛЕНИЯ) ============
+
+export function getAllDepartments(): Department[] {
+  return [...db.departments].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+}
+
+export function getDepartmentById(id: number): Department | null {
+  return db.departments.find(d => d.id === id) || null;
+}
+
+export function getDepartmentName(id: number | null): string {
+  if (!id) return 'Не указано';
+  const dept = db.departments.find(d => d.id === id);
+  return dept ? dept.name : 'Неизвестное подразделение';
+}
+
+export function getDepartmentTree(): (Department & { children: Department[]; employeeCount: number })[] {
+  const rootDepts = db.departments.filter(d => d.parent_id === null);
+  
+  return rootDepts.map(dept => {
+    const children = db.departments
+      .filter(d => d.parent_id === dept.id)
+      .map(child => ({
+        ...child,
+        children: [],
+        employeeCount: db.employees.filter(e => e.department_id === child.id).length,
+      }));
+    
+    return {
+      ...dept,
+      children,
+      employeeCount: db.employees.filter(e => e.department_id === dept.id).length,
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+}
+
+export function addDepartment(name: string, parentId: number | null = null): number {
+  const newDept: Department = {
+    id: db.nextDepartmentId++,
+    name,
+    parent_id: parentId,
+    head_employee_id: null,
+    created_at: new Date().toISOString(),
+  };
+  db.departments.push(newDept);
+  saveDatabase();
+  return newDept.id;
+}
+
+export function updateDepartment(id: number, name: string, parentId: number | null, headEmployeeId: number | null): void {
+  const index = db.departments.findIndex(d => d.id === id);
+  if (index === -1) return;
+  db.departments[index] = {
+    ...db.departments[index],
+    name,
+    parent_id: parentId,
+    head_employee_id: headEmployeeId,
+  };
+  saveDatabase();
+}
+
+export function deleteDepartment(id: number): { success: boolean; message: string } {
+  // Проверяем, есть ли дочерние подразделения
+  const children = db.departments.filter(d => d.parent_id === id);
+  if (children.length > 0) {
+    return { success: false, message: `Нельзя удалить: есть ${children.length} дочерних подразделений` };
+  }
+  
+  // Проверяем, есть ли сотрудники
+  const employees = db.employees.filter(e => e.department_id === id);
+  if (employees.length > 0) {
+    return { success: false, message: `Нельзя удалить: в подразделении ${employees.length} сотрудников` };
+  }
+  
+  db.departments = db.departments.filter(d => d.id !== id);
+  saveDatabase();
+  return { success: true, message: 'Подразделение удалено' };
+}
+
+export function getSubDepartments(parentId: number | null): Department[] {
+  return db.departments.filter(d => d.parent_id === parentId);
+}
+
+export function generateTestDepartments(): number {
+  const count = Math.floor(Math.random() * 6) + 5; // 5..10 корневых
+  const now = new Date().toISOString();
+  let created = 0;
+
+  const rootNames = [
+    'Руководство', 'ИТ-департамент', 'Финансовый отдел', 'Отдел продаж',
+    'Отдел маркетинга', 'Отдел кадров', 'Юридический отдел', 'Отдел логистики',
+    'Производственный отдел', 'Отдел разработки', 'Служба безопасности', 'Бухгалтерия',
+  ];
+
+  const subDeptNames: Record<string, string[]> = {
+    'ИТ-департамент': ['Сетевой отдел', 'Отдел разработки', 'Техподдержка', 'Отдел информационной безопасности'],
+    'Финансовый отдел': ['Бюджетирование', 'Казначейство', 'Финансовый анализ'],
+    'Отдел продаж': ['Отдел корпоративных продаж', 'Отдел розничных продаж', 'Отдел работы с клиентами'],
+    'Руководство': ['Совет директоров', 'Стратегическое планирование'],
+    'Производственный отдел': ['Цех №1', 'Цех №2', 'Отдел контроля качества'],
+  };
+
+  // Создаём корневые подразделения
+  const rootIds: number[] = [];
+  for (let i = 0; i < Math.min(count, rootNames.length); i++) {
+    const dept: Department = {
+      id: db.nextDepartmentId++,
+      name: rootNames[i],
+      parent_id: null,
+      head_employee_id: null,
+      created_at: now,
+    };
+    db.departments.push(dept);
+    rootIds.push(dept.id);
+    created++;
+  }
+
+  // Создаём дочерние подразделения
+  for (const rootName of Object.keys(subDeptNames)) {
+    const parentDept = db.departments.find(d => d.name === rootName && d.parent_id === null);
+    if (!parentDept) continue;
+    
+    const subs = subDeptNames[rootName];
+    for (const subName of subs) {
+      const dept: Department = {
+        id: db.nextDepartmentId++,
+        name: subName,
+        parent_id: parentDept.id,
+        head_employee_id: null,
+        created_at: now,
+      };
+      db.departments.push(dept);
+      created++;
+    }
+  }
+
+  saveDatabase();
+  return created;
+}
+
+export function clearAllDepartments(): { success: boolean; message: string } {
+  if (db.employees.length > 0) {
+    return { success: false, message: 'Нельзя очистить: есть привязанные сотрудники' };
+  }
+  db.departments = [];
+  db.nextDepartmentId = 1;
+  saveDatabase();
+  return { success: true, message: 'Оргструктура очищена' };
 }

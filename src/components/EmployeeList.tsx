@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Employee } from '../db/database';
+import { Employee, Department, EMPLOYEE_TYPES, getDepartmentName } from '../db/database';
 
 interface EmployeeListProps {
   employees: Employee[];
+  departments: Department[];
   onEdit: (emp: Employee) => void;
   onDelete: (id: number) => void;
   onView: (emp: Employee) => void;
@@ -14,7 +15,7 @@ const workModeLabels: Record<string, { label: string; icon: string; color: strin
   hybrid: { label: 'Гибрид', icon: '🔄', color: 'bg-purple-100 text-purple-800' },
 };
 
-const EmployeeList: React.FC<EmployeeListProps> = ({ employees, onEdit, onDelete, onView }) => {
+const EmployeeList: React.FC<EmployeeListProps> = ({ employees, departments, onEdit, onDelete, onView }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
   if (!employees.length) {
@@ -32,6 +33,9 @@ const EmployeeList: React.FC<EmployeeListProps> = ({ employees, onEdit, onDelete
       {employees.map(emp => {
         const modeInfo = workModeLabels[emp.work_mode] || workModeLabels.office;
         const genderIcon = emp.gender === 'female' ? '👩' : '👨';
+        const typeInfo = EMPLOYEE_TYPES.find(t => t.value === emp.employee_type) || EMPLOYEE_TYPES[0];
+        const deptName = getDepartmentName(emp.department_id);
+
         return (
           <div
             key={emp.id}
@@ -51,9 +55,17 @@ const EmployeeList: React.FC<EmployeeListProps> = ({ employees, onEdit, onDelete
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${modeInfo.color}`}>
                       {modeInfo.icon} {modeInfo.label}
                     </span>
+                    {emp.employee_type !== 'staff' && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                        {typeInfo.icon} {typeInfo.label}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                    <span className="bg-gray-100 px-2 py-0.5 rounded">🏢 {emp.department}</span>
+                    {emp.department_id && (
+                      <span className="bg-gray-100 px-2 py-0.5 rounded">🏢 {deptName}</span>
+                    )}
+                    {emp.position && <span>💼 {emp.position}</span>}
                     {emp.city && <span>📍 {emp.city}</span>}
                     {emp.phone && <span>📞 {emp.phone}</span>}
                     {emp.email && <span>✉️ {emp.email}</span>}

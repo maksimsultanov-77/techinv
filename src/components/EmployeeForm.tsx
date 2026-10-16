@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { Employee, DEPARTMENTS, TIMEZONES } from '../db/database';
+import { Employee, Department, TIMEZONES, EMPLOYEE_TYPES, getDepartmentName } from '../db/database';
 
 interface EmployeeFormProps {
+  departments: Department[];
   employee?: Employee | null;
   onSave: (data: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => void;
   onCancel: () => void;
 }
 
-const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onSave, onCancel }) => {
+const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     full_name: employee?.full_name || '',
     gender: employee?.gender || 'male' as 'male' | 'female',
-    department: employee?.department || DEPARTMENTS[0],
+    department_id: employee?.department_id ? String(employee.department_id) : '',
+    position: employee?.position || '',
+    employee_type: employee?.employee_type || 'staff' as 'staff' | 'external' | 'contractor',
     phone: employee?.phone || '',
     email: employee?.email || '',
     work_mode: employee?.work_mode || 'office' as 'office' | 'remote' | 'hybrid',
@@ -26,7 +29,25 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onSave, onCancel 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    onSave({
+      ...formData,
+      department_id: formData.department_id ? Number(formData.department_id) : null,
+    });
+  };
+
+  // Строим дерево подразделений для select
+  const rootDepts = departments.filter(d => d.parent_id === null);
+  
+  const renderDeptOptions = (parentId: number | null, level: number = 0) => {
+    const children = departments.filter(d => d.parent_id === parentId);
+    return children.map(dept => (
+      <React.Fragment key={dept.id}>
+        <option value={dept.id}>
+          {'—'.repeat(level)} {dept.name}
+        </option>
+        {renderDeptOptions(dept.id, level + 1)}
+      </React.Fragment>
+    ));
   };
 
   return (
@@ -67,6 +88,57 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onSave, onCancel 
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Тип сотрудника *</label>
+              <select
+                name="employee_type"
+                value={formData.employee_type}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {EMPLOYEE_TYPES.map(t => (
+                  <option key={t.value} value={t.value}>{t.icon} {t.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Подразделение</label>
+              <select
+                name="department_id"
+                value={formData.department_id}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">— Не указано —</option>
+                {rootDepts.map(dept => (
+                  <React.Fragment key={dept.id}>
+                    <option value={dept.id}>{dept.name}</option>
+                    {renderDeptOptions(dept.id, 1)}
+                  </React.Fragment>
+                ))}
+              </select>
+              {departments.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">⚠️ Сначала создайте оргструктуру</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Должность</label>
+              <input
+                type="text"
+                name="position"
+                value={formData.position}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ведущий специалист"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Режим работы *</label>
               <select
                 name="work_mode"
@@ -79,57 +151,18 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onSave, onCancel 
                 <option value="hybrid">🔄 Гибрид</option>
               </select>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Подразделение *</label>
-            <select
-              name="department"
-              value={formData.department}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            >
-              {DEPARTMENTS.map(dep => (
-                <option key={dep} value={dep}>{dep}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Телефон</label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="+7 (999) 123-45-67"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="ivanov@company.ru"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Город</label>
-            <input
-              type="text"
-              name="city"
-              value={formData.city}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Москва"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Город</label>
+              <input
+                type="text"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Москва"
+              />
+            </div>
           </div>
 
           <div>
@@ -144,6 +177,32 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onSave, onCancel 
                 <option key={tz.value} value={tz.value}>{tz.label}</option>
               ))}
             </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Телефон</label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="+7 (999) 123-45-67"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="ivanov@company.ru"
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t">

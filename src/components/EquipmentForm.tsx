@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Equipment, Employee } from '../db/database';
+import { Equipment, Employee, getDepartmentName } from '../db/database';
 
 interface EquipmentFormProps {
   categories: { id: number; name: string; icon: string }[];
@@ -174,11 +174,15 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, eq
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">— Не указан —</option>
-                {employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.full_name} ({emp.department})
-                  </option>
-                ))}
+                {employees.map(emp => {
+                  const deptName = emp.department_id ? getDepartmentName(emp.department_id) : '';
+                  const deptLabel = deptName && deptName !== 'Не указано' ? ` (${deptName})` : '';
+                  return (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.full_name}{deptLabel}
+                    </option>
+                  );
+                })}
               </select>
               {employees.length === 0 && (
                 <p className="text-xs text-amber-600 mt-1">⚠️ Сначала добавьте сотрудников в соответствующем разделе</p>
