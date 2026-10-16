@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   initDatabase,
   getCategories,
@@ -14,10 +14,11 @@ import EquipmentForm from './components/EquipmentForm';
 import EquipmentList from './components/EquipmentList';
 import EquipmentDetail from './components/EquipmentDetail';
 
-type ViewMode = 'list' | 'stats';
+type EquipmentFormData = Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>;
 
 function App() {
   const [dbReady, setDbReady] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,24 +26,33 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
   const [viewingItem, setViewingItem] = useState<Equipment | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [stats, setStats] = useState<{ total: number; byCategory: { name: string; icon: string; count: number }[] }>({ total: 0, byCategory: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    initDatabase().then(() => {
-      setDbReady(true);
-      setLoading(false);
-    });
+    initDatabase()
+      .then(() => {
+        setDbReady(true);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Database init error:', err);
+        setDbError(err?.message || 'Ошибка инициализации базы данных');
+        setLoading(false);
+      });
   }, []);
 
   const loadData = useCallback(() => {
-    const cats = getCategories();
-    setCategories(cats);
-    const items = getAllEquipment(searchQuery || undefined, selectedCategory);
-    setEquipment(items);
-    const s = getStats();
-    setStats(s);
+    try {
+      const cats = getCategories();
+      setCategories(cats);
+      const items = getAllEquipment(searchQuery || undefined, selectedCategory);
+      setEquipment(items);
+      const s = getStats();
+      setStats(s);
+    } catch (err) {
+      console.error('Error loading data:', err);
+    }
   }, [searchQuery, selectedCategory]);
 
   useEffect(() => {
@@ -51,13 +61,13 @@ function App() {
     }
   }, [dbReady, loadData]);
 
-  const handleAdd = (data: any) => {
+  const handleAdd = (data: EquipmentFormData) => {
     addEquipment(data);
     setShowForm(false);
     loadData();
   };
 
-  const handleEdit = (data: any) => {
+  const handleEdit = (data: EquipmentFormData) => {
     if (editingItem) {
       updateEquipment(editingItem.id, data);
       setEditingItem(null);
@@ -94,12 +104,30 @@ function App() {
     );
   }
 
+  if (dbError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center p-8 bg-white rounded-xl shadow-lg max-w-md">
+          <div className="text-5xl mb-4">❌</div>
+          <h2 className="text-xl font-bold text-red-600 mb-2">Ошибка загрузки</h2>
+          <p className="text-gray-600 mb-4">{dbError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Перезагрузить
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <span className="text-3xl">🖥️</span>
               <div>
@@ -132,20 +160,20 @@ function App() {
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
           <div
             className={`bg-white rounded-xl p-4 border cursor-pointer transition-all ${
-              viewMode === 'stats' && !selectedCategory ? 'border-blue-500 shadow-md' : 'border-gray-200 hover:shadow-sm'
+              !selectedCategory ? 'border-blue-500 shadow-md ring-2 ring-blue-100' : 'border-gray-200 hover:shadow-sm'
             }`}
-            onClick={() => { setSelectedCategory(undefined); setViewMode('list'); }}
+            onClick={() => { setSelectedCategory(undefined); }}
           >
             <div className="text-2xl mb-1">📊</div>
             <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
-            <div className="text-xs text-gray-500">Всего</div>
+            <div className="text-xs text-gray-500">Всего единиц</div>
           </div>
           {stats.byCategory.slice(0, 5).map(cat => (
             <div
               key={cat.name}
               className={`bg-white rounded-xl p-4 border cursor-pointer transition-all ${
                 selectedCategory === categories.find(c => c.name === cat.name)?.id
-                  ? 'border-blue-500 shadow-md'
+                  ? 'border-blue-500 shadow-md ring-2 ring-blue-100'
                   : 'border-gray-200 hover:shadow-sm'
               }`}
               onClick={() => {
@@ -155,7 +183,6 @@ function App() {
                 } else {
                   setSelectedCategory(catId);
                 }
-                setViewMode('list');
               }}
             >
               <div className="text-2xl mb-1">{cat.icon}</div>
@@ -175,7 +202,7 @@ function App() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Поиск по названию, серийному номеру, расположению, ответственному..."
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               {searchQuery && (
                 <button
@@ -198,11 +225,11 @@ function App() {
             </select>
           </div>
           <div className="mt-2 flex items-center justify-between text-sm text-gray-500">
-            <span>Найдено: {equipment.length} записей</span>
+            <span>Найдено: <strong>{equipment.length}</strong> записей</span>
             {(searchQuery || selectedCategory) && (
               <button
                 onClick={() => { setSearchQuery(''); setSelectedCategory(undefined); }}
-                className="text-blue-600 hover:text-blue-700"
+                className="text-blue-600 hover:text-blue-700 font-medium"
               >
                 Сбросить фильтры
               </button>
