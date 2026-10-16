@@ -425,7 +425,7 @@ function App() {
                     type="text"
                     value={empSearchQuery}
                     onChange={(e) => setEmpSearchQuery(e.target.value)}
-                    placeholder="Поиск по ФИО, телефону, email, подразделению..."
+                    placeholder="Поиск по ФИО, телефону, email, подразделению, городу..."
                     className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   {empSearchQuery && (

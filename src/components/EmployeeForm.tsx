@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Employee, DEPARTMENTS } from '../db/database';
+import { Employee, DEPARTMENTS, TIMEZONES } from '../db/database';
 
 interface EmployeeFormProps {
   employee?: Employee | null;
@@ -15,6 +15,8 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onSave, onCancel 
     phone: employee?.phone || '',
     email: employee?.email || '',
     work_mode: employee?.work_mode || 'office' as 'office' | 'remote' | 'hybrid',
+    city: employee?.city || '',
+    timezone: employee?.timezone || 'Europe/Moscow',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -116,6 +118,32 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onSave, onCancel 
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="ivanov@company.ru"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Город</label>
+            <input
+              type="text"
+              name="city"
+              value={formData.city}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Москва"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Часовой пояс</label>
+            <select
+              name="timezone"
+              value={formData.timezone}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {TIMEZONES.map(tz => (
+                <option key={tz.value} value={tz.value}>{tz.label}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t">

@@ -54,6 +54,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({ employees, onEdit, onDelete
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
                     <span className="bg-gray-100 px-2 py-0.5 rounded">🏢 {emp.department}</span>
+                    {emp.city && <span>📍 {emp.city}</span>}
                     {emp.phone && <span>📞 {emp.phone}</span>}
                     {emp.email && <span>✉️ {emp.email}</span>}
                   </div>

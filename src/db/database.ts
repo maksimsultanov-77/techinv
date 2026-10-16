@@ -38,9 +38,35 @@ export interface Employee {
   phone: string;
   email: string;
   work_mode: 'office' | 'remote' | 'hybrid';
+  city: string;
+  timezone: string;
   created_at: string;
   updated_at: string;
 }
+
+export const TIMEZONES = [
+  { value: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
+  { value: 'Europe/Moscow', label: 'Москва (UTC+3)' },
+  { value: 'Europe/Samara', label: 'Самара (UTC+4)' },
+  { value: 'Asia/Yekaterinburg', label: 'Екатеринбург (UTC+5)' },
+  { value: 'Asia/Omsk', label: 'Омск (UTC+6)' },
+  { value: 'Asia/Krasnoyarsk', label: 'Красноярск (UTC+7)' },
+  { value: 'Asia/Irkutsk', label: 'Иркутск (UTC+8)' },
+  { value: 'Asia/Yakutsk', label: 'Якутск (UTC+9)' },
+  { value: 'Asia/Vladivostok', label: 'Владивосток (UTC+10)' },
+  { value: 'Asia/Magadan', label: 'Магадан (UTC+11)' },
+  { value: 'Asia/Kamchatka', label: 'Камчатка (UTC+12)' },
+  { value: 'Europe/Kiev', label: 'Киев (UTC+2)' },
+  { value: 'Europe/Minsk', label: 'Минск (UTC+3)' },
+  { value: 'Asia/Almaty', label: 'Алматы (UTC+6)' },
+  { value: 'Asia/Tashkent', label: 'Ташкент (UTC+5)' },
+  { value: 'Asia/Baku', label: 'Баку (UTC+4)' },
+  { value: 'Asia/Dubai', label: 'Дубай (UTC+4)' },
+  { value: 'Europe/Berlin', label: 'Берлин (UTC+1)' },
+  { value: 'Europe/Warsaw', label: 'Варшава (UTC+1)' },
+  { value: 'America/New_York', label: 'Нью-Йорк (UTC-5)' },
+  { value: 'America/Los_Angeles', label: 'Лос-Анджелес (UTC-8)' },
+];
 
 interface DatabaseSchema {
   categories: Category[];
@@ -94,6 +120,12 @@ export function initDatabase(): Promise<void> {
         // Миграция: добавляем поля сотрудников если их нет
         if (!db.employees) db.employees = [];
         if (!db.nextEmployeeId) db.nextEmployeeId = 1;
+        // Миграция: добавляем city и timezone для существующих сотрудников
+        db.employees = db.employees.map(emp => ({
+          ...emp,
+          city: emp.city || '',
+          timezone: emp.timezone || 'Europe/Moscow',
+        }));
       } catch (e) {
         console.error('Error loading database:', e);
         db = createDefaultDatabase();
@@ -377,7 +409,8 @@ export function getAllEmployees(searchQuery?: string, department?: string, workM
       emp.full_name.toLowerCase().includes(query) ||
       emp.phone.toLowerCase().includes(query) ||
       emp.email.toLowerCase().includes(query) ||
-      emp.department.toLowerCase().includes(query)
+      emp.department.toLowerCase().includes(query) ||
+      emp.city.toLowerCase().includes(query)
     );
   }
 
@@ -398,6 +431,8 @@ export function addEmployee(data: Omit<Employee, 'id' | 'created_at' | 'updated_
     phone: data.phone || '',
     email: data.email || '',
     work_mode: data.work_mode || 'office',
+    city: data.city || '',
+    timezone: data.timezone || 'Europe/Moscow',
     created_at: now,
     updated_at: now,
   };
@@ -418,6 +453,8 @@ export function updateEmployee(id: number, data: Omit<Employee, 'id' | 'created_
     phone: data.phone || '',
     email: data.email || '',
     work_mode: data.work_mode || 'office',
+    city: data.city || '',
+    timezone: data.timezone || 'Europe/Moscow',
     updated_at: new Date().toISOString(),
   };
   saveDatabase();

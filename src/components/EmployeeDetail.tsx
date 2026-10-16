@@ -1,5 +1,5 @@
 import React from 'react';
-import { Employee } from '../db/database';
+import { Employee, TIMEZONES } from '../db/database';
 
 interface EmployeeDetailProps {
   employee: Employee;
@@ -18,6 +18,11 @@ const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, onClose, onEd
   const genderIcon = employee.gender === 'female' ? '👩' : '👨';
   const genderLabel = employee.gender === 'female' ? 'Женский' : 'Мужской';
 
+  const getTzLabel = (tz: string): string => {
+    const found = TIMEZONES.find(t => t.value === tz);
+    return found ? found.label : tz;
+  };
+
   const fields = [
     { label: 'ID', value: String(employee.id) },
     { label: 'ФИО', value: employee.full_name },
@@ -26,6 +31,8 @@ const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, onClose, onEd
     { label: 'Телефон', value: employee.phone },
     { label: 'Email', value: employee.email },
     { label: 'Режим работы', value: `${modeInfo.icon} ${modeInfo.label}` },
+    { label: 'Город', value: employee.city },
+    { label: 'Часовой пояс', value: getTzLabel(employee.timezone) },
     { label: 'Создано', value: employee.created_at },
     { label: 'Обновлено', value: employee.updated_at },
   ];
