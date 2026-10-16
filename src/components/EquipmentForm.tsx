@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Equipment } from '../db/database';
+import { Equipment, Employee } from '../db/database';
 
 interface EquipmentFormProps {
   categories: { id: number; name: string; icon: string }[];
+  employees: Employee[];
   equipment?: Equipment | null;
   onSave: (data: any) => void;
   onCancel: () => void;
@@ -16,7 +17,7 @@ const statusOptions = [
   { value: 'storage', label: 'На складе', color: 'bg-gray-100 text-gray-800' },
 ];
 
-const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, equipment, onSave, onCancel }) => {
+const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, equipment, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     category_id: equipment?.category_id || (categories[0]?.id || 1),
     name: equipment?.name || '',
@@ -25,6 +26,7 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, equipment, on
     model: equipment?.model || '',
     location: equipment?.location || '',
     responsible_person: equipment?.responsible_person || '',
+    responsible_employee_id: equipment?.responsible_employee_id ? String(equipment.responsible_employee_id) : '',
     status: equipment?.status || 'active',
     purchase_date: equipment?.purchase_date || '',
     purchase_price: equipment?.purchase_price || '',
@@ -36,11 +38,22 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, equipment, on
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleEmployeeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const empId = e.target.value;
+    const employee = empId ? employees.find(emp => emp.id === Number(empId)) : null;
+    setFormData(prev => ({
+      ...prev,
+      responsible_employee_id: empId,
+      responsible_person: employee ? employee.full_name : '',
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const submitData = {
       ...formData,
       category_id: Number(formData.category_id),
+      responsible_employee_id: formData.responsible_employee_id ? Number(formData.responsible_employee_id) : null,
       purchase_price: formData.purchase_price ? Number(formData.purchase_price) : null,
     };
     // При редактировании сохраняем существующий инвентарный номер
@@ -153,15 +166,23 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, equipment, on
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ответственный</label>
-              <input
-                type="text"
-                name="responsible_person"
-                value={formData.responsible_person}
-                onChange={handleChange}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ответственный (сотрудник)</label>
+              <select
+                name="responsible_employee_id"
+                value={formData.responsible_employee_id}
+                onChange={handleEmployeeChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="ФИО сотрудника"
-              />
+              >
+                <option value="">— Не указан —</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.full_name} ({emp.department})
+                  </option>
+                ))}
+              </select>
+              {employees.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">⚠️ Сначала добавьте сотрудников в соответствующем разделе</p>
+              )}
             </div>
 
             <div>

@@ -15,6 +15,7 @@ export interface Equipment {
   model: string;
   location: string;
   responsible_person: string;
+  responsible_employee_id: number | null;
   status: string;
   purchase_date: string;
   purchase_price: number;
@@ -126,6 +127,11 @@ export function initDatabase(): Promise<void> {
           city: emp.city || '',
           timezone: emp.timezone || 'Europe/Moscow',
         }));
+        // Миграция: добавляем responsible_employee_id для существующего оборудования
+        db.equipment = db.equipment.map(eq => ({
+          ...eq,
+          responsible_employee_id: eq.responsible_employee_id || null,
+        }));
       } catch (e) {
         console.error('Error loading database:', e);
         db = createDefaultDatabase();
@@ -217,6 +223,7 @@ export function addEquipment(data: Omit<Equipment, 'id' | 'category_name' | 'cat
     model: data.model || '',
     location: data.location || '',
     responsible_person: data.responsible_person || '',
+    responsible_employee_id: data.responsible_employee_id || null,
     status: data.status || 'active',
     purchase_date: data.purchase_date || '',
     purchase_price: data.purchase_price || 0,
@@ -249,6 +256,7 @@ export function updateEquipment(id: number, data: Omit<Equipment, 'id' | 'catego
     model: data.model || '',
     location: data.location || '',
     responsible_person: data.responsible_person || '',
+    responsible_employee_id: data.responsible_employee_id || null,
     status: data.status || 'active',
     purchase_date: data.purchase_date || '',
     purchase_price: data.purchase_price || 0,
@@ -343,6 +351,15 @@ export function generateTestData(): number {
       const inventoryNumber = `INV-${String(currentId).padStart(4, '0')}`;
       const fullName = `${randomFrom(lastNames)} ${randomFrom(firstNames)} ${randomFrom(firstNames).charAt(0)}.`;
       
+      // Случайно привязываем к существующему сотруднику (70% шанс)
+      let responsibleEmployeeId: number | null = null;
+      let responsibleName = fullName;
+      if (db.employees.length > 0 && Math.random() > 0.3) {
+        const randomEmp = randomFrom(db.employees);
+        responsibleEmployeeId = randomEmp.id;
+        responsibleName = randomEmp.full_name;
+      }
+      
       const newEquipment: Equipment = {
         id: currentId,
         category_id: category.id,
@@ -354,7 +371,8 @@ export function generateTestData(): number {
         manufacturer: manufacturer,
         model: model,
         location: randomFrom(locations),
-        responsible_person: fullName,
+        responsible_person: responsibleName,
+        responsible_employee_id: responsibleEmployeeId,
         status: randomFrom(statuses),
         purchase_date: randomDate(2018, 2025),
         purchase_price: Math.floor(Math.random() * 300000) + 5000,
@@ -462,6 +480,12 @@ export function updateEmployee(id: number, data: Omit<Employee, 'id' | 'created_
 
 export function deleteEmployee(id: number): void {
   db.employees = db.employees.filter(emp => emp.id !== id);
+  // Очищаем связь в оборудовании
+  db.equipment = db.equipment.map(eq => 
+    eq.responsible_employee_id === id 
+      ? { ...eq, responsible_employee_id: null }
+      : eq
+  );
   saveDatabase();
 }
 

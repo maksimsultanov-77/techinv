@@ -55,7 +55,14 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, onEdit, onDele
                     {item.manufacturer && <span>🏭 {item.manufacturer}</span>}
                     {item.model && <span>📋 {item.model}</span>}
                     {item.location && <span>📍 {item.location}</span>}
-                    {item.responsible_person && <span>👤 {item.responsible_person}</span>}
+                    {item.responsible_person && (
+                      <span className="flex items-center gap-1">
+                        👤 {item.responsible_person}
+                        {item.responsible_employee_id && (
+                          <span className="text-xs text-blue-500" title="Связан с сотрудником">🔗</span>
+                        )}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
                     {item.serial_number && <span>S/N: {item.serial_number}</span>}

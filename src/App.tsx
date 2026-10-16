@@ -509,6 +509,7 @@ function App() {
       {showForm && (
         <EquipmentForm
           categories={categories}
+          employees={employees}
           onSave={handleAdd}
           onCancel={() => setShowForm(false)}
         />
@@ -517,6 +518,7 @@ function App() {
       {editingItem && (
         <EquipmentForm
           categories={categories}
+          employees={employees}
           equipment={editingItem}
           onSave={handleEdit}
           onCancel={() => setEditingItem(null)}
@@ -526,6 +528,7 @@ function App() {
       {viewingItem && (
         <EquipmentDetail
           equipment={viewingItem}
+          employees={employees}
           onClose={() => setViewingItem(null)}
           onEdit={() => {
             setEditingItem(viewingItem);

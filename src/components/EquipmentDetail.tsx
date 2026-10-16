@@ -1,15 +1,21 @@
 import React from 'react';
-import { Equipment } from '../db/database';
+import { Equipment, Employee } from '../db/database';
 import { statusOptions } from './EquipmentForm';
 
 interface EquipmentDetailProps {
   equipment: Equipment;
+  employees: Employee[];
   onClose: () => void;
   onEdit: () => void;
 }
 
-const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, onClose, onEdit }) => {
+const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees, onClose, onEdit }) => {
   const statusInfo = statusOptions.find(opt => opt.value === equipment.status) || statusOptions[0];
+
+  // Получаем информацию о сотруднике если есть связь
+  const linkedEmployee = equipment.responsible_employee_id 
+    ? employees.find(emp => emp.id === equipment.responsible_employee_id) || null
+    : null;
 
   const fields = [
     { label: 'Категория', value: `${equipment.category_icon} ${equipment.category_name}` },
@@ -19,7 +25,7 @@ const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, onClose, o
     { label: 'Производитель', value: equipment.manufacturer },
     { label: 'Модель', value: equipment.model },
     { label: 'Расположение', value: equipment.location },
-    { label: 'Ответственный', value: equipment.responsible_person },
+    { label: 'Ответственный', value: equipment.responsible_person + (linkedEmployee ? ' 🔗' : '') },
     { label: 'Статус', value: statusInfo.label, isStatus: true, statusColor: statusInfo.color },
     { label: 'Дата покупки', value: equipment.purchase_date },
     { label: 'Цена', value: equipment.purchase_price ? `${equipment.purchase_price.toLocaleString()} ₽` : '' },
@@ -55,6 +61,21 @@ const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, onClose, o
               </div>
             ))}
           </div>
+
+          {linkedEmployee && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                🔗 Связанный сотрудник
+              </h4>
+              <div className="space-y-1 text-sm">
+                <p><strong>ФИО:</strong> {linkedEmployee.full_name}</p>
+                <p><strong>Подразделение:</strong> {linkedEmployee.department}</p>
+                {linkedEmployee.phone && <p><strong>Телефон:</strong> {linkedEmployee.phone}</p>}
+                {linkedEmployee.email && <p><strong>Email:</strong> {linkedEmployee.email}</p>}
+                {linkedEmployee.city && <p><strong>Город:</strong> {linkedEmployee.city}</p>}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 flex justify-end gap-3">
             <button
