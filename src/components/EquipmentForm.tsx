@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Equipment, Employee, getDepartmentName } from '../db/database';
+import { Equipment, Employee, Location, getDepartmentName } from '../db/database';
 
 interface EquipmentFormProps {
   categories: { id: number; name: string; icon: string }[];
   employees: Employee[];
+  locations: Location[];
   equipment?: Equipment | null;
   onSave: (data: any) => void;
   onCancel: () => void;
@@ -17,14 +18,14 @@ const statusOptions = [
   { value: 'storage', label: 'На складе', color: 'bg-gray-100 text-gray-800' },
 ];
 
-const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, equipment, onSave, onCancel }) => {
+const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, locations, equipment, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     category_id: equipment?.category_id || (categories[0]?.id || 1),
     name: equipment?.name || '',
     serial_number: equipment?.serial_number || '',
     manufacturer: equipment?.manufacturer || '',
     model: equipment?.model || '',
-    location: equipment?.location || '',
+    location_id: equipment?.location_id ? String(equipment.location_id) : '',
     responsible_person: equipment?.responsible_person || '',
     responsible_employee_id: equipment?.responsible_employee_id ? String(equipment.responsible_employee_id) : '',
     status: equipment?.status || 'active',
@@ -50,9 +51,17 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, eq
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Проверка: местоположение обязательно
+    if (!formData.location_id) {
+      alert('Необходимо выбрать местоположение');
+      return;
+    }
+    
     const submitData = {
       ...formData,
       category_id: Number(formData.category_id),
+      location_id: Number(formData.location_id),
       responsible_employee_id: formData.responsible_employee_id ? Number(formData.responsible_employee_id) : null,
       purchase_price: formData.purchase_price ? Number(formData.purchase_price) : null,
     };
@@ -154,15 +163,22 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, eq
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Расположение</label>
-              <input
-                type="text"
-                name="location"
-                value={formData.location}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Местоположение *</label>
+              <select
+                name="location_id"
+                value={formData.location_id}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Кабинет 301, этаж 3"
-              />
+                required
+              >
+                <option value="">— Выберите местоположение —</option>
+                {locations.map(loc => (
+                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                ))}
+              </select>
+              {locations.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">⚠️ Сначала создайте местоположения</p>
+              )}
             </div>
 
             <div>

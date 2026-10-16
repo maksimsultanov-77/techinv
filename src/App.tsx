@@ -24,10 +24,18 @@ import {
   getDepartmentName,
   generateTestDepartments,
   clearAllDepartments,
+  getAllLocations,
+  addLocation,
+  deleteLocation,
+  generateTestLocations,
+  clearAllLocations,
+  getLocationName,
+  getEquipmentCountByLocation,
   Category,
   Equipment,
   Employee,
   Department,
+  Location,
 } from './db/database';
 import EquipmentForm from './components/EquipmentForm';
 import EquipmentList from './components/EquipmentList';
@@ -36,7 +44,7 @@ import EmployeeForm from './components/EmployeeForm';
 import EmployeeList from './components/EmployeeList';
 import EmployeeDetail from './components/EmployeeDetail';
 
-type ViewMode = 'equipment' | 'employees' | 'structure';
+type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations';
 type EquipmentFormData = Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>;
 type EmployeeFormData = Omit<Employee, 'id' | 'created_at' | 'updated_at'>;
 
@@ -72,6 +80,13 @@ function App() {
   const [newDeptName, setNewDeptName] = useState('');
   const [newDeptParent, setNewDeptParent] = useState<string>('');
   const [collapsedDepts, setCollapsedDepts] = useState<Set<number>>(new Set());
+
+  // Locations state
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [showLocForm, setShowLocForm] = useState(false);
+  const [newLocName, setNewLocName] = useState('');
+  const [newLocDesc, setNewLocDesc] = useState('');
+  const [showLocTestConfirm, setShowLocTestConfirm] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
@@ -126,13 +141,22 @@ function App() {
     }
   }, []);
 
+  const loadLocations = useCallback(() => {
+    try {
+      setLocations(getAllLocations());
+    } catch (err) {
+      console.error('Error loading locations:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (dbReady) {
       loadEquipment();
       loadEmployees();
       loadDepartments();
+      loadLocations();
     }
-  }, [dbReady, loadEquipment, loadEmployees, loadDepartments]);
+  }, [dbReady, loadEquipment, loadEmployees, loadDepartments, loadLocations]);
 
   // Equipment handlers
   const handleAdd = (data: EquipmentFormData) => {
@@ -261,6 +285,32 @@ function App() {
     });
   };
 
+  // Location handlers
+  const handleAddLocation = () => {
+    if (!newLocName.trim()) return;
+    addLocation(newLocName.trim(), newLocDesc.trim());
+    setNewLocName('');
+    setNewLocDesc('');
+    setShowLocForm(false);
+    loadLocations();
+  };
+
+  const handleDeleteLocation = (id: number) => {
+    const result = deleteLocation(id);
+    if (!result.success) {
+      alert(result.message);
+      return;
+    }
+    loadLocations();
+  };
+
+  const handleGenerateTestLocations = () => {
+    const count = generateTestLocations();
+    setShowLocTestConfirm(false);
+    loadLocations();
+    alert(`✅ Создано ${count} местоположений`);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -335,6 +385,14 @@ function App() {
               }`}
             >
               🖥️ Оборудование <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{stats.total}</span>
+            </button>
+            <button
+              onClick={() => setActiveView('locations')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                activeView === 'locations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              📍 Местоположения <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{locations.length}</span>
             </button>
           </div>
         </div>
@@ -624,11 +682,11 @@ function App() {
             <div className="flex justify-end gap-2 mb-4">
               <button
                 onClick={() => setShowTestConfirm(true)}
-                disabled={employees.length === 0}
+                disabled={employees.length === 0 || locations.length === 0}
                 className={`px-3 py-2 text-sm rounded-lg transition-colors font-medium shadow-sm ${
-                  employees.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'
+                  employees.length === 0 || locations.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'
                 }`}
-                title={employees.length === 0 ? 'Сначала добавьте сотрудников' : 'Создать случайный набор данных'}
+                title={employees.length === 0 || locations.length === 0 ? 'Сначала добавьте сотрудников и местоположения' : 'Создать случайный набор данных'}
               >
                 🎲 Тестовые данные
               </button>
@@ -644,11 +702,11 @@ function App() {
                 ➕ Добавить
               </button>
             </div>
-            {employees.length === 0 && (
+            {(employees.length === 0 || locations.length === 0) && (
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
                 <span className="text-amber-600">⚠️</span>
                 <div className="text-sm text-amber-800">
-                  <strong>Невозможно создать тестовые данные.</strong> Сначала добавьте сотрудников.
+                  <strong>Невозможно создать тестовые данные.</strong> Сначала добавьте сотрудников и местоположения.
                 </div>
               </div>
             )}
@@ -732,14 +790,146 @@ function App() {
             />
           </>
         )}
+
+        {/* ============ МЕСТОПОЛОЖЕНИЯ ============ */}
+        {activeView === 'locations' && (
+          <>
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              <button
+                onClick={() => setShowLocTestConfirm(true)}
+                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+              >
+                🎲 Тестовые данные
+              </button>
+              {locations.length > 0 && equipment.length === 0 && (
+                <button
+                  onClick={() => {
+                    const result = clearAllLocations();
+                    if (!result.success) alert(result.message);
+                    else loadLocations();
+                  }}
+                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  🗑️ Очистить
+                </button>
+              )}
+              <button
+                onClick={() => { setShowLocForm(true); setNewLocName(''); setNewLocDesc(''); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+              >
+                ➕ Добавить местоположение
+              </button>
+            </div>
+
+            {locations.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+                <div className="text-6xl mb-4">📍</div>
+                <h3 className="text-xl font-medium text-gray-500 mb-2">Местоположения не созданы</h3>
+                <p className="text-gray-400 mb-4">Добавьте местоположения вручную или сгенерируйте тестовые данные</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {locations.map(loc => {
+                  const eqCount = getEquipmentCountByLocation(loc.id);
+                  return (
+                    <div key={loc.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          <span className="text-3xl">📍</span>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-gray-800">{loc.name}</h3>
+                            {loc.description && (
+                              <p className="text-sm text-gray-500 mt-1">{loc.description}</p>
+                            )}
+                            <div className="mt-2 text-xs text-gray-400">
+                              🖥️ {eqCount} единиц оборудования
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteLocation(loc.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Удалить"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Location Form Modal */}
+            {showLocForm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+                  <div className="p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-bold text-gray-800">➕ Новое местоположение</h2>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                      <input
+                        type="text"
+                        value={newLocName}
+                        onChange={(e) => setNewLocName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Например: Кабинет 301"
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
+                      <textarea
+                        value={newLocDesc}
+                        onChange={(e) => setNewLocDesc(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Необязательное описание"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t">
+                      <button onClick={() => setShowLocForm(false)} className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Отмена
+                      </button>
+                      <button
+                        onClick={handleAddLocation}
+                        disabled={!newLocName.trim()}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        Создать
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Location Test Confirm Modal */}
+            {showLocTestConfirm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+                  <div className="text-5xl text-center mb-4">🎲</div>
+                  <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Создать тестовые местоположения?</h3>
+                  <p className="text-gray-600 text-center mb-4">Будет создано 15 типичных местоположений (офисы, склады, кабинеты).</p>
+                  <div className="flex gap-3">
+                    <button onClick={() => setShowLocTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
+                    <button onClick={handleGenerateTestLocations} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Создать</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </main>
 
       {/* Equipment Modals */}
       {showForm && (
-        <EquipmentForm categories={categories} employees={employees} onSave={handleAdd} onCancel={() => setShowForm(false)} />
+        <EquipmentForm categories={categories} employees={employees} locations={locations} onSave={handleAdd} onCancel={() => setShowForm(false)} />
       )}
       {editingItem && (
-        <EquipmentForm categories={categories} employees={employees} equipment={editingItem} onSave={handleEdit} onCancel={() => setEditingItem(null)} />
+        <EquipmentForm categories={categories} employees={employees} locations={locations} equipment={editingItem} onSave={handleEdit} onCancel={() => setEditingItem(null)} />
       )}
       {viewingItem && (
         <EquipmentDetail
@@ -773,18 +963,18 @@ function App() {
             <div className="text-5xl text-center mb-4">🎲</div>
             <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Создать тестовые данные?</h3>
             <p className="text-gray-600 text-center mb-4">Будет сгенерировано от <strong>10 до 100 единиц</strong> оборудования для каждой категории.</p>
-            {employees.length === 0 ? (
+            {employees.length === 0 || locations.length === 0 ? (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-red-800">⚠️ <strong>Невозможно.</strong> Сначала добавьте сотрудников.</p>
+                <p className="text-sm text-red-800">⚠️ <strong>Невозможно.</strong> Сначала добавьте сотрудников и местоположения.</p>
               </div>
             ) : (
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-purple-800">💡 Сотрудников в базе: <strong>{employees.length}</strong></p>
+                <p className="text-sm text-purple-800">💡 Сотрудников: <strong>{employees.length}</strong>, Местоположений: <strong>{locations.length}</strong></p>
               </div>
             )}
             <div className="flex gap-3">
               <button onClick={() => setShowTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
-              <button onClick={handleGenerateTest} disabled={employees.length === 0} className={`flex-1 px-4 py-2 rounded-lg font-medium ${employees.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}>Создать</button>
+              <button onClick={handleGenerateTest} disabled={employees.length === 0 || locations.length === 0} className={`flex-1 px-4 py-2 rounded-lg font-medium ${employees.length === 0 || locations.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}>Создать</button>
             </div>
           </div>
         </div>

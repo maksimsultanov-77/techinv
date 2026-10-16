@@ -13,7 +13,7 @@ export interface Equipment {
   inventory_number: string;
   manufacturer: string;
   model: string;
-  location: string;
+  location_id: number;
   responsible_person: string;
   responsible_employee_id: number | null;
   status: string;
@@ -22,6 +22,13 @@ export interface Equipment {
   notes: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface Location {
+  id: number;
+  name: string;
+  description: string;
+  created_at: string;
 }
 
 export interface Category {
@@ -84,10 +91,12 @@ interface DatabaseSchema {
   equipment: Equipment[];
   employees: Employee[];
   departments: Department[];
+  locations: Location[];
   nextCategoryId: number;
   nextEquipmentId: number;
   nextEmployeeId: number;
   nextDepartmentId: number;
+  nextLocationId: number;
 }
 
 export const EMPLOYEE_TYPES = [
@@ -160,6 +169,35 @@ export function initDatabase(): Promise<void> {
           ...eq,
           responsible_employee_id: eq.responsible_employee_id || null,
         }));
+        // Миграция: добавляем locations
+        if (!db.locations) db.locations = [];
+        if (!db.nextLocationId) db.nextLocationId = 1;
+        // Миграция: преобразуем location (string) в location_id (number)
+        db.equipment = db.equipment.map(eq => {
+          if ('location' in eq && typeof eq.location === 'string') {
+            // Ищем или создаём location по имени
+            const existing = db.locations.find(l => l.name === eq.location);
+            let locationId: number;
+            if (existing) {
+              locationId = existing.id;
+            } else if (eq.location) {
+              // Создаём новое местоположение
+              const newLoc: Location = {
+                id: db.nextLocationId++,
+                name: eq.location,
+                description: '',
+                created_at: new Date().toISOString(),
+              };
+              db.locations.push(newLoc);
+              locationId = newLoc.id;
+            } else {
+              locationId = 0;
+            }
+            const { location, ...rest } = eq as any;
+            return { ...rest, location_id: locationId };
+          }
+          return eq;
+        });
       } catch (e) {
         console.error('Error loading database:', e);
         db = createDefaultDatabase();
@@ -178,10 +216,12 @@ function createDefaultDatabase(): DatabaseSchema {
     equipment: [],
     employees: [],
     departments: [],
+    locations: [],
     nextCategoryId: defaultCategories.length + 1,
     nextEquipmentId: 1,
     nextEmployeeId: 1,
     nextDepartmentId: 3, // Начинаем с 3, т.к. 1 и 2 зарезервированы
+    nextLocationId: 1,
   };
   
   // Создаём обязательные виртуальные подразделения
@@ -220,16 +260,18 @@ export function getAllEquipment(searchQuery?: string, categoryId?: number): Equi
 
   if (searchQuery) {
     const query = searchQuery.toLowerCase();
-    result = result.filter(eq => 
-      eq.name.toLowerCase().includes(query) ||
-      eq.serial_number.toLowerCase().includes(query) ||
-      eq.inventory_number.toLowerCase().includes(query) ||
-      eq.manufacturer.toLowerCase().includes(query) ||
-      eq.model.toLowerCase().includes(query) ||
-      eq.location.toLowerCase().includes(query) ||
-      eq.responsible_person.toLowerCase().includes(query) ||
-      eq.notes.toLowerCase().includes(query)
-    );
+    result = result.filter(eq => {
+      const loc = db.locations.find(l => l.id === eq.location_id);
+      const locName = loc ? loc.name.toLowerCase() : '';
+      return eq.name.toLowerCase().includes(query) ||
+        eq.serial_number.toLowerCase().includes(query) ||
+        eq.inventory_number.toLowerCase().includes(query) ||
+        eq.manufacturer.toLowerCase().includes(query) ||
+        eq.model.toLowerCase().includes(query) ||
+        locName.includes(query) ||
+        eq.responsible_person.toLowerCase().includes(query) ||
+        eq.notes.toLowerCase().includes(query);
+    });
   }
 
   return result.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
@@ -269,7 +311,7 @@ export function addEquipment(data: Omit<Equipment, 'id' | 'category_name' | 'cat
     inventory_number: inventoryNumber,
     manufacturer: data.manufacturer || '',
     model: data.model || '',
-    location: data.location || '',
+    location_id: data.location_id,
     responsible_person: data.responsible_person || '',
     responsible_employee_id: data.responsible_employee_id || null,
     status: data.status || 'active',
@@ -302,7 +344,7 @@ export function updateEquipment(id: number, data: Omit<Equipment, 'id' | 'catego
     inventory_number: data.inventory_number || '',
     manufacturer: data.manufacturer || '',
     model: data.model || '',
-    location: data.location || '',
+    location_id: data.location_id,
     responsible_person: data.responsible_person || '',
     responsible_employee_id: data.responsible_employee_id || null,
     status: data.status || 'active',
@@ -389,6 +431,11 @@ export function generateTestData(): number {
     throw new Error('Невозможно создать тестовые данные: сначала добавьте сотрудников');
   }
   
+  // Проверка: нельзя генерировать без местоположений
+  if (db.locations.length === 0) {
+    throw new Error('Невозможно создать тестовые данные: сначала создайте местоположения');
+  }
+  
   let count = 0;
   const now = new Date().toISOString();
   
@@ -413,6 +460,11 @@ export function generateTestData(): number {
         responsibleName = randomEmp.full_name;
       }
       
+      // Выбираем случайное местоположение из существующих
+      const locationId = db.locations.length > 0 
+        ? randomFrom(db.locations).id 
+        : 0;
+      
       const newEquipment: Equipment = {
         id: currentId,
         category_id: category.id,
@@ -423,7 +475,7 @@ export function generateTestData(): number {
         inventory_number: inventoryNumber,
         manufacturer: manufacturer,
         model: model,
-        location: randomFrom(locations),
+        location_id: locationId,
         responsible_person: responsibleName,
         responsible_employee_id: responsibleEmployeeId,
         status: randomFrom(statuses),
@@ -459,6 +511,100 @@ export function getStats(): { total: number; byCategory: { name: string; icon: s
   })).sort((a, b) => b.count - a.count);
 
   return { total, byCategory };
+}
+
+// ============ МЕСТОПОЛОЖЕНИЯ ============
+
+export function getAllLocations(): Location[] {
+  return [...db.locations].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+}
+
+export function getLocationById(id: number): Location | null {
+  return db.locations.find(l => l.id === id) || null;
+}
+
+export function getLocationName(id: number): string {
+  const loc = db.locations.find(l => l.id === id);
+  return loc ? loc.name : 'Не указано';
+}
+
+export function addLocation(name: string, description: string = ''): number {
+  const newLocation: Location = {
+    id: db.nextLocationId++,
+    name,
+    description,
+    created_at: new Date().toISOString(),
+  };
+  db.locations.push(newLocation);
+  saveDatabase();
+  return newLocation.id;
+}
+
+export function updateLocation(id: number, name: string, description: string): void {
+  const index = db.locations.findIndex(l => l.id === id);
+  if (index === -1) return;
+  db.locations[index] = {
+    ...db.locations[index],
+    name,
+    description,
+  };
+  saveDatabase();
+}
+
+export function deleteLocation(id: number): { success: boolean; message: string } {
+  // Проверяем, есть ли оборудование с этим местоположением
+  const equipment = db.equipment.filter(eq => eq.location_id === id);
+  if (equipment.length > 0) {
+    return { success: false, message: `Нельзя удалить: к местоположению привязано ${equipment.length} единиц оборудования` };
+  }
+  
+  db.locations = db.locations.filter(l => l.id !== id);
+  saveDatabase();
+  return { success: true, message: 'Местоположение удалено' };
+}
+
+export function getEquipmentCountByLocation(locationId: number): number {
+  return db.equipment.filter(eq => eq.location_id === locationId).length;
+}
+
+export function generateTestLocations(): number {
+  const testLocations = [
+    { name: 'Главный офис', description: 'Центральный офис компании' },
+    { name: 'Филиал Север', description: 'Северный филиал' },
+    { name: 'Филиал Юг', description: 'Южный филиал' },
+    { name: 'Склад №1', description: 'Основной склад' },
+    { name: 'Склад №2', description: 'Дополнительный склад' },
+    { name: 'Серверная', description: 'Помещение для серверного оборудования' },
+    { name: 'Кабинет 101', description: 'Первый этаж' },
+    { name: 'Кабинет 102', description: 'Первый этаж' },
+    { name: 'Кабинет 201', description: 'Второй этаж' },
+    { name: 'Кабинет 202', description: 'Второй этаж' },
+    { name: 'Кабинет 301', description: 'Третий этаж' },
+    { name: 'Кабинет 302', description: 'Третий этаж' },
+    { name: 'Переговорная', description: 'Комната для совещаний' },
+    { name: 'Бухгалтерия', description: 'Отдел бухгалтерии' },
+    { name: 'Отдел кадров', description: 'HR отдел' },
+  ];
+  
+  let count = 0;
+  for (const loc of testLocations) {
+    // Проверяем, не существует ли уже
+    if (!db.locations.find(l => l.name === loc.name)) {
+      addLocation(loc.name, loc.description);
+      count++;
+    }
+  }
+  return count;
+}
+
+export function clearAllLocations(): { success: boolean; message: string } {
+  if (db.equipment.length > 0) {
+    return { success: false, message: 'Нельзя очистить: есть привязанное оборудование' };
+  }
+  db.locations = [];
+  db.nextLocationId = 1;
+  saveDatabase();
+  return { success: true, message: 'Местоположения очищены' };
 }
 
 // ============ СОТРУДНИКИ ============
