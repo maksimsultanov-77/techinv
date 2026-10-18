@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Equipment, getLocationName } from '../db/database';
+import { Equipment, getLocationFullPath } from '../db/database';
 import { statusOptions } from './EquipmentForm';
 
 interface EquipmentListProps {
@@ -54,7 +54,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, onEdit, onDele
                     <span className="bg-gray-100 px-2 py-0.5 rounded">{item.category_name}</span>
                     {item.manufacturer && <span>🏭 {item.manufacturer}</span>}
                     {item.model && <span>📋 {item.model}</span>}
-                    <span>📍 {getLocationName(item.location_id)}</span>
+                    <span>📍 {getLocationFullPath(item.location_id)}</span>
                     {item.responsible_person && (
                       <span className="flex items-center gap-1">
                         👤 {item.responsible_person}

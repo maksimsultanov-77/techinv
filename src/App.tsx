@@ -32,6 +32,9 @@ import {
   clearAllLocations,
   getLocationName,
   getEquipmentCountByLocation,
+  getLocationTree,
+  getLocationFullPath,
+  isSystemLocation,
   Category,
   Equipment,
   Employee,
@@ -93,7 +96,10 @@ function App() {
   const [showLocForm, setShowLocForm] = useState(false);
   const [newLocName, setNewLocName] = useState('');
   const [newLocDesc, setNewLocDesc] = useState('');
+  const [newLocParent, setNewLocParent] = useState<string>('');
   const [showLocTestConfirm, setShowLocTestConfirm] = useState(false);
+  const [showClearLocConfirm, setShowClearLocConfirm] = useState(false);
+  const [collapsedLocations, setCollapsedLocations] = useState<Set<number>>(new Set());
 
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
@@ -307,9 +313,10 @@ function App() {
   // Location handlers
   const handleAddLocation = () => {
     if (!newLocName.trim()) return;
-    addLocation(newLocName.trim(), newLocDesc.trim());
+    addLocation(newLocName.trim(), newLocDesc.trim(), newLocParent ? Number(newLocParent) : null);
     setNewLocName('');
     setNewLocDesc('');
+    setNewLocParent('');
     setShowLocForm(false);
     loadLocations();
   };
@@ -328,6 +335,30 @@ function App() {
     setShowLocTestConfirm(false);
     loadLocations();
     showToast(`✅ Создано ${count} местоположений`, 'success');
+  };
+
+  const handleClearLocations = () => {
+    const result = clearAllLocations();
+    if (!result.success) {
+      showToast(result.message, 'error');
+    } else {
+      loadLocations();
+      loadEquipment();
+      showToast(result.message, 'success');
+    }
+    setShowClearLocConfirm(false);
+  };
+
+  const toggleLocationCollapse = (id: number) => {
+    setCollapsedLocations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
   };
 
   if (loading) {
@@ -818,24 +849,16 @@ function App() {
               >
                 🎲 Тестовые данные
               </button>
-              {locations.length > 0 && equipment.length === 0 && (
+              {locations.some(l => !isSystemLocation(l.id)) && (
                 <button
-                  onClick={() => {
-                    const result = clearAllLocations();
-                    if (!result.success) {
-                      showToast(result.message, 'error');
-                    } else {
-                      loadLocations();
-                      showToast(result.message, 'success');
-                    }
-                  }}
+                  onClick={() => setShowClearLocConfirm(true)}
                   className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                 >
                   🗑️ Очистить
                 </button>
               )}
               <button
-                onClick={() => { setShowLocForm(true); setNewLocName(''); setNewLocDesc(''); }}
+                onClick={() => { setShowLocForm(true); setNewLocName(''); setNewLocDesc(''); setNewLocParent(''); }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
               >
                 ➕ Добавить местоположение
@@ -849,32 +872,76 @@ function App() {
                 <p className="text-gray-400 mb-4">Добавьте местоположения вручную или сгенерируйте тестовые данные</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {locations.map(loc => {
-                  const eqCount = getEquipmentCountByLocation(loc.id);
+              <div className="space-y-3">
+                {(getLocationTree() as (Location & { children: Location[]; equipmentCount: number })[]).map(loc => {
+                  const isCollapsed = collapsedLocations.has(loc.id);
+                  const isSystem = isSystemLocation(loc.id);
+                  const bgColor = isSystem ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100';
+                  
                   return (
-                    <div key={loc.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3 flex-1">
-                          <span className="text-3xl">📍</span>
-                          <div className="flex-1">
-                            <h3 className="font-bold text-gray-800">{loc.name}</h3>
-                            {loc.description && (
-                              <p className="text-sm text-gray-500 mt-1">{loc.description}</p>
-                            )}
-                            <div className="mt-2 text-xs text-gray-400">
-                              🖥️ {eqCount} единиц оборудования
+                    <div key={loc.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      {/* Root location */}
+                      <div className={`p-4 flex items-center justify-between border-b ${bgColor}`}>
+                        <div className="flex items-center gap-3 flex-1">
+                          {loc.children.length > 0 && (
+                            <button
+                              onClick={() => toggleLocationCollapse(loc.id)}
+                              className="p-1 hover:bg-white/50 rounded transition-colors"
+                              title={isCollapsed ? 'Развернуть' : 'Свернуть'}
+                            >
+                              <span className="text-lg">{isCollapsed ? '▶️' : '▼️'}</span>
+                            </button>
+                          )}
+                          {loc.children.length === 0 && <div className="w-7" />}
+                          <span className="text-2xl">📍</span>
+                          <div>
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                              {loc.name}
+                              {isSystem && (
+                                <span className="text-xs bg-white/70 px-2 py-0.5 rounded-full text-gray-600">
+                                  системное
+                                </span>
+                              )}
+                            </h3>
+                            <div className="text-xs text-gray-500 flex gap-3">
+                              <span>🖥️ {loc.equipmentCount} ед. оборудования</span>
+                              {loc.children.length > 0 && <span>📁 {loc.children.length} вложенных</span>}
                             </div>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleDeleteLocation(loc.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Удалить"
-                        >
-                          🗑️
-                        </button>
+                        {!isSystem && (
+                          <button
+                            onClick={() => handleDeleteLocation(loc.id)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Удалить"
+                          >
+                            🗑️
+                          </button>
+                        )}
                       </div>
+                      {/* Children */}
+                      {loc.children.length > 0 && !isCollapsed && (
+                        <div className="p-2 space-y-1">
+                          {loc.children.map((child: any) => (
+                            <div key={child.id} className="flex items-center justify-between p-2 ml-6 rounded-lg hover:bg-gray-50">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">📁</span>
+                                <div>
+                                  <span className="text-sm font-medium text-gray-700">{child.name}</span>
+                                  <span className="text-xs text-gray-400 ml-2">🖥️ {child.equipmentCount}</span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleDeleteLocation(child.id)}
+                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                                title="Удалить"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -899,6 +966,20 @@ function App() {
                         placeholder="Например: Кабинет 301"
                         autoFocus
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Родительское местоположение</label>
+                      <select
+                        value={newLocParent}
+                        onChange={(e) => setNewLocParent(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">— Корневое местоположение —</option>
+                        {locations.filter(l => !isSystemLocation(l.id)).map(l => (
+                          <option key={l.id} value={l.id}>{l.name}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Выберите родительское местоположение для создания вложенного</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
@@ -937,6 +1018,33 @@ function App() {
                   <div className="flex gap-3">
                     <button onClick={() => setShowLocTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
                     <button onClick={handleGenerateTestLocations} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Создать</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Clear Locations Confirm Modal */}
+            {showClearLocConfirm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+                  <div className="text-5xl text-center mb-4">⚠️</div>
+                  <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Очистить местоположения?</h3>
+                  <p className="text-gray-600 text-center mb-4">
+                    Удалить все пользовательские местоположения? Системные местоположения (Офис, Вне офиса) будут сохранены.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowClearLocConfirm(false)}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={handleClearLocations}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                    >
+                      Очистить
+                    </button>
                   </div>
                 </div>
               </div>

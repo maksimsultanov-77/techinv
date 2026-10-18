@@ -1,5 +1,5 @@
 import React from 'react';
-import { Equipment, Employee, getDepartmentName, getLocationName } from '../db/database';
+import { Equipment, Employee, getDepartmentName, getLocationFullPath } from '../db/database';
 import { statusOptions } from './EquipmentForm';
 
 interface EquipmentDetailProps {
@@ -24,7 +24,7 @@ const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees,
     { label: 'Инвентарный номер', value: equipment.inventory_number },
     { label: 'Производитель', value: equipment.manufacturer },
     { label: 'Модель', value: equipment.model },
-    { label: 'Местоположение', value: getLocationName(equipment.location_id) },
+    { label: 'Местоположение', value: getLocationFullPath(equipment.location_id) },
     { label: 'Ответственный', value: equipment.responsible_person + (linkedEmployee ? ' 🔗' : '') },
     { label: 'Статус', value: statusInfo.label, isStatus: true, statusColor: statusInfo.color },
     { label: 'Дата покупки', value: equipment.purchase_date },

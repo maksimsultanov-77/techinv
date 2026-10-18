@@ -28,6 +28,7 @@ export interface Location {
   id: number;
   name: string;
   description: string;
+  parent_id: number | null;
   created_at: string;
 }
 
@@ -182,7 +183,34 @@ export function initDatabase(): Promise<void> {
         }));
         // Миграция: добавляем locations
         if (!db.locations) db.locations = [];
-        if (!db.nextLocationId) db.nextLocationId = 1;
+        if (!db.nextLocationId) db.nextLocationId = 3;
+        
+        // Миграция: добавляем parent_id к существующим местоположениям
+        db.locations = db.locations.map(loc => ({
+          ...loc,
+          parent_id: loc.parent_id ?? null,
+        }));
+        
+        // Миграция: добавляем системные местоположения если их нет
+        if (!db.locations.find(l => l.id === 1)) {
+          db.locations.unshift({
+            id: 1,
+            name: 'Офис',
+            description: 'Системное местоположение',
+            parent_id: null,
+            created_at: new Date().toISOString(),
+          });
+        }
+        if (!db.locations.find(l => l.id === 2)) {
+          const idx = db.locations.findIndex(l => l.id === 1);
+          db.locations.splice(idx + 1, 0, {
+            id: 2,
+            name: 'Вне офиса',
+            description: 'Системное местоположение',
+            parent_id: null,
+            created_at: new Date().toISOString(),
+          });
+        }
         // Миграция: преобразуем location (string) в location_id (number)
         db.equipment = db.equipment.map(eq => {
           if ('location' in eq && typeof eq.location === 'string') {
@@ -197,6 +225,7 @@ export function initDatabase(): Promise<void> {
                 id: db.nextLocationId++,
                 name: eq.location,
                 description: '',
+                parent_id: null,
                 created_at: new Date().toISOString(),
               };
               db.locations.push(newLoc);
@@ -232,7 +261,7 @@ function createDefaultDatabase(): DatabaseSchema {
     nextEquipmentId: 1,
     nextEmployeeId: 1,
     nextDepartmentId: 4, // Начинаем с 4, т.к. 1, 2 и 3 зарезервированы
-    nextLocationId: 1,
+    nextLocationId: 3, // Начинаем с 3, т.к. 1 и 2 зарезервированы
   };
   
   // Создаём обязательные виртуальные подразделения
@@ -255,6 +284,22 @@ function createDefaultDatabase(): DatabaseSchema {
     name: 'Вне штата',
     parent_id: null,
     head_employee_id: null,
+    created_at: new Date().toISOString(),
+  });
+  
+  // Создаём системные местоположения
+  db.locations.push({
+    id: 1,
+    name: 'Офис',
+    description: 'Системное местоположение',
+    parent_id: null,
+    created_at: new Date().toISOString(),
+  });
+  db.locations.push({
+    id: 2,
+    name: 'Вне офиса',
+    description: 'Системное местоположение',
+    parent_id: null,
     created_at: new Date().toISOString(),
   });
   
@@ -546,11 +591,12 @@ export function getLocationName(id: number): string {
   return loc ? loc.name : 'Не указано';
 }
 
-export function addLocation(name: string, description: string = ''): number {
+export function addLocation(name: string, description: string = '', parentId: number | null = null): number {
   const newLocation: Location = {
     id: db.nextLocationId++,
     name,
     description,
+    parent_id: parentId,
     created_at: new Date().toISOString(),
   };
   db.locations.push(newLocation);
@@ -558,22 +604,38 @@ export function addLocation(name: string, description: string = ''): number {
   return newLocation.id;
 }
 
-export function updateLocation(id: number, name: string, description: string): void {
+export function updateLocation(id: number, name: string, description: string, parentId: number | null): void {
   const index = db.locations.findIndex(l => l.id === id);
   if (index === -1) return;
   db.locations[index] = {
     ...db.locations[index],
     name,
     description,
+    parent_id: parentId,
   };
   saveDatabase();
 }
 
+export function isSystemLocation(id: number): boolean {
+  return id === 1 || id === 2; // Офис и Вне офиса
+}
+
 export function deleteLocation(id: number): { success: boolean; message: string } {
+  // Проверяем, является ли местоположение системным
+  if (isSystemLocation(id)) {
+    return { success: false, message: 'Нельзя удалить системное местоположение' };
+  }
+  
   // Проверяем, есть ли оборудование с этим местоположением
   const equipment = db.equipment.filter(eq => eq.location_id === id);
   if (equipment.length > 0) {
     return { success: false, message: `Нельзя удалить: к местоположению привязано ${equipment.length} единиц оборудования` };
+  }
+  
+  // Проверяем, есть ли дочерние местоположения
+  const children = db.locations.filter(l => l.parent_id === id);
+  if (children.length > 0) {
+    return { success: false, message: `Нельзя удалить: есть ${children.length} вложенных местоположений` };
   }
   
   db.locations = db.locations.filter(l => l.id !== id);
@@ -585,44 +647,103 @@ export function getEquipmentCountByLocation(locationId: number): number {
   return db.equipment.filter(eq => eq.location_id === locationId).length;
 }
 
+export function getLocationTree(): (Location & { children: Location[]; equipmentCount: number })[] {
+  const rootLocations = db.locations.filter(l => l.parent_id === null);
+  
+  return rootLocations.map(loc => {
+    const children = db.locations
+      .filter(l => l.parent_id === loc.id)
+      .map(child => ({
+        ...child,
+        children: [],
+        equipmentCount: getEquipmentCountByLocation(child.id),
+      }));
+    
+    return {
+      ...loc,
+      children,
+      equipmentCount: getEquipmentCountByLocation(loc.id),
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+}
+
+export function getLocationFullPath(locationId: number): string {
+  const location = db.locations.find(l => l.id === locationId);
+  if (!location) return 'Не указано';
+  
+  if (location.parent_id) {
+    const parent = db.locations.find(l => l.id === location.parent_id);
+    if (parent) {
+      return `${parent.name} - ${location.name}`;
+    }
+  }
+  
+  return location.name;
+}
+
 export function generateTestLocations(): number {
-  const testLocations = [
+  // Создаём корневые местоположения
+  const rootLocations = [
     { name: 'Главный офис', description: 'Центральный офис компании' },
     { name: 'Филиал Север', description: 'Северный филиал' },
     { name: 'Филиал Юг', description: 'Южный филиал' },
     { name: 'Склад №1', description: 'Основной склад' },
     { name: 'Склад №2', description: 'Дополнительный склад' },
-    { name: 'Серверная', description: 'Помещение для серверного оборудования' },
-    { name: 'Кабинет 101', description: 'Первый этаж' },
-    { name: 'Кабинет 102', description: 'Первый этаж' },
-    { name: 'Кабинет 201', description: 'Второй этаж' },
-    { name: 'Кабинет 202', description: 'Второй этаж' },
-    { name: 'Кабинет 301', description: 'Третий этаж' },
-    { name: 'Кабинет 302', description: 'Третий этаж' },
-    { name: 'Переговорная', description: 'Комната для совещаний' },
-    { name: 'Бухгалтерия', description: 'Отдел бухгалтерии' },
-    { name: 'Отдел кадров', description: 'HR отдел' },
   ];
   
   let count = 0;
-  for (const loc of testLocations) {
-    // Проверяем, не существует ли уже
-    if (!db.locations.find(l => l.name === loc.name)) {
-      addLocation(loc.name, loc.description);
+  const createdIds: Record<string, number> = {};
+  
+  // Создаём корневые местоположения
+  for (const loc of rootLocations) {
+    if (!db.locations.find(l => l.name === loc.name && l.parent_id === null)) {
+      const id = addLocation(loc.name, loc.description, null);
+      createdIds[loc.name] = id;
+      count++;
+    } else {
+      const existing = db.locations.find(l => l.name === loc.name && l.parent_id === null);
+      if (existing) createdIds[loc.name] = existing.id;
+    }
+  }
+  
+  // Создаём вложенные местоположения
+  const childLocations = [
+    { name: 'Кабинет 101', description: 'Первый этаж', parent: 'Главный офис' },
+    { name: 'Кабинет 102', description: 'Первый этаж', parent: 'Главный офис' },
+    { name: 'Кабинет 201', description: 'Второй этаж', parent: 'Главный офис' },
+    { name: 'Кабинет 202', description: 'Второй этаж', parent: 'Главный офис' },
+    { name: 'Кабинет 301', description: 'Третий этаж', parent: 'Главный офис' },
+    { name: 'Кабинет 302', description: 'Третий этаж', parent: 'Главный офис' },
+    { name: 'Переговорная', description: 'Комната для совещаний', parent: 'Главный офис' },
+    { name: 'Серверная', description: 'Помещение для серверного оборудования', parent: 'Главный офис' },
+    { name: 'Бухгалтерия', description: 'Отдел бухгалтерии', parent: 'Главный офис' },
+    { name: 'Отдел кадров', description: 'HR отдел', parent: 'Главный офис' },
+  ];
+  
+  for (const loc of childLocations) {
+    const parentId = createdIds[loc.parent];
+    if (parentId && !db.locations.find(l => l.name === loc.name && l.parent_id === parentId)) {
+      addLocation(loc.name, loc.description, parentId);
       count++;
     }
   }
+  
   return count;
 }
 
 export function clearAllLocations(): { success: boolean; message: string } {
-  if (db.equipment.length > 0) {
-    return { success: false, message: 'Нельзя очистить: есть привязанное оборудование' };
-  }
-  db.locations = [];
-  db.nextLocationId = 1;
+  // Перемещаем оборудование из несистемных местоположений в "Офис" (id=1)
+  db.equipment = db.equipment.map(eq => {
+    if (eq.location_id && !isSystemLocation(eq.location_id)) {
+      return { ...eq, location_id: 1 };
+    }
+    return eq;
+  });
+  
+  // Удаляем все несистемные местоположения (включая вложенные)
+  db.locations = db.locations.filter(l => isSystemLocation(l.id));
   saveDatabase();
-  return { success: true, message: 'Местоположения очищены' };
+  return { success: true, message: 'Местоположения очищены (системные сохранены)' };
 }
 
 // ============ СОТРУДНИКИ ============

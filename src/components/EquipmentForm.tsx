@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Equipment, Employee, Location, getDepartmentName } from '../db/database';
+import { Equipment, Employee, Location, getDepartmentName, getLocationFullPath } from '../db/database';
 
 interface EquipmentFormProps {
   categories: { id: number; name: string; icon: string }[];
@@ -176,7 +176,7 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, lo
               >
                 <option value="">— Выберите местоположение —</option>
                 {locations.map(loc => (
-                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  <option key={loc.id} value={loc.id}>{getLocationFullPath(loc.id)}</option>
                 ))}
               </select>
               {locations.length === 0 && (
