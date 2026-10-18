@@ -1530,7 +1530,7 @@ function App() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
                           <option value="">— Корневая категория —</option>
-                          {categories.filter(c => !isSystemCategory(c.id)).map(c => (
+                          {categories.map(c => (
                             <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
                           ))}
                         </select>
