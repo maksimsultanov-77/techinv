@@ -45,6 +45,7 @@ export interface Category {
   name: string;
   icon: string;
   description: string;
+  parent_id: number | null;
 }
 
 export interface Employee {
@@ -110,6 +111,10 @@ interface DatabaseSchema {
   nextStatusId: number;
 }
 
+export function isSystemCategory(id: number): boolean {
+  return id === 1 || id === 2; // Компьютеры и Периферия
+}
+
 export const EMPLOYEE_TYPES = [
   { value: 'staff', label: 'Штатный сотрудник', icon: '👤' },
   { value: 'external', label: 'Внешний сотрудник', icon: '🌐' },
@@ -119,18 +124,24 @@ export const EMPLOYEE_TYPES = [
 let db: DatabaseSchema;
 
 const defaultCategories: Category[] = [
-  { id: 1, name: 'ПК', icon: '🖥️', description: 'Настольные компьютеры' },
-  { id: 2, name: 'Моноблоки', icon: '🖥️', description: 'Компьютеры моноблок' },
-  { id: 3, name: 'Ноутбуки', icon: '💻', description: 'Ноутбуки' },
-  { id: 4, name: 'Планшеты', icon: '📱', description: 'Планшетные компьютеры' },
-  { id: 5, name: 'Телефоны', icon: '📞', description: 'Мобильные телефоны и смартфоны' },
-  { id: 6, name: 'Камеры', icon: '📷', description: 'Веб-камеры и камеры видеонаблюдения' },
-  { id: 7, name: 'МФУ/Принтеры', icon: '🖨️', description: 'Многофункциональные устройства и принтеры' },
-  { id: 8, name: 'Сетевое оборудование', icon: '🌐', description: 'Роутеры, коммутаторы, точки доступа' },
-  { id: 9, name: 'Мониторы', icon: '🖥️', description: 'Мониторы и дисплеи' },
-  { id: 10, name: 'Серверы', icon: '🗄️', description: 'Серверное оборудование' },
-  { id: 11, name: 'ИБП', icon: '🔋', description: 'Источники бесперебойного питания' },
-  { id: 12, name: 'Прочее', icon: '📦', description: 'Другое оборудование' },
+  // Системные категории (ID 1-2)
+  { id: 1, name: 'Компьютеры', icon: '🖥️', description: 'Компьютерная техника', parent_id: null },
+  { id: 2, name: 'Периферия', icon: '🖱️', description: 'Периферийное оборудование', parent_id: null },
+  
+  // Дочерние категории для "Компьютеры"
+  { id: 3, name: 'Моноблоки', icon: '🖥️', description: 'Компьютеры моноблок', parent_id: 1 },
+  { id: 4, name: 'Ноутбуки', icon: '💻', description: 'Ноутбуки', parent_id: 1 },
+  { id: 5, name: 'Планшеты', icon: '📱', description: 'Планшетные компьютеры', parent_id: 1 },
+  { id: 6, name: 'Телефоны', icon: '📞', description: 'Мобильные телефоны и смартфоны', parent_id: 1 },
+  { id: 7, name: 'Серверы', icon: '🗄️', description: 'Серверное оборудование', parent_id: 1 },
+  { id: 8, name: 'ИБП', icon: '🔋', description: 'Источники бесперебойного питания', parent_id: 1 },
+  { id: 9, name: 'Сетевое оборудование', icon: '🌐', description: 'Роутеры, коммутаторы, точки доступа', parent_id: 1 },
+  
+  // Дочерние категории для "Периферия"
+  { id: 10, name: 'Мониторы', icon: '🖥️', description: 'Мониторы и дисплеи', parent_id: 2 },
+  { id: 11, name: 'Камеры', icon: '📷', description: 'Веб-камеры и камеры видеонаблюдения', parent_id: 2 },
+  { id: 12, name: 'МФУ/Принтеры', icon: '🖨️', description: 'Многофункциональные устройства и принтеры', parent_id: 2 },
+  { id: 13, name: 'Прочее', icon: '📦', description: 'Другое оборудование', parent_id: 2 },
 ];
 
 export function initDatabase(): Promise<void> {
@@ -186,6 +197,34 @@ export function initDatabase(): Promise<void> {
           position: emp.position || '',
           employee_type: emp.employee_type || 'staff',
         }));
+        
+        // Миграция: добавляем parent_id к существующим категориям
+        db.categories = db.categories.map(cat => ({
+          ...cat,
+          parent_id: cat.parent_id ?? null,
+        }));
+        
+        // Миграция: добавляем системные категории если их нет
+        if (!db.categories.find(c => c.id === 1)) {
+          db.categories.unshift({
+            id: 1,
+            name: 'Компьютеры',
+            icon: '🖥️',
+            description: 'Компьютерная техника',
+            parent_id: null,
+          });
+        }
+        if (!db.categories.find(c => c.id === 2)) {
+          const idx = db.categories.findIndex(c => c.id === 1);
+          db.categories.splice(idx + 1, 0, {
+            id: 2,
+            name: 'Периферия',
+            icon: '🖱️',
+            description: 'Периферийное оборудование',
+            parent_id: null,
+          });
+        }
+        
         // Миграция: добавляем responsible_employee_id для существующего оборудования
         db.equipment = db.equipment.map(eq => ({
           ...eq,
@@ -322,7 +361,7 @@ function createDefaultDatabase(): DatabaseSchema {
     departments: [],
     locations: [],
     statuses: [],
-    nextCategoryId: defaultCategories.length + 1,
+    nextCategoryId: 14,
     nextEquipmentId: 1,
     nextEmployeeId: 1,
     nextDepartmentId: 4, // Начинаем с 4, т.к. 1, 2 и 3 зарезервированы
@@ -958,6 +997,142 @@ export function clearAllStatuses(): { success: boolean; message: string } {
   
   saveDatabase();
   return { success: true, message: 'Статусы очищены (остались только системные)' };
+}
+
+// ============ КАТЕГОРИИ ============
+
+export function getAllCategories(): Category[] {
+  return [...db.categories].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+}
+
+export function getCategoryById(id: number): Category | null {
+  return db.categories.find(c => c.id === id) || null;
+}
+
+export function getCategoryName(id: number): string {
+  const category = db.categories.find(c => c.id === id);
+  return category ? category.name : 'Неизвестно';
+}
+
+export function addCategory(name: string, icon: string, description: string = '', parentId: number | null = null): number {
+  const newCategory: Category = {
+    id: db.nextCategoryId++,
+    name,
+    icon,
+    description,
+    parent_id: parentId,
+  };
+  db.categories.push(newCategory);
+  saveDatabase();
+  return newCategory.id;
+}
+
+export function updateCategory(id: number, name: string, icon: string, description: string, parentId: number | null): void {
+  const index = db.categories.findIndex(c => c.id === id);
+  if (index === -1) return;
+  db.categories[index] = {
+    ...db.categories[index],
+    name,
+    icon,
+    description,
+    parent_id: parentId,
+  };
+  saveDatabase();
+}
+
+export function deleteCategory(id: number): { success: boolean; message: string } {
+  // Проверяем, является ли категория системной
+  if (isSystemCategory(id)) {
+    return { success: false, message: 'Нельзя удалить системную категорию' };
+  }
+  
+  // Проверяем, есть ли оборудование с этой категорией
+  const equipment = db.equipment.filter(eq => eq.category_id === id);
+  if (equipment.length > 0) {
+    return { success: false, message: `Нельзя удалить: к категории привязано ${equipment.length} единиц оборудования` };
+  }
+  
+  // Проверяем, есть ли дочерние категории
+  const children = db.categories.filter(c => c.parent_id === id);
+  if (children.length > 0) {
+    return { success: false, message: `Нельзя удалить: есть ${children.length} вложенных категорий` };
+  }
+  
+  db.categories = db.categories.filter(c => c.id !== id);
+  saveDatabase();
+  return { success: true, message: 'Категория удалена' };
+}
+
+export function getEquipmentCountByCategory(categoryId: number): number {
+  return db.equipment.filter(eq => eq.category_id === categoryId).length;
+}
+
+export function getCategoryTree(): (Category & { children: Category[]; equipmentCount: number })[] {
+  const rootCategories = db.categories.filter(c => c.parent_id === null);
+  
+  return rootCategories.map(cat => {
+    const children = db.categories
+      .filter(c => c.parent_id === cat.id)
+      .map(child => ({
+        ...child,
+        children: [],
+        equipmentCount: getEquipmentCountByCategory(child.id),
+      }));
+    
+    return {
+      ...cat,
+      children,
+      equipmentCount: getEquipmentCountByCategory(cat.id),
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+}
+
+export function getCategoryFullPath(categoryId: number): string {
+  const category = db.categories.find(c => c.id === categoryId);
+  if (!category) return 'Не указано';
+  
+  if (category.parent_id) {
+    const parent = db.categories.find(c => c.id === category.parent_id);
+    if (parent) {
+      return `${parent.name} - ${category.name}`;
+    }
+  }
+  
+  return category.name;
+}
+
+export function clearAllCategories(): { success: boolean; message: string } {
+  // Перемещаем всё оборудование из несистемных категорий в "Компьютеры" (id=1)
+  db.equipment = db.equipment.map(eq => {
+    if (eq.category_id && !isSystemCategory(eq.category_id)) {
+      return { ...eq, category_id: 1 };
+    }
+    return eq;
+  });
+  
+  // Полностью удаляем все категории
+  db.categories = [];
+  
+  // Пересоздаём только 2 системных категории
+  db.categories.push({
+    id: 1,
+    name: 'Компьютеры',
+    icon: '🖥️',
+    description: 'Компьютерная техника',
+    parent_id: null,
+  });
+  db.categories.push({
+    id: 2,
+    name: 'Периферия',
+    icon: '🖱️',
+    description: 'Периферийное оборудование',
+    parent_id: null,
+  });
+  
+  db.nextCategoryId = 3;
+  
+  saveDatabase();
+  return { success: true, message: 'Категории очищены (остались только системные)' };
 }
 
 // ============ СОТРУДНИКИ ============

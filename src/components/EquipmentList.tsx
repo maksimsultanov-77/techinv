@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Equipment, Status, getLocationFullPath, getStatusById } from '../db/database';
+import { Equipment, Status, getLocationFullPath, getStatusById, getCategoryFullPath } from '../db/database';
 import { LabelPrint } from './LabelPrint';
 
 interface EquipmentListProps {
@@ -49,7 +49,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, onEd
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                    <span className="bg-gray-100 px-2 py-0.5 rounded">{item.category_name}</span>
+                    <span className="bg-gray-100 px-2 py-0.5 rounded">{getCategoryFullPath(item.category_id)}</span>
                     {item.manufacturer && <span>🏭 {item.manufacturer}</span>}
                     {item.model && <span>📋 {item.model}</span>}
                     <span>📍 {getLocationFullPath(item.location_id)}</span>

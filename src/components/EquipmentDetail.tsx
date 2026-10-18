@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Equipment, Employee, Status, getDepartmentName, getLocationFullPath, getStatusById } from '../db/database';
+import { Equipment, Employee, Status, getDepartmentName, getLocationFullPath, getStatusById, getCategoryFullPath } from '../db/database';
 import { LabelPrint } from './LabelPrint';
 
 interface EquipmentDetailProps {
@@ -20,7 +20,7 @@ const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees,
     : null;
 
   const fields = [
-    { label: 'Категория', value: `${equipment.category_icon} ${equipment.category_name}` },
+    { label: 'Категория', value: getCategoryFullPath(equipment.category_id) },
     { label: 'Название', value: equipment.name },
     { label: 'Серийный номер', value: equipment.serial_number },
     { label: 'Инвентарный номер', value: equipment.inventory_number },

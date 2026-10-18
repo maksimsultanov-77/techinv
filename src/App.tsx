@@ -41,6 +41,13 @@ import {
   clearAllStatuses,
   isSystemStatus,
   getEquipmentCountByStatus,
+  getAllCategories,
+  addCategory,
+  deleteCategory,
+  clearAllCategories,
+  isSystemCategory,
+  getEquipmentCountByCategory,
+  getCategoryTree,
   Category,
   Equipment,
   Employee,
@@ -57,7 +64,7 @@ import EmployeeList from './components/EmployeeList';
 import EmployeeDetail from './components/EmployeeDetail';
 import { Modal } from './components/Modal';
 
-type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses';
+type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories';
 type EquipmentFormData = Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>;
 type EmployeeFormData = Omit<Employee, 'id' | 'created_at' | 'updated_at'>;
 
@@ -118,6 +125,15 @@ function App() {
   const [newStatusIcon, setNewStatusIcon] = useState('✓');
   const [newStatusDesc, setNewStatusDesc] = useState('');
   const [showClearStatusConfirm, setShowClearStatusConfirm] = useState(false);
+
+  // Categories state
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryIcon, setNewCategoryIcon] = useState('📦');
+  const [newCategoryDesc, setNewCategoryDesc] = useState('');
+  const [newCategoryParent, setNewCategoryParent] = useState<string>('');
+  const [showClearCategoryConfirm, setShowClearCategoryConfirm] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<number>>(new Set());
 
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
@@ -199,14 +215,23 @@ function App() {
     }
   }, []);
 
+  const loadCategories = useCallback(() => {
+    try {
+      setCategories(getAllCategories());
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    }
+  }, []);
+
   // Initial load when database is ready
   useEffect(() => {
     if (dbReady) {
       loadDepartments();
       loadLocations();
       loadStatuses();
+      loadCategories();
     }
-  }, [dbReady, loadDepartments, loadLocations, loadStatuses]);
+  }, [dbReady, loadDepartments, loadLocations, loadStatuses, loadCategories]);
 
   // Reload equipment when filters change
   useEffect(() => {
@@ -422,6 +447,53 @@ function App() {
     setShowClearStatusConfirm(false);
   };
 
+  // Category handlers
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) return;
+    addCategory(newCategoryName.trim(), newCategoryIcon, newCategoryDesc.trim(), newCategoryParent ? Number(newCategoryParent) : null);
+    setNewCategoryName('');
+    setNewCategoryIcon('📦');
+    setNewCategoryDesc('');
+    setNewCategoryParent('');
+    setShowCategoryForm(false);
+    loadCategories();
+    showToast('Категория добавлена', 'success');
+  };
+
+  const handleDeleteCategory = (id: number) => {
+    const result = deleteCategory(id);
+    if (!result.success) {
+      showToast(result.message, 'error');
+      return;
+    }
+    loadCategories();
+    showToast(result.message, 'success');
+  };
+
+  const handleClearCategories = () => {
+    const result = clearAllCategories();
+    if (!result.success) {
+      showToast(result.message, 'error');
+    } else {
+      loadCategories();
+      loadEquipment();
+      showToast(result.message, 'success');
+    }
+    setShowClearCategoryConfirm(false);
+  };
+
+  const toggleCategoryCollapse = (id: number) => {
+    setCollapsedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
   const toggleLocationCollapse = (id: number) => {
     setCollapsedLocations(prev => {
       const newSet = new Set(prev);
@@ -524,6 +596,14 @@ function App() {
               }`}
             >
               🏷️ Статусы <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{statuses.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveView('categories')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                activeView === 'categories' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              📁 Категории <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{categories.length}</span>
             </button>
           </div>
         </div>
@@ -1297,6 +1377,210 @@ function App() {
                     </button>
                     <button
                       onClick={handleClearStatuses}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                    >
+                      Очистить
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ============ КАТЕГОРИИ ============ */}
+        {activeView === 'categories' && (
+          <>
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              {categories.some(c => !isSystemCategory(c.id)) && (
+                <button
+                  onClick={() => setShowClearCategoryConfirm(true)}
+                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  🗑️ Очистить
+                </button>
+              )}
+              <button
+                onClick={() => { setShowCategoryForm(true); setNewCategoryName(''); setNewCategoryIcon('📦'); setNewCategoryDesc(''); setNewCategoryParent(''); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+              >
+                ➕ Добавить категорию
+              </button>
+            </div>
+
+            {categories.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+                <div className="text-6xl mb-4">📁</div>
+                <h3 className="text-xl font-medium text-gray-500 mb-2">Категории не созданы</h3>
+                <p className="text-gray-400 mb-4">Добавьте категории вручную</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {getCategoryTree().map(cat => {
+                  const isCollapsed = collapsedCategories.has(cat.id);
+                  const isSystem = isSystemCategory(cat.id);
+                  const bgColor = isSystem ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100';
+                  
+                  return (
+                    <div key={cat.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      {/* Root category */}
+                      <div className={`p-4 flex items-center justify-between border-b ${bgColor}`}>
+                        <div className="flex items-center gap-3 flex-1">
+                          {cat.children.length > 0 && (
+                            <button
+                              onClick={() => toggleCategoryCollapse(cat.id)}
+                              className="p-1 hover:bg-white/50 rounded transition-colors"
+                              title={isCollapsed ? 'Развернуть' : 'Свернуть'}
+                            >
+                              <span className="text-lg">{isCollapsed ? '▶️' : '▼️'}</span>
+                            </button>
+                          )}
+                          {cat.children.length === 0 && <div className="w-7" />}
+                          <span className="text-2xl">{cat.icon}</span>
+                          <div>
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                              {cat.name}
+                              {isSystem && (
+                                <span className="text-xs bg-white/70 px-2 py-0.5 rounded-full text-gray-600">
+                                  системная
+                                </span>
+                              )}
+                            </h3>
+                            <div className="text-xs text-gray-500 flex gap-3">
+                              <span>🖥️ {cat.equipmentCount} ед. оборудования</span>
+                              {cat.children.length > 0 && <span>📁 {cat.children.length} вложенных</span>}
+                            </div>
+                          </div>
+                        </div>
+                        {!isSystem && (
+                          <button
+                            onClick={() => handleDeleteCategory(cat.id)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Удалить"
+                          >
+                            🗑️
+                          </button>
+                        )}
+                      </div>
+                      {/* Children */}
+                      {cat.children.length > 0 && !isCollapsed && (
+                        <div className="p-2 space-y-1">
+                          {cat.children.map((child: any) => (
+                            <div key={child.id} className="flex items-center justify-between p-2 ml-6 rounded-lg hover:bg-gray-50">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">{child.icon}</span>
+                                <div>
+                                  <span className="text-sm font-medium text-gray-700">{child.name}</span>
+                                  <span className="text-xs text-gray-400 ml-2">🖥️ {child.equipmentCount}</span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleDeleteCategory(child.id)}
+                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                                title="Удалить"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Category Form Modal */}
+            {showCategoryForm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+                  <div className="p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-bold text-gray-800">➕ Новая категория</h2>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Например: Ноутбуки"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Иконка *</label>
+                        <input
+                          type="text"
+                          value={newCategoryIcon}
+                          onChange={(e) => setNewCategoryIcon(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="📦"
+                          maxLength={2}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Родительская категория</label>
+                        <select
+                          value={newCategoryParent}
+                          onChange={(e) => setNewCategoryParent(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="">— Корневая категория —</option>
+                          {categories.filter(c => !isSystemCategory(c.id)).map(c => (
+                            <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
+                      <textarea
+                        value={newCategoryDesc}
+                        onChange={(e) => setNewCategoryDesc(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Необязательное описание"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t">
+                      <button onClick={() => setShowCategoryForm(false)} className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Отмена
+                      </button>
+                      <button
+                        onClick={handleAddCategory}
+                        disabled={!newCategoryName.trim()}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        Создать
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Clear Categories Confirm Modal */}
+            {showClearCategoryConfirm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+                  <div className="text-5xl text-center mb-4">⚠️</div>
+                  <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Очистить категории?</h3>
+                  <p className="text-gray-600 text-center mb-4">
+                    Удалить все пользовательские категории? Системные категории (Компьютеры, Периферия) будут сохранены.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowClearCategoryConfirm(false)}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={handleClearCategories}
                       className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
                     >
                       Очистить

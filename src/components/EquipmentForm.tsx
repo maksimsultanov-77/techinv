@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import { Equipment, Employee, Location, Status, getDepartmentName, getLocationFullPath } from '../db/database';
+import { Equipment, Employee, Location, Status, Category, getDepartmentName, getLocationFullPath, getCategoryTree } from '../db/database';
 
 interface EquipmentFormProps {
   categories: { id: number; name: string; icon: string }[];
@@ -93,8 +93,15 @@ export function EquipmentForm({ categories, employees, locations, statuses, equi
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               >
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                {getCategoryTree().map(cat => (
+                  <Fragment key={cat.id}>
+                    <option value={cat.id}>{cat.icon} {cat.name}</option>
+                    {cat.children.map(child => (
+                      <option key={child.id} value={child.id}>
+                        └─ {child.icon} {child.name}
+                      </option>
+                    ))}
+                  </Fragment>
                 ))}
               </select>
             </div>
