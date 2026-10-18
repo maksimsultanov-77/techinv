@@ -36,6 +36,11 @@ import {
   getLocationFullPath,
   isSystemLocation,
   getAllStatuses,
+  addStatus,
+  deleteStatus,
+  clearAllStatuses,
+  isSystemStatus,
+  getEquipmentCountByStatus,
   Category,
   Equipment,
   Employee,
@@ -50,7 +55,7 @@ import EmployeeForm from './components/EmployeeForm';
 import EmployeeList from './components/EmployeeList';
 import EmployeeDetail from './components/EmployeeDetail';
 
-type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations';
+type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses';
 type EquipmentFormData = Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>;
 type EmployeeFormData = Omit<Employee, 'id' | 'created_at' | 'updated_at'>;
 
@@ -105,6 +110,12 @@ function App() {
 
   // Statuses state
   const [statuses, setStatuses] = useState<Status[]>([]);
+  const [showStatusForm, setShowStatusForm] = useState(false);
+  const [newStatusName, setNewStatusName] = useState('');
+  const [newStatusColor, setNewStatusColor] = useState('#10b981');
+  const [newStatusIcon, setNewStatusIcon] = useState('✓');
+  const [newStatusDesc, setNewStatusDesc] = useState('');
+  const [showClearStatusConfirm, setShowClearStatusConfirm] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
@@ -363,6 +374,40 @@ function App() {
     setShowClearLocConfirm(false);
   };
 
+  // Status handlers
+  const handleAddStatus = () => {
+    if (!newStatusName.trim()) return;
+    addStatus(newStatusName.trim(), newStatusColor, newStatusIcon, newStatusDesc.trim());
+    setNewStatusName('');
+    setNewStatusColor('#10b981');
+    setNewStatusIcon('✓');
+    setNewStatusDesc('');
+    setShowStatusForm(false);
+    loadStatuses();
+  };
+
+  const handleDeleteStatus = (id: number) => {
+    const result = deleteStatus(id);
+    if (!result.success) {
+      showToast(result.message, 'error');
+      return;
+    }
+    loadStatuses();
+    showToast(result.message, 'success');
+  };
+
+  const handleClearStatuses = () => {
+    const result = clearAllStatuses();
+    if (!result.success) {
+      showToast(result.message, 'error');
+    } else {
+      loadStatuses();
+      loadEquipment();
+      showToast(result.message, 'success');
+    }
+    setShowClearStatusConfirm(false);
+  };
+
   const toggleLocationCollapse = (id: number) => {
     setCollapsedLocations(prev => {
       const newSet = new Set(prev);
@@ -457,6 +502,14 @@ function App() {
               }`}
             >
               📍 Местоположения <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{locations.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveView('statuses')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                activeView === 'statuses' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              🏷️ Статусы <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{statuses.length}</span>
             </button>
           </div>
         </div>
@@ -1058,6 +1111,178 @@ function App() {
                     </button>
                     <button
                       onClick={handleClearLocations}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                    >
+                      Очистить
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ============ СТАТУСЫ ============ */}
+        {activeView === 'statuses' && (
+          <>
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              {statuses.some(s => !isSystemStatus(s.id)) && (
+                <button
+                  onClick={() => setShowClearStatusConfirm(true)}
+                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  🗑️ Очистить
+                </button>
+              )}
+              <button
+                onClick={() => { setShowStatusForm(true); setNewStatusName(''); setNewStatusColor('#10b981'); setNewStatusIcon('✓'); setNewStatusDesc(''); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+              >
+                ➕ Добавить статус
+              </button>
+            </div>
+
+            {statuses.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+                <div className="text-6xl mb-4">🏷️</div>
+                <h3 className="text-xl font-medium text-gray-500 mb-2">Статусы не созданы</h3>
+                <p className="text-gray-400 mb-4">Добавьте статусы вручную</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {statuses.map(status => {
+                  const eqCount = getEquipmentCountByStatus(status.id);
+                  const isSystem = isSystemStatus(status.id);
+                  
+                  return (
+                    <div key={status.id} className={`bg-white rounded-xl border-2 p-4 hover:shadow-md transition-shadow ${isSystem ? 'border-green-200' : 'border-gray-200'}`}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div 
+                            className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold"
+                            style={{ backgroundColor: status.color + '20', color: status.color }}
+                          >
+                            {status.icon}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                              {status.name}
+                              {isSystem && (
+                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                  системный
+                                </span>
+                              )}
+                            </h3>
+                            {status.description && (
+                              <p className="text-sm text-gray-500 mt-1">{status.description}</p>
+                            )}
+                            <div className="mt-2 text-xs text-gray-400">
+                              🖥️ {eqCount} единиц оборудования
+                            </div>
+                          </div>
+                        </div>
+                        {!isSystem && (
+                          <button
+                            onClick={() => handleDeleteStatus(status.id)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Удалить"
+                          >
+                            🗑️
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Status Form Modal */}
+            {showStatusForm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+                  <div className="p-6 border-b border-gray-200">
+                    <h2 className="text-xl font-bold text-gray-800">➕ Новый статус</h2>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                      <input
+                        type="text"
+                        value={newStatusName}
+                        onChange={(e) => setNewStatusName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Например: На утилизации"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Цвет *</label>
+                        <input
+                          type="color"
+                          value={newStatusColor}
+                          onChange={(e) => setNewStatusColor(e.target.value)}
+                          className="w-full h-10 border border-gray-300 rounded-lg cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Иконка *</label>
+                        <input
+                          type="text"
+                          value={newStatusIcon}
+                          onChange={(e) => setNewStatusIcon(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="✓"
+                          maxLength={2}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
+                      <textarea
+                        value={newStatusDesc}
+                        onChange={(e) => setNewStatusDesc(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Необязательное описание"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t">
+                      <button onClick={() => setShowStatusForm(false)} className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Отмена
+                      </button>
+                      <button
+                        onClick={handleAddStatus}
+                        disabled={!newStatusName.trim()}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        Создать
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Clear Statuses Confirm Modal */}
+            {showClearStatusConfirm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+                  <div className="text-5xl text-center mb-4">⚠️</div>
+                  <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Очистить статусы?</h3>
+                  <p className="text-gray-600 text-center mb-4">
+                    Удалить все пользовательские статусы? Системные статусы (В работе, Неисправно, В ремонте) будут сохранены.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowClearStatusConfirm(false)}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={handleClearStatuses}
                       className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
                     >
                       Очистить

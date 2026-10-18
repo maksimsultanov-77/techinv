@@ -894,7 +894,16 @@ export function updateStatus(id: number, name: string, color: string, icon: stri
   saveDatabase();
 }
 
+export function isSystemStatus(id: number): boolean {
+  return id >= 1 && id <= 3; // Системные статусы: В работе (1), Неисправно (2), В ремонте (3)
+}
+
 export function deleteStatus(id: number): { success: boolean; message: string } {
+  // Проверяем, является ли статус системным
+  if (isSystemStatus(id)) {
+    return { success: false, message: 'Нельзя удалить системный статус' };
+  }
+  
   // Проверяем, есть ли оборудование с этим статусом
   const equipment = db.equipment.filter(eq => eq.status_id === id);
   if (equipment.length > 0) {
@@ -908,6 +917,47 @@ export function deleteStatus(id: number): { success: boolean; message: string } 
 
 export function getEquipmentCountByStatus(statusId: number): number {
   return db.equipment.filter(eq => eq.status_id === statusId).length;
+}
+
+export function clearAllStatuses(): { success: boolean; message: string } {
+  // Перемещаем всё оборудование со статусами, отличными от системных, в "В работе" (id=1)
+  db.equipment = db.equipment.map(eq => {
+    if (eq.status_id && !isSystemStatus(eq.status_id)) {
+      return { ...eq, status_id: 1 };
+    }
+    return eq;
+  });
+  
+  // Полностью удаляем все статусы
+  db.statuses = [];
+  
+  // Пересоздаём только 3 системных статуса
+  db.statuses.push({
+    id: 1,
+    name: 'В работе',
+    color: '#10b981',
+    icon: '✓',
+    description: 'Оборудование работает нормально',
+  });
+  db.statuses.push({
+    id: 2,
+    name: 'Неисправно',
+    color: '#ef4444',
+    icon: '✗',
+    description: 'Оборудование неисправно',
+  });
+  db.statuses.push({
+    id: 3,
+    name: 'В ремонте',
+    color: '#f59e0b',
+    icon: '⚙',
+    description: 'Оборудование находится в ремонте',
+  });
+  
+  db.nextStatusId = 4;
+  
+  saveDatabase();
+  return { success: true, message: 'Статусы очищены (остались только системные)' };
 }
 
 // ============ СОТРУДНИКИ ============
