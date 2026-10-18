@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState, Fragment } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { Employee, Department, TIMEZONES, EMPLOYEE_TYPES, getDepartmentName } from '../db/database';
 
 interface EmployeeFormProps {
@@ -9,7 +10,7 @@ interface EmployeeFormProps {
   onError?: (message: string) => void;
 }
 
-const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSave, onCancel, onError }) => {
+export function EmployeeForm({ departments, employee, onSave, onCancel, onError }: EmployeeFormProps) {
   const [formData, setFormData] = useState({
     full_name: employee?.full_name || '',
     gender: employee?.gender || 'male' as 'male' | 'female',
@@ -23,12 +24,12 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSa
     timezone: employee?.timezone || 'Europe/Moscow',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     
     // Проверка: для штатных сотрудников подразделение обязательно
@@ -54,12 +55,12 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSa
   const renderDeptOptions = (parentId: number | null, level: number = 0) => {
     const children = departments.filter(d => d.parent_id === parentId);
     return children.map(dept => (
-      <React.Fragment key={dept.id}>
+      <Fragment key={dept.id}>
         <option value={dept.id}>
           {'—'.repeat(level)} {dept.name}
         </option>
         {renderDeptOptions(dept.id, level + 1)}
-      </React.Fragment>
+      </Fragment>
     ));
   };
 
@@ -128,10 +129,10 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSa
               >
                 <option value="">— Не указано —</option>
                 {rootDepts.map(dept => (
-                  <React.Fragment key={dept.id}>
+                  <Fragment key={dept.id}>
                     <option value={dept.id}>{dept.name}</option>
                     {renderDeptOptions(dept.id, 1)}
-                  </React.Fragment>
+                  </Fragment>
                 ))}
               </select>
               {departments.length === 0 && (
@@ -242,6 +243,4 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSa
       </div>
     </div>
   );
-};
-
-export default EmployeeForm;
+}

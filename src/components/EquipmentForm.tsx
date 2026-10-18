@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { Equipment, Employee, Location, Status, getDepartmentName, getLocationFullPath } from '../db/database';
 
 interface EquipmentFormProps {
@@ -7,12 +8,12 @@ interface EquipmentFormProps {
   locations: Location[];
   statuses: Status[];
   equipment?: Equipment | null;
-  onSave: (data: any) => void;
+  onSave: (data: Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>) => void;
   onCancel: () => void;
   onError?: (message: string) => void;
 }
 
-const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, locations, statuses, equipment, onSave, onCancel, onError }) => {
+export function EquipmentForm({ categories, employees, locations, statuses, equipment, onSave, onCancel, onError }: EquipmentFormProps) {
   const [formData, setFormData] = useState({
     category_id: equipment?.category_id || (categories[0]?.id || 1),
     name: equipment?.name || '',
@@ -28,12 +29,12 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, lo
     notes: equipment?.notes || '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleEmployeeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleEmployeeChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const empId = e.target.value;
     const employee = empId ? employees.find(emp => emp.id === Number(empId)) : null;
     setFormData(prev => ({
@@ -43,7 +44,7 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, lo
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     
     // Проверка: местоположение обязательно
@@ -54,20 +55,22 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, lo
       return;
     }
     
-    const submitData = {
-      ...formData,
+    const submitData: Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'> = {
       category_id: Number(formData.category_id),
+      name: formData.name,
+      serial_number: formData.serial_number,
+      manufacturer: formData.manufacturer,
+      model: formData.model,
       location_id: Number(formData.location_id),
+      responsible_person: formData.responsible_person,
       responsible_employee_id: formData.responsible_employee_id ? Number(formData.responsible_employee_id) : null,
-      purchase_price: formData.purchase_price ? Number(formData.purchase_price) : null,
+      status_id: Number(formData.status_id),
+      purchase_date: formData.purchase_date,
+      purchase_price: formData.purchase_price ? Number(formData.purchase_price) : 0,
+      notes: formData.notes,
+      inventory_number: equipment?.inventory_number || '',
     };
-    // При редактировании сохраняем существующий инвентарный номер
-    if (equipment) {
-      onSave({ ...submitData, inventory_number: equipment.inventory_number });
-    } else {
-      // При создании инвентарный номер будет сгенерирован автоматически
-      onSave(submitData);
-    }
+    onSave(submitData);
   };
 
   return (
@@ -272,6 +275,6 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, lo
       </div>
     </div>
   );
-};
+}
 
 export default EquipmentForm;

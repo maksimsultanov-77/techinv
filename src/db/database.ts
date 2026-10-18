@@ -222,7 +222,7 @@ export function initDatabase(): Promise<void> {
           });
         }
         // Миграция: преобразуем location (string) в location_id (number)
-        db.equipment = db.equipment.map(eq => {
+        db.equipment = db.equipment.map((eq: any) => {
           if ('location' in eq && typeof eq.location === 'string') {
             // Ищем или создаём location по имени
             const existing = db.locations.find(l => l.name === eq.location);
@@ -243,7 +243,7 @@ export function initDatabase(): Promise<void> {
             } else {
               locationId = 0;
             }
-            const { location, ...rest } = eq as any;
+            const { location, ...rest } = eq;
             return { ...rest, location_id: locationId };
           }
           return eq;

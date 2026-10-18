@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   initDatabase,
   getCategories,
@@ -48,12 +48,14 @@ import {
   Location,
   Status,
 } from './db/database';
+import { EmployeeStats, LocationTreeNode, WorkMode } from './types';
 import EquipmentForm from './components/EquipmentForm';
 import EquipmentList from './components/EquipmentList';
 import EquipmentDetail from './components/EquipmentDetail';
-import EmployeeForm from './components/EmployeeForm';
+import { EmployeeForm } from './components/EmployeeForm';
 import EmployeeList from './components/EmployeeList';
 import EmployeeDetail from './components/EmployeeDetail';
+import { Modal } from './components/Modal';
 
 type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses';
 type EquipmentFormData = Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>;
@@ -89,7 +91,7 @@ function App() {
   const [showEmpForm, setShowEmpForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
-  const [empStats, setEmpStats] = useState<any>({ total: 0, byDepartment: [], byWorkMode: [], byGender: [], byType: [] });
+  const [empStats, setEmpStats] = useState<EmployeeStats>({ total: 0, byDepartment: [], byWorkMode: [], byGender: [], byType: [] });
 
   // Structure state
   const [showDeptForm, setShowDeptForm] = useState(false);
@@ -168,7 +170,6 @@ function App() {
       setEmployees(items);
       const s = getEmployeeStats();
       setEmpStats(s);
-      setDepartments(getAllDepartments());
     } catch (err) {
       console.error('Error loading employees:', err);
     }
@@ -198,15 +199,28 @@ function App() {
     }
   }, []);
 
+  // Initial load when database is ready
   useEffect(() => {
     if (dbReady) {
-      loadEquipment();
-      loadEmployees();
       loadDepartments();
       loadLocations();
       loadStatuses();
     }
-  }, [dbReady, loadEquipment, loadEmployees, loadDepartments, loadLocations, loadStatuses]);
+  }, [dbReady, loadDepartments, loadLocations, loadStatuses]);
+
+  // Reload equipment when filters change
+  useEffect(() => {
+    if (dbReady) {
+      loadEquipment();
+    }
+  }, [dbReady, loadEquipment]);
+
+  // Reload employees when filters change
+  useEffect(() => {
+    if (dbReady) {
+      loadEmployees();
+    }
+  }, [dbReady, loadEmployees]);
 
   // Equipment handlers
   const handleAdd = (data: EquipmentFormData) => {
@@ -726,7 +740,7 @@ function App() {
                 <div className="text-2xl font-bold text-gray-800">{empStats.total}</div>
                 <div className="text-xs text-gray-500">Всего сотрудников</div>
               </div>
-              {empStats.byWorkMode?.map((mode: any) => (
+              {empStats.byWorkMode?.map((mode: WorkMode) => (
                 <div
                   key={mode.mode}
                   className={`bg-white rounded-xl p-4 border cursor-pointer transition-all ${
@@ -941,7 +955,7 @@ function App() {
               </div>
             ) : (
               <div className="space-y-3">
-                {(getLocationTree() as (Location & { children: Location[]; equipmentCount: number })[]).map(loc => {
+                {(getLocationTree() as LocationTreeNode[]).map(loc => {
                   const isCollapsed = collapsedLocations.has(loc.id);
                   const isSystem = isSystemLocation(loc.id);
                   const bgColor = isSystem ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100';
@@ -990,7 +1004,7 @@ function App() {
                       {/* Children */}
                       {loc.children.length > 0 && !isCollapsed && (
                         <div className="p-2 space-y-1">
-                          {loc.children.map((child: any) => (
+                          {loc.children.map((child: LocationTreeNode) => (
                             <div key={child.id} className="flex items-center justify-between p-2 ml-6 rounded-lg hover:bg-gray-50">
                               <div className="flex items-center gap-2">
                                 <span className="text-lg">📁</span>
