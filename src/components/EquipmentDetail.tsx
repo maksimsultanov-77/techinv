@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Equipment, Employee, Status, getDepartmentName, getLocationFullPath, getStatusById } from '../db/database';
+import { LabelPrint } from './LabelPrint';
 
 interface EquipmentDetailProps {
   equipment: Equipment;
@@ -10,6 +11,7 @@ interface EquipmentDetailProps {
 }
 
 const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees, statuses, onClose, onEdit }) => {
+  const [showLabelPrint, setShowLabelPrint] = useState(false);
   const statusInfo = getStatusById(equipment.status_id) || { id: 1, name: 'Неизвестно', color: '#6b7280', icon: '?', description: '' };
 
   // Получаем информацию о сотруднике если есть связь
@@ -86,12 +88,25 @@ const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees,
               Закрыть
             </button>
             <button
+              onClick={() => setShowLabelPrint(true)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+            >
+              🏷️ Печать этикетки
+            </button>
+            <button
               onClick={onEdit}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               ✏️ Редактировать
             </button>
           </div>
+
+          {showLabelPrint && (
+            <LabelPrint
+              equipment={equipment}
+              onClose={() => setShowLabelPrint(false)}
+            />
+          )}
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Equipment, Status, getLocationFullPath, getStatusById } from '../db/database';
+import { LabelPrint } from './LabelPrint';
 
 interface EquipmentListProps {
   equipment: Equipment[];
@@ -11,6 +12,7 @@ interface EquipmentListProps {
 
 const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, onEdit, onDelete, onView }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [printingItem, setPrintingItem] = useState<Equipment | null>(null);
 
   if (!equipment.length) {
     return (
@@ -77,6 +79,13 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, onEd
                   👁️
                 </button>
                 <button
+                  onClick={() => setPrintingItem(item)}
+                  className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  title="Печать этикетки"
+                >
+                  🏷️
+                </button>
+                <button
                   onClick={() => onEdit(item)}
                   className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                   title="Редактировать"
@@ -115,6 +124,13 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, onEd
           </div>
         );
       })}
+
+      {printingItem && (
+        <LabelPrint
+          equipment={printingItem}
+          onClose={() => setPrintingItem(null)}
+        />
+      )}
     </div>
   );
 };
