@@ -931,13 +931,15 @@ function App() {
                                   <span className="text-xs text-gray-400 ml-2">🖥️ {child.equipmentCount}</span>
                                 </div>
                               </div>
-                              <button
-                                onClick={() => handleDeleteLocation(child.id)}
-                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-                                title="Удалить"
-                              >
-                                🗑️
-                              </button>
+                              {!isSystemLocation(child.id) && (
+                                <button
+                                  onClick={() => handleDeleteLocation(child.id)}
+                                  className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                                  title="Удалить"
+                                >
+                                  🗑️
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>
