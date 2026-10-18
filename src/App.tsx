@@ -35,11 +35,13 @@ import {
   getLocationTree,
   getLocationFullPath,
   isSystemLocation,
+  getAllStatuses,
   Category,
   Equipment,
   Employee,
   Department,
   Location,
+  Status,
 } from './db/database';
 import EquipmentForm from './components/EquipmentForm';
 import EquipmentList from './components/EquipmentList';
@@ -100,6 +102,9 @@ function App() {
   const [showLocTestConfirm, setShowLocTestConfirm] = useState(false);
   const [showClearLocConfirm, setShowClearLocConfirm] = useState(false);
   const [collapsedLocations, setCollapsedLocations] = useState<Set<number>>(new Set());
+
+  // Statuses state
+  const [statuses, setStatuses] = useState<Status[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
@@ -174,14 +179,23 @@ function App() {
     }
   }, []);
 
+  const loadStatuses = useCallback(() => {
+    try {
+      setStatuses(getAllStatuses());
+    } catch (err) {
+      console.error('Error loading statuses:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (dbReady) {
       loadEquipment();
       loadEmployees();
       loadDepartments();
       loadLocations();
+      loadStatuses();
     }
-  }, [dbReady, loadEquipment, loadEmployees, loadDepartments, loadLocations]);
+  }, [dbReady, loadEquipment, loadEmployees, loadDepartments, loadLocations, loadStatuses]);
 
   // Equipment handlers
   const handleAdd = (data: EquipmentFormData) => {
@@ -832,6 +846,7 @@ function App() {
 
             <EquipmentList
               equipment={equipment}
+              statuses={statuses}
               onEdit={(item) => { setEditingItem(item); setShowForm(false); }}
               onDelete={handleDelete}
               onView={(item) => setViewingItem(item)}
@@ -1057,15 +1072,16 @@ function App() {
 
       {/* Equipment Modals */}
       {showForm && (
-        <EquipmentForm categories={categories} employees={employees} locations={locations} onSave={handleAdd} onCancel={() => setShowForm(false)} onError={(msg) => showToast(msg, 'error')} />
+        <EquipmentForm categories={categories} employees={employees} locations={locations} statuses={statuses} onSave={handleAdd} onCancel={() => setShowForm(false)} onError={(msg) => showToast(msg, 'error')} />
       )}
       {editingItem && (
-        <EquipmentForm categories={categories} employees={employees} locations={locations} equipment={editingItem} onSave={handleEdit} onCancel={() => setEditingItem(null)} onError={(msg) => showToast(msg, 'error')} />
+        <EquipmentForm categories={categories} employees={employees} locations={locations} statuses={statuses} equipment={editingItem} onSave={handleEdit} onCancel={() => setEditingItem(null)} onError={(msg) => showToast(msg, 'error')} />
       )}
       {viewingItem && (
         <EquipmentDetail
           equipment={viewingItem}
           employees={employees}
+          statuses={statuses}
           onClose={() => setViewingItem(null)}
           onEdit={() => { setEditingItem(viewingItem); setViewingItem(null); }}
         />

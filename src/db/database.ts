@@ -283,7 +283,7 @@ export function initDatabase(): Promise<void> {
         }
         
         // Миграция: преобразуем status (string) в status_id (number)
-        db.equipment = db.equipment.map(eq => {
+        db.equipment = db.equipment.map((eq: any) => {
           if ('status' in eq && typeof eq.status === 'string') {
             const statusMap: Record<string, number> = {
               'active': 1,
@@ -294,7 +294,7 @@ export function initDatabase(): Promise<void> {
               'В ремонте': 3,
             };
             const statusId = statusMap[eq.status] || 1;
-            const { status, ...rest } = eq as any;
+            const { status, ...rest } = eq;
             return { ...rest, status_id: statusId };
           }
           if ('status_id' in eq) {
