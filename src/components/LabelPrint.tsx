@@ -15,8 +15,8 @@ export function LabelPrint({ equipment, onClose }: LabelPrintProps) {
       try {
         JsBarcode(barcodeRef.current, equipment.inventory_number, {
           format: 'CODE128',
-          width: 1.5,
-          height: 40,
+          width: 1.2,
+          height: 25,
           displayValue: false,
           margin: 0,
         });
@@ -46,23 +46,25 @@ export function LabelPrint({ equipment, onClose }: LabelPrintProps) {
         <div className="p-6">
           {/* Preview */}
           <div className="mb-6 flex justify-center">
-            <div className="label-preview border-2 border-dashed border-gray-300 p-4 bg-white">
+            <div className="label-preview border-2 border-dashed border-gray-300 p-2 bg-white">
               <div className="label-content">
-                <div className="text-xs text-gray-600 mb-1">Инв. №:</div>
-                <div className="text-sm font-bold mb-2">{equipment.inventory_number}</div>
+                <div className="flex justify-between items-baseline mb-1">
+                  <span className="text-[8pt] text-gray-600">Инв. №</span>
+                  <span className="text-[9pt] font-bold">{equipment.inventory_number}</span>
+                </div>
                 
-                <div className="barcode-container mb-2">
+                <div className="barcode-container mb-1">
                   <svg ref={barcodeRef}></svg>
                 </div>
                 
-                <div className="text-xs text-gray-600 mb-1">Наименование:</div>
-                <div className="text-xs font-medium mb-2 break-words">{equipment.name}</div>
+                <div className="text-[7pt] leading-tight mb-1 break-words max-h-[18px] overflow-hidden">
+                  {equipment.name}
+                </div>
                 
                 {equipment.serial_number && (
-                  <>
-                    <div className="text-xs text-gray-600 mb-1">Серийный №:</div>
-                    <div className="text-xs font-medium">{equipment.serial_number}</div>
-                  </>
+                  <div className="text-[7pt] leading-tight break-words">
+                    S/N: {equipment.serial_number}
+                  </div>
                 )}
               </div>
             </div>
