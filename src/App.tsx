@@ -410,7 +410,7 @@ function App() {
               >
                 🎲 Тестовая структура
               </button>
-              {departments.length > 0 && employees.length === 0 && (
+              {departments.some(d => d.id > 3) && employees.length === 0 && (
                 <button
                   onClick={() => {
                     const result = clearAllDepartments();
@@ -433,8 +433,10 @@ function App() {
             <div className="space-y-3">
               {deptTree.map(dept => {
                 const isCollapsed = collapsedDepts.has(dept.id);
-                const isSystem = dept.id === 1 || dept.id === 2;
-                const icon = isSystem ? (dept.id === 1 ? '👥' : '📝') : '🏢';
+                const isSystem = dept.id === 1 || dept.id === 2 || dept.id === 3;
+                const icon = isSystem 
+                  ? (dept.id === 1 ? '👥' : dept.id === 2 ? '📝' : '🌐') 
+                  : '🏢';
                 const bgColor = isSystem ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100';
                 
                 return (

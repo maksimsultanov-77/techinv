@@ -132,7 +132,7 @@ export function initDatabase(): Promise<void> {
         if (!db.employees) db.employees = [];
         if (!db.nextEmployeeId) db.nextEmployeeId = 1;
         if (!db.departments) db.departments = [];
-        if (!db.nextDepartmentId) db.nextDepartmentId = 3;
+        if (!db.nextDepartmentId) db.nextDepartmentId = 4;
         
         // Миграция: добавляем обязательные виртуальные подразделения если их нет
         if (!db.departments.find(d => d.id === 1)) {
@@ -150,6 +150,17 @@ export function initDatabase(): Promise<void> {
           db.departments.splice(idx + 1, 0, {
             id: 2,
             name: 'Подрядчики',
+            parent_id: null,
+            head_employee_id: null,
+            created_at: new Date().toISOString(),
+          });
+        }
+        if (!db.departments.find(d => d.id === 3)) {
+          // Вставляем после "Подрядчики"
+          const idx = db.departments.findIndex(d => d.id === 2);
+          db.departments.splice(idx + 1, 0, {
+            id: 3,
+            name: 'Вне штата',
             parent_id: null,
             head_employee_id: null,
             created_at: new Date().toISOString(),
@@ -220,7 +231,7 @@ function createDefaultDatabase(): DatabaseSchema {
     nextCategoryId: defaultCategories.length + 1,
     nextEquipmentId: 1,
     nextEmployeeId: 1,
-    nextDepartmentId: 3, // Начинаем с 3, т.к. 1 и 2 зарезервированы
+    nextDepartmentId: 4, // Начинаем с 4, т.к. 1, 2 и 3 зарезервированы
     nextLocationId: 1,
   };
   
@@ -235,6 +246,13 @@ function createDefaultDatabase(): DatabaseSchema {
   db.departments.push({
     id: 2,
     name: 'Подрядчики',
+    parent_id: null,
+    head_employee_id: null,
+    created_at: new Date().toISOString(),
+  });
+  db.departments.push({
+    id: 3,
+    name: 'Вне штата',
     parent_id: null,
     head_employee_id: null,
     created_at: new Date().toISOString(),
@@ -893,7 +911,7 @@ export function updateDepartment(id: number, name: string, parentId: number | nu
 }
 
 export function isSystemDepartment(id: number): boolean {
-  return id === 1 || id === 2; // Штат и Подрядчики
+  return id === 1 || id === 2 || id === 3; // Штат, Подрядчики и Вне штата
 }
 
 export function deleteDepartment(id: number): { success: boolean; message: string } {
@@ -932,7 +950,7 @@ export function generateTestDepartments(): number {
     'Руководство', 'ИТ-департамент', 'Финансовый отдел', 'Отдел продаж',
     'Отдел маркетинга', 'Отдел кадров', 'Юридический отдел', 'Отдел логистики',
     'Производственный отдел', 'Отдел разработки', 'Служба безопасности', 'Бухгалтерия',
-  ].filter(name => name !== 'Штат' && name !== 'Подрядчики'); // Исключаем системные
+  ].filter(name => name !== 'Штат' && name !== 'Подрядчики' && name !== 'Вне штата'); // Исключаем системные
 
   const subDeptNames: Record<string, string[]> = {
     'ИТ-департамент': ['Сетевой отдел', 'Отдел разработки', 'Техподдержка', 'Отдел информационной безопасности'],
@@ -984,8 +1002,8 @@ export function clearAllDepartments(): { success: boolean; message: string } {
   if (db.employees.length > 0) {
     return { success: false, message: 'Нельзя очистить: есть привязанные сотрудники' };
   }
-  db.departments = [];
-  db.nextDepartmentId = 1;
+  // Удаляем только несистемные подразделения
+  db.departments = db.departments.filter(d => !isSystemDepartment(d.id));
   saveDatabase();
-  return { success: true, message: 'Оргструктура очищена' };
+  return { success: true, message: 'Оргструктура очищена (системные подразделения сохранены)' };
 }
