@@ -1032,7 +1032,7 @@ function App() {
                   <div className="text-5xl text-center mb-4">⚠️</div>
                   <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Очистить местоположения?</h3>
                   <p className="text-gray-600 text-center mb-4">
-                    Удалить все пользовательские местоположения? Системные местоположения (Офис, Вне офиса) будут сохранены.
+                    Удалить все пользовательские местоположения? Системные местоположения (Главный офис, Вне офиса) будут сохранены.
                   </p>
                   <div className="flex gap-3">
                     <button

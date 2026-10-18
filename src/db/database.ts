@@ -195,7 +195,7 @@ export function initDatabase(): Promise<void> {
         if (!db.locations.find(l => l.id === 1)) {
           db.locations.unshift({
             id: 1,
-            name: 'Офис',
+            name: 'Главный офис',
             description: 'Системное местоположение',
             parent_id: null,
             created_at: new Date().toISOString(),
@@ -290,7 +290,7 @@ function createDefaultDatabase(): DatabaseSchema {
   // Создаём системные местоположения
   db.locations.push({
     id: 1,
-    name: 'Офис',
+    name: 'Главный офис',
     description: 'Системное местоположение',
     parent_id: null,
     created_at: new Date().toISOString(),
@@ -617,7 +617,7 @@ export function updateLocation(id: number, name: string, description: string, pa
 }
 
 export function isSystemLocation(id: number): boolean {
-  return id === 1 || id === 2; // Офис и Вне офиса
+  return id === 1 || id === 2; // Главный офис и Вне офиса
 }
 
 export function deleteLocation(id: number): { success: boolean; message: string } {
@@ -682,9 +682,8 @@ export function getLocationFullPath(locationId: number): string {
 }
 
 export function generateTestLocations(): number {
-  // Создаём корневые местоположения
+  // Создаём корневые местоположения (не создаём "Главный офис", т.к. он уже системный)
   const rootLocations = [
-    { name: 'Главный офис', description: 'Центральный офис компании' },
     { name: 'Филиал Север', description: 'Северный филиал' },
     { name: 'Филиал Юг', description: 'Южный филиал' },
     { name: 'Склад №1', description: 'Основной склад' },
@@ -706,7 +705,7 @@ export function generateTestLocations(): number {
     }
   }
   
-  // Создаём вложенные местоположения
+  // Создаём вложенные местоположения (дочерние элементы системного "Главный офис" ID=1)
   const childLocations = [
     { name: 'Кабинет 101', description: 'Первый этаж', parent: 'Главный офис' },
     { name: 'Кабинет 102', description: 'Первый этаж', parent: 'Главный офис' },
@@ -720,10 +719,12 @@ export function generateTestLocations(): number {
     { name: 'Отдел кадров', description: 'HR отдел', parent: 'Главный офис' },
   ];
   
+  // Получаем ID системного "Главный офис"
+  const mainOfficeId = 1;
+  
   for (const loc of childLocations) {
-    const parentId = createdIds[loc.parent];
-    if (parentId && !db.locations.find(l => l.name === loc.name && l.parent_id === parentId)) {
-      addLocation(loc.name, loc.description, parentId);
+    if (!db.locations.find(l => l.name === loc.name && l.parent_id === mainOfficeId)) {
+      addLocation(loc.name, loc.description, mainOfficeId);
       count++;
     }
   }
@@ -732,7 +733,7 @@ export function generateTestLocations(): number {
 }
 
 export function clearAllLocations(): { success: boolean; message: string } {
-  // Перемещаем оборудование из несистемных местоположений в "Офис" (id=1)
+  // Перемещаем оборудование из несистемных местоположений в "Главный офис" (id=1)
   db.equipment = db.equipment.map(eq => {
     if (eq.location_id && !isSystemLocation(eq.location_id)) {
       return { ...eq, location_id: 1 };
@@ -743,7 +744,7 @@ export function clearAllLocations(): { success: boolean; message: string } {
   // Удаляем все несистемные местоположения (включая вложенные)
   db.locations = db.locations.filter(l => isSystemLocation(l.id));
   saveDatabase();
-  return { success: true, message: 'Местоположения очищены (системные сохранены)' };
+  return { success: true, message: 'Местоположения очищены (остались только Главный офис и Вне офиса)' };
 }
 
 // ============ СОТРУДНИКИ ============
