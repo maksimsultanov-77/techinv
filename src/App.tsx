@@ -24,6 +24,7 @@ import {
   getDepartmentName,
   generateTestDepartments,
   clearAllDepartments,
+  isSystemDepartment,
   getAllLocations,
   addLocation,
   deleteLocation,
@@ -410,12 +411,20 @@ function App() {
               >
                 🎲 Тестовая структура
               </button>
-              {departments.some(d => d.id > 3) && employees.length === 0 && (
+              {departments.some(d => !isSystemDepartment(d.id)) && (
                 <button
                   onClick={() => {
+                    if (!confirm('Удалить все пользовательские подразделения? Системные подразделения (Штат, Подрядчики, Вне штата) будут сохранены.')) {
+                      return;
+                    }
                     const result = clearAllDepartments();
-                    if (!result.success) alert(result.message);
-                    else { loadDepartments(); }
+                    if (!result.success) {
+                      alert(result.message);
+                    } else {
+                      loadDepartments();
+                      loadEmployees();
+                      alert(result.message);
+                    }
                   }}
                   className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                 >
