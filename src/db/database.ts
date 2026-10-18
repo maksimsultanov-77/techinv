@@ -11,6 +11,16 @@ export interface Status {
   description: string;
 }
 
+export interface LogEntry {
+  id: number;
+  timestamp: string;
+  action: 'create' | 'update' | 'delete' | 'clear' | 'generate';
+  entityType: string;
+  entityId?: number;
+  entityName?: string;
+  details: string;
+}
+
 export interface Equipment {
   id: number;
   category_id: number;
@@ -103,12 +113,14 @@ interface DatabaseSchema {
   departments: Department[];
   locations: Location[];
   statuses: Status[];
+  logs: LogEntry[];
   nextCategoryId: number;
   nextEquipmentId: number;
   nextEmployeeId: number;
   nextDepartmentId: number;
   nextLocationId: number;
   nextStatusId: number;
+  nextLogId: number;
 }
 
 export function isSystemCategory(id: number): boolean {
@@ -341,6 +353,10 @@ export function initDatabase(): Promise<void> {
           }
           return { ...eq, status_id: 1 };
         });
+        
+        // Миграция: добавляем logs
+        if (!db.logs) db.logs = [];
+        if (!db.nextLogId) db.nextLogId = 1;
       } catch (e) {
         console.error('Error loading database:', e);
         db = createDefaultDatabase();
@@ -361,12 +377,14 @@ function createDefaultDatabase(): DatabaseSchema {
     departments: [],
     locations: [],
     statuses: [],
+    logs: [],
     nextCategoryId: 14,
     nextEquipmentId: 1,
     nextEmployeeId: 1,
     nextDepartmentId: 4, // Начинаем с 4, т.к. 1, 2 и 3 зарезервированы
     nextLocationId: 3, // Начинаем с 3, т.к. 1 и 2 зарезервированы
     nextStatusId: 4, // Начинаем с 4, т.к. 1, 2 и 3 зарезервированы
+    nextLogId: 1,
   };
   
   // Создаём обязательные виртуальные подразделения
@@ -515,6 +533,7 @@ export function addEquipment(data: Omit<Equipment, 'id' | 'category_name' | 'cat
 
   db.equipment.push(newEquipment);
   saveDatabase();
+  addLog('create', 'equipment', newEquipment.id, newEquipment.name, `Категория: ${category?.name || 'не указана'}`);
   return newEquipment.id;
 }
 
@@ -546,11 +565,15 @@ export function updateEquipment(id: number, data: Omit<Equipment, 'id' | 'catego
   };
 
   saveDatabase();
+  addLog('update', 'equipment', id, data.name, 'Оборудование обновлено');
 }
 
 export function deleteEquipment(id: number): void {
+  const equipment = db.equipment.find(eq => eq.id === id);
+  const name = equipment?.name || 'Неизвестно';
   db.equipment = db.equipment.filter(eq => eq.id !== id);
   saveDatabase();
+  addLog('delete', 'equipment', id, name, 'Оборудование удалено');
 }
 
 // Генерация тестовых данных
@@ -683,13 +706,16 @@ export function generateTestData(): number {
   }
   
   saveDatabase();
+  addLog('generate', 'equipment', undefined, undefined, `Сгенерировано ${count} единиц оборудования`);
   return count;
 }
 
 export function clearAllEquipment(): void {
+  const count = db.equipment.length;
   db.equipment = [];
   db.nextEquipmentId = 1;
   saveDatabase();
+  addLog('clear', 'equipment', undefined, undefined, `Удалено ${count} единиц оборудования`);
 }
 
 export function getStats(): { total: number; byCategory: { name: string; icon: string; count: number }[] } {
@@ -1192,6 +1218,7 @@ export function addEmployee(data: Omit<Employee, 'id' | 'created_at' | 'updated_
   };
   db.employees.push(newEmployee);
   saveDatabase();
+  addLog('create', 'employee', newEmployee.id, newEmployee.full_name, `Подразделение: ${newEmployee.department_id || 'не указано'}`);
   return newEmployee.id;
 }
 
@@ -1214,9 +1241,12 @@ export function updateEmployee(id: number, data: Omit<Employee, 'id' | 'created_
     updated_at: new Date().toISOString(),
   };
   saveDatabase();
+  addLog('update', 'employee', id, data.full_name, 'Сотрудник обновлён');
 }
 
 export function deleteEmployee(id: number): void {
+  const employee = db.employees.find(emp => emp.id === id);
+  const name = employee?.full_name || 'Неизвестно';
   db.employees = db.employees.filter(emp => emp.id !== id);
   // Очищаем связь в оборудовании
   db.equipment = db.equipment.map(eq => 
@@ -1225,6 +1255,7 @@ export function deleteEmployee(id: number): void {
       : eq
   );
   saveDatabase();
+  addLog('delete', 'employee', id, name, 'Сотрудник удалён');
 }
 
 export function getEmployeeStats(): {
@@ -1350,13 +1381,16 @@ export function generateTestEmployees(): number {
   }
 
   saveDatabase();
+  addLog('generate', 'employee', undefined, undefined, `Сгенерировано ${count} сотрудников`);
   return count;
 }
 
 export function clearAllEmployees(): void {
+  const count = db.employees.length;
   db.employees = [];
   db.nextEmployeeId = 1;
   saveDatabase();
+  addLog('clear', 'employee', undefined, undefined, `Удалено ${count} сотрудников`);
 }
 
 // ============ ОРГСТРУКТУРА (ПОДРАЗДЕЛЕНИЯ) ============
@@ -1405,6 +1439,7 @@ export function addDepartment(name: string, parentId: number | null = null): num
   };
   db.departments.push(newDept);
   saveDatabase();
+  addLog('create', 'department', newDept.id, newDept.name, 'Подразделение создано');
   return newDept.id;
 }
 
@@ -1418,6 +1453,7 @@ export function updateDepartment(id: number, name: string, parentId: number | nu
     head_employee_id: headEmployeeId,
   };
   saveDatabase();
+  addLog('update', 'department', id, name, 'Подразделение обновлено');
 }
 
 export function isSystemDepartment(id: number): boolean {
@@ -1442,8 +1478,11 @@ export function deleteDepartment(id: number): { success: boolean; message: strin
     return { success: false, message: `Нельзя удалить: в подразделении ${employees.length} сотрудников` };
   }
   
+  const dept = db.departments.find(d => d.id === id);
+  const name = dept?.name || 'Неизвестно';
   db.departments = db.departments.filter(d => d.id !== id);
   saveDatabase();
+  addLog('delete', 'department', id, name, 'Подразделение удалено');
   return { success: true, message: 'Подразделение удалено' };
 }
 
@@ -1505,6 +1544,7 @@ export function generateTestDepartments(): number {
   }
 
   saveDatabase();
+  addLog('generate', 'department', undefined, undefined, `Сгенерировано ${created} подразделений`);
   return created;
 }
 
@@ -1518,7 +1558,57 @@ export function clearAllDepartments(): { success: boolean; message: string } {
   });
   
   // Удаляем все несистемные подразделения (включая вложенные)
+  const deletedCount = db.departments.filter(d => !isSystemDepartment(d.id)).length;
   db.departments = db.departments.filter(d => isSystemDepartment(d.id));
   saveDatabase();
+  addLog('clear', 'department', undefined, undefined, `Удалено ${deletedCount} подразделений (системные сохранены)`);
   return { success: true, message: 'Оргструктура очищена (системные подразделения сохранены)' };
+}
+
+// ============ ЛОГИ ============
+
+function addLog(action: LogEntry['action'], entityType: string, entityId?: number, entityName?: string, details?: string): void {
+  try {
+    const log: LogEntry = {
+      id: db.nextLogId++,
+      timestamp: new Date().toISOString(),
+      action,
+      entityType,
+      entityId,
+      entityName,
+      details: details || '',
+    };
+    db.logs.push(log);
+    saveDatabase();
+  } catch (error) {
+    // Логи не должны влиять на работу системы
+    console.error('Error adding log:', error);
+  }
+}
+
+export function getAllLogs(): LogEntry[] {
+  return [...db.logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+export function clearAllLogs(): void {
+  db.logs = [];
+  db.nextLogId = 1;
+  saveDatabase();
+}
+
+export function exportLogs(): string {
+  return JSON.stringify(db.logs, null, 2);
+}
+
+export function getLogStats(): { total: number; byAction: Record<string, number>; byEntityType: Record<string, number> } {
+  const total = db.logs.length;
+  const byAction: Record<string, number> = {};
+  const byEntityType: Record<string, number> = {};
+  
+  db.logs.forEach(log => {
+    byAction[log.action] = (byAction[log.action] || 0) + 1;
+    byEntityType[log.entityType] = (byEntityType[log.entityType] || 0) + 1;
+  });
+  
+  return { total, byAction, byEntityType };
 }
