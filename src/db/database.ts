@@ -755,6 +755,7 @@ export function addLocation(name: string, description: string = '', parentId: nu
   };
   db.locations.push(newLocation);
   saveDatabase();
+  addLog('create', 'location', newLocation.id, newLocation.name, 'Местоположение создано');
   return newLocation.id;
 }
 
@@ -792,8 +793,11 @@ export function deleteLocation(id: number): { success: boolean; message: string 
     return { success: false, message: `Нельзя удалить: есть ${children.length} вложенных местоположений` };
   }
   
+  const location = db.locations.find(l => l.id === id);
+  const name = location?.name || 'Неизвестно';
   db.locations = db.locations.filter(l => l.id !== id);
   saveDatabase();
+  addLog('delete', 'location', id, name, 'Местоположение удалено');
   return { success: true, message: 'Местоположение удалено' };
 }
 
@@ -883,6 +887,7 @@ export function generateTestLocations(): number {
     }
   }
   
+  addLog('generate', 'location', undefined, undefined, `Сгенерировано ${count} местоположений`);
   return count;
 }
 
@@ -915,6 +920,7 @@ export function clearAllLocations(): { success: boolean; message: string } {
   db.nextLocationId = 3;
   
   saveDatabase();
+  addLog('clear', 'location', undefined, undefined, 'Местоположения очищены (системные сохранены)');
   return { success: true, message: 'Местоположения очищены (остались только Главный офис и Вне офиса)' };
 }
 
@@ -943,6 +949,7 @@ export function addStatus(name: string, color: string, icon: string, description
   };
   db.statuses.push(newStatus);
   saveDatabase();
+  addLog('create', 'status', newStatus.id, newStatus.name, `Цвет: ${color}, иконка: ${icon}`);
   return newStatus.id;
 }
 
@@ -975,8 +982,11 @@ export function deleteStatus(id: number): { success: boolean; message: string } 
     return { success: false, message: `Нельзя удалить: к статусу привязано ${equipment.length} единиц оборудования` };
   }
   
+  const status = db.statuses.find(s => s.id === id);
+  const name = status?.name || 'Неизвестно';
   db.statuses = db.statuses.filter(s => s.id !== id);
   saveDatabase();
+  addLog('delete', 'status', id, name, 'Статус удалён');
   return { success: true, message: 'Статус удалён' };
 }
 
@@ -1022,6 +1032,7 @@ export function clearAllStatuses(): { success: boolean; message: string } {
   db.nextStatusId = 4;
   
   saveDatabase();
+  addLog('clear', 'status', undefined, undefined, 'Статусы очищены (системные сохранены)');
   return { success: true, message: 'Статусы очищены (остались только системные)' };
 }
 
@@ -1050,6 +1061,7 @@ export function addCategory(name: string, icon: string, description: string = ''
   };
   db.categories.push(newCategory);
   saveDatabase();
+  addLog('create', 'category', newCategory.id, newCategory.name, `Иконка: ${icon}, родитель: ${parentId || 'нет'}`);
   return newCategory.id;
 }
 
@@ -1084,8 +1096,11 @@ export function deleteCategory(id: number): { success: boolean; message: string 
     return { success: false, message: `Нельзя удалить: есть ${children.length} вложенных категорий` };
   }
   
+  const category = db.categories.find(c => c.id === id);
+  const name = category?.name || 'Неизвестно';
   db.categories = db.categories.filter(c => c.id !== id);
   saveDatabase();
+  addLog('delete', 'category', id, name, 'Категория удалена');
   return { success: true, message: 'Категория удалена' };
 }
 
@@ -1158,6 +1173,7 @@ export function clearAllCategories(): { success: boolean; message: string } {
   db.nextCategoryId = 3;
   
   saveDatabase();
+  addLog('clear', 'category', undefined, undefined, 'Категории очищены (системные сохранены)');
   return { success: true, message: 'Категории очищены (остались только системные)' };
 }
 
