@@ -733,16 +733,33 @@ export function generateTestLocations(): number {
 }
 
 export function clearAllLocations(): { success: boolean; message: string } {
-  // Перемещаем оборудование из несистемных местоположений в "Главный офис" (id=1)
-  db.equipment = db.equipment.map(eq => {
-    if (eq.location_id && !isSystemLocation(eq.location_id)) {
-      return { ...eq, location_id: 1 };
-    }
-    return eq;
+  // Перемещаем всё оборудование в "Главный офис" (id=1)
+  db.equipment = db.equipment.map(eq => ({
+    ...eq,
+    location_id: 1
+  }));
+  
+  // Полностью удаляем все местоположения
+  db.locations = [];
+  
+  // Пересоздаём только 2 системных местоположения
+  db.locations.push({
+    id: 1,
+    name: 'Главный офис',
+    description: 'Системное местоположение',
+    parent_id: null,
+    created_at: new Date().toISOString(),
+  });
+  db.locations.push({
+    id: 2,
+    name: 'Вне офиса',
+    description: 'Системное местоположение',
+    parent_id: null,
+    created_at: new Date().toISOString(),
   });
   
-  // Удаляем все несистемные местоположения (включая вложенные)
-  db.locations = db.locations.filter(l => isSystemLocation(l.id));
+  db.nextLocationId = 3;
+  
   saveDatabase();
   return { success: true, message: 'Местоположения очищены (остались только Главный офис и Вне офиса)' };
 }
