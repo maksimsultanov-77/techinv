@@ -55,14 +55,6 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
-interface ConfirmDialog {
-  title: string;
-  message: string;
-  onConfirm: () => void;
-  confirmText?: string;
-  confirmColor?: string;
-}
-
 function App() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -106,10 +98,10 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showClearDeptConfirm, setShowClearDeptConfirm] = useState(false);
   
   // Toast notifications
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog | null>(null);
   
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now();
@@ -117,10 +109,6 @@ function App() {
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
-  };
-  
-  const showConfirm = (title: string, message: string, onConfirm: () => void, confirmText = 'Подтвердить', confirmColor = 'bg-red-600') => {
-    setConfirmDialog({ title, message, onConfirm, confirmText, confirmColor });
   };
   const [showEmpTestConfirm, setShowEmpTestConfirm] = useState(false);
   const [showEmpClearConfirm, setShowEmpClearConfirm] = useState(false);
@@ -443,24 +431,7 @@ function App() {
               </button>
               {departments.some(d => !isSystemDepartment(d.id)) && (
                 <button
-                  onClick={() => {
-                    showConfirm(
-                      'Очистить оргструктуру?',
-                      'Удалить все пользовательские подразделения? Системные подразделения (Штат, Подрядчики, Вне штата) будут сохранены.',
-                      () => {
-                        const result = clearAllDepartments();
-                        if (!result.success) {
-                          showToast(result.message, 'error');
-                        } else {
-                          loadDepartments();
-                          loadEmployees();
-                          showToast(result.message, 'success');
-                        }
-                      },
-                      'Очистить',
-                      'bg-red-600'
-                    );
-                  }}
+                  onClick={() => setShowClearDeptConfirm(true)}
                   className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                 >
                   🗑️ Очистить
@@ -1108,27 +1079,37 @@ function App() {
         </div>
       )}
 
-      {/* Confirm Dialog */}
-      {confirmDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[90] p-4">
+      {/* Clear Departments Confirm Modal */}
+      {showClearDeptConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-3">{confirmDialog.title}</h3>
-            <p className="text-gray-600 mb-6">{confirmDialog.message}</p>
+            <div className="text-5xl text-center mb-4">⚠️</div>
+            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Очистить оргструктуру?</h3>
+            <p className="text-gray-600 text-center mb-4">
+              Удалить все пользовательские подразделения? Системные подразделения (Штат, Подрядчики, Вне штата) будут сохранены.
+            </p>
             <div className="flex gap-3">
               <button
-                onClick={() => setConfirmDialog(null)}
+                onClick={() => setShowClearDeptConfirm(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 Отмена
               </button>
               <button
                 onClick={() => {
-                  confirmDialog.onConfirm();
-                  setConfirmDialog(null);
+                  const result = clearAllDepartments();
+                  if (!result.success) {
+                    showToast(result.message, 'error');
+                  } else {
+                    loadDepartments();
+                    loadEmployees();
+                    showToast(result.message, 'success');
+                  }
+                  setShowClearDeptConfirm(false);
                 }}
-                className={`flex-1 px-4 py-2 ${confirmDialog.confirmColor} text-white rounded-lg font-medium`}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
               >
-                {confirmDialog.confirmText}
+                Очистить
               </button>
             </div>
           </div>

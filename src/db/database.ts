@@ -999,11 +999,16 @@ export function generateTestDepartments(): number {
 }
 
 export function clearAllDepartments(): { success: boolean; message: string } {
-  if (db.employees.length > 0) {
-    return { success: false, message: 'Нельзя очистить: есть привязанные сотрудники' };
-  }
-  // Удаляем только несистемные подразделения
-  db.departments = db.departments.filter(d => !isSystemDepartment(d.id));
+  // Перемещаем всех сотрудников из несистемных подразделений в "Штат" (id=1)
+  db.employees = db.employees.map(emp => {
+    if (emp.department_id && !isSystemDepartment(emp.department_id)) {
+      return { ...emp, department_id: 1 };
+    }
+    return emp;
+  });
+  
+  // Удаляем все несистемные подразделения (включая вложенные)
+  db.departments = db.departments.filter(d => isSystemDepartment(d.id));
   saveDatabase();
   return { success: true, message: 'Оргструктура очищена (системные подразделения сохранены)' };
 }
