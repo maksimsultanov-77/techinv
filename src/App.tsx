@@ -49,6 +49,20 @@ type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations';
 type EquipmentFormData = Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>;
 type EmployeeFormData = Omit<Employee, 'id' | 'created_at' | 'updated_at'>;
 
+interface Toast {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
+interface ConfirmDialog {
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  confirmText?: string;
+  confirmColor?: string;
+}
+
 function App() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -92,6 +106,22 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  
+  // Toast notifications
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog | null>(null);
+  
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
+  
+  const showConfirm = (title: string, message: string, onConfirm: () => void, confirmText = 'Подтвердить', confirmColor = 'bg-red-600') => {
+    setConfirmDialog({ title, message, onConfirm, confirmText, confirmColor });
+  };
   const [showEmpTestConfirm, setShowEmpTestConfirm] = useState(false);
   const [showEmpClearConfirm, setShowEmpClearConfirm] = useState(false);
   const [showDeptTestConfirm, setShowDeptTestConfirm] = useState(false);
@@ -213,7 +243,7 @@ function App() {
   const handleDeleteDepartment = (id: number) => {
     const result = deleteDepartment(id);
     if (!result.success) {
-      alert(result.message);
+      showToast(result.message, 'error');
       return;
     }
     loadDepartments();
@@ -237,9 +267,9 @@ function App() {
       const count = generateTestData();
       setShowTestConfirm(false);
       loadEquipment();
-      alert(`✅ Создано ${count} единиц тестового оборудования`);
+      showToast(`✅ Создано ${count} единиц тестового оборудования`, 'success');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Ошибка при создании тестовых данных');
+      showToast(err instanceof Error ? err.message : 'Ошибка при создании тестовых данных', 'error');
     }
   };
 
@@ -254,9 +284,9 @@ function App() {
       const count = generateTestEmployees();
       setShowEmpTestConfirm(false);
       loadEmployees();
-      alert(`✅ Создано ${count} тестовых сотрудников`);
+      showToast(`✅ Создано ${count} тестовых сотрудников`, 'success');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Ошибка');
+      showToast(err instanceof Error ? err.message : 'Ошибка', 'error');
     }
   };
 
@@ -271,7 +301,7 @@ function App() {
     setShowDeptTestConfirm(false);
     loadDepartments();
     loadEmployees();
-    alert(`✅ Создано ${count} подразделений`);
+    showToast(`✅ Создано ${count} подразделений`, 'success');
   };
 
   const toggleDeptCollapse = (id: number) => {
@@ -299,7 +329,7 @@ function App() {
   const handleDeleteLocation = (id: number) => {
     const result = deleteLocation(id);
     if (!result.success) {
-      alert(result.message);
+      showToast(result.message, 'error');
       return;
     }
     loadLocations();
@@ -309,7 +339,7 @@ function App() {
     const count = generateTestLocations();
     setShowLocTestConfirm(false);
     loadLocations();
-    alert(`✅ Создано ${count} местоположений`);
+    showToast(`✅ Создано ${count} местоположений`, 'success');
   };
 
   if (loading) {
@@ -414,17 +444,22 @@ function App() {
               {departments.some(d => !isSystemDepartment(d.id)) && (
                 <button
                   onClick={() => {
-                    if (!confirm('Удалить все пользовательские подразделения? Системные подразделения (Штат, Подрядчики, Вне штата) будут сохранены.')) {
-                      return;
-                    }
-                    const result = clearAllDepartments();
-                    if (!result.success) {
-                      alert(result.message);
-                    } else {
-                      loadDepartments();
-                      loadEmployees();
-                      alert(result.message);
-                    }
+                    showConfirm(
+                      'Очистить оргструктуру?',
+                      'Удалить все пользовательские подразделения? Системные подразделения (Штат, Подрядчики, Вне штата) будут сохранены.',
+                      () => {
+                        const result = clearAllDepartments();
+                        if (!result.success) {
+                          showToast(result.message, 'error');
+                        } else {
+                          loadDepartments();
+                          loadEmployees();
+                          showToast(result.message, 'success');
+                        }
+                      },
+                      'Очистить',
+                      'bg-red-600'
+                    );
                   }}
                   className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                 >
@@ -816,8 +851,12 @@ function App() {
                 <button
                   onClick={() => {
                     const result = clearAllLocations();
-                    if (!result.success) alert(result.message);
-                    else loadLocations();
+                    if (!result.success) {
+                      showToast(result.message, 'error');
+                    } else {
+                      loadLocations();
+                      showToast(result.message, 'success');
+                    }
                   }}
                   className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                 >
@@ -937,10 +976,10 @@ function App() {
 
       {/* Equipment Modals */}
       {showForm && (
-        <EquipmentForm categories={categories} employees={employees} locations={locations} onSave={handleAdd} onCancel={() => setShowForm(false)} />
+        <EquipmentForm categories={categories} employees={employees} locations={locations} onSave={handleAdd} onCancel={() => setShowForm(false)} onError={(msg) => showToast(msg, 'error')} />
       )}
       {editingItem && (
-        <EquipmentForm categories={categories} employees={employees} locations={locations} equipment={editingItem} onSave={handleEdit} onCancel={() => setEditingItem(null)} />
+        <EquipmentForm categories={categories} employees={employees} locations={locations} equipment={editingItem} onSave={handleEdit} onCancel={() => setEditingItem(null)} onError={(msg) => showToast(msg, 'error')} />
       )}
       {viewingItem && (
         <EquipmentDetail
@@ -953,10 +992,10 @@ function App() {
 
       {/* Employee Modals */}
       {showEmpForm && (
-        <EmployeeForm departments={departments} onSave={handleAddEmployee} onCancel={() => setShowEmpForm(false)} />
+        <EmployeeForm departments={departments} onSave={handleAddEmployee} onCancel={() => setShowEmpForm(false)} onError={(msg) => showToast(msg, 'error')} />
       )}
       {editingEmployee && (
-        <EmployeeForm departments={departments} employee={editingEmployee} onSave={handleEditEmployee} onCancel={() => setEditingEmployee(null)} />
+        <EmployeeForm departments={departments} employee={editingEmployee} onSave={handleEditEmployee} onCancel={() => setEditingEmployee(null)} onError={(msg) => showToast(msg, 'error')} />
       )}
       {viewingEmployee && (
         <EmployeeDetail
@@ -1046,6 +1085,51 @@ function App() {
             <div className="flex gap-3">
               <button onClick={() => setShowDeptTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
               <button onClick={handleGenerateTestDepartments} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Создать</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-[100] space-y-2">
+          {toasts.map(toast => (
+            <div
+              key={toast.id}
+              className={`px-4 py-3 rounded-lg shadow-lg text-white font-medium animate-slide-in ${
+                toast.type === 'success' ? 'bg-green-600' :
+                toast.type === 'error' ? 'bg-red-600' :
+                'bg-blue-600'
+              }`}
+            >
+              {toast.message}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Confirm Dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[90] p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-xl font-bold text-gray-800 mb-3">{confirmDialog.title}</h3>
+            <p className="text-gray-600 mb-6">{confirmDialog.message}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  confirmDialog.onConfirm();
+                  setConfirmDialog(null);
+                }}
+                className={`flex-1 px-4 py-2 ${confirmDialog.confirmColor} text-white rounded-lg font-medium`}
+              >
+                {confirmDialog.confirmText}
+              </button>
             </div>
           </div>
         </div>

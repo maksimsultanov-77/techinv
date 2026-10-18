@@ -8,6 +8,7 @@ interface EquipmentFormProps {
   equipment?: Equipment | null;
   onSave: (data: any) => void;
   onCancel: () => void;
+  onError?: (message: string) => void;
 }
 
 const statusOptions = [
@@ -18,7 +19,7 @@ const statusOptions = [
   { value: 'storage', label: 'На складе', color: 'bg-gray-100 text-gray-800' },
 ];
 
-const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, locations, equipment, onSave, onCancel }) => {
+const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, locations, equipment, onSave, onCancel, onError }) => {
   const [formData, setFormData] = useState({
     category_id: equipment?.category_id || (categories[0]?.id || 1),
     name: equipment?.name || '',
@@ -54,7 +55,9 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, lo
     
     // Проверка: местоположение обязательно
     if (!formData.location_id) {
-      alert('Необходимо выбрать местоположение');
+      if (onError) {
+        onError('Необходимо выбрать местоположение');
+      }
       return;
     }
     

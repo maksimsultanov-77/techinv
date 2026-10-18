@@ -6,9 +6,10 @@ interface EmployeeFormProps {
   employee?: Employee | null;
   onSave: (data: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => void;
   onCancel: () => void;
+  onError?: (message: string) => void;
 }
 
-const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSave, onCancel }) => {
+const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSave, onCancel, onError }) => {
   const [formData, setFormData] = useState({
     full_name: employee?.full_name || '',
     gender: employee?.gender || 'male' as 'male' | 'female',
@@ -32,7 +33,9 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ departments, employee, onSa
     
     // Проверка: для штатных сотрудников подразделение обязательно
     if (formData.employee_type === 'staff' && !formData.department_id) {
-      alert('Для штатного сотрудника необходимо выбрать подразделение');
+      if (onError) {
+        onError('Для штатного сотрудника необходимо выбрать подразделение');
+      }
       return;
     }
     
