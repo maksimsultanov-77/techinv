@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { LogEntry, getAllLogs, clearAllLogs, exportLogs, getLogStats } from '../db/database';
 
 interface LogViewerProps {
@@ -6,14 +6,37 @@ interface LogViewerProps {
 }
 
 export function LogViewer({ showToast }: LogViewerProps) {
-  const [logs, setLogs] = useState<LogEntry[]>(getAllLogs());
+  const [logs, setLogs] = useState<LogEntry[]>(() => {
+    try {
+      return getAllLogs();
+    } catch (error) {
+      console.error('Error loading logs:', error);
+      return [];
+    }
+  });
   const [filterAction, setFilterAction] = useState<string>('');
   const [filterEntityType, setFilterEntityType] = useState<string>('');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
   const [filterDateTo, setFilterDateTo] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  const stats = useMemo(() => getLogStats(), [logs]);
+  const stats = useMemo(() => {
+    try {
+      return getLogStats();
+    } catch (error) {
+      console.error('Error getting log stats:', error);
+      return { total: 0, byAction: {}, byEntityType: {} };
+    }
+  }, [logs]);
+
+  useEffect(() => {
+    try {
+      setLogs(getAllLogs());
+    } catch (error) {
+      console.error('Error loading logs:', error);
+    }
+  }, []);
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
@@ -34,11 +57,14 @@ export function LogViewer({ showToast }: LogViewerProps) {
   }, [logs, filterAction, filterEntityType, filterDateFrom, filterDateTo, searchQuery]);
 
   const handleClearLogs = () => {
-    if (confirm('Вы уверены, что хотите удалить все логи?')) {
-      clearAllLogs();
-      setLogs(getAllLogs());
-      showToast('Логи очищены', 'success');
-    }
+    setShowClearConfirm(true);
+  };
+
+  const confirmClearLogs = () => {
+    clearAllLogs();
+    setLogs(getAllLogs());
+    setShowClearConfirm(false);
+    showToast('Логи очищены', 'success');
   };
 
   const handleExportJSON = () => {
@@ -288,6 +314,30 @@ export function LogViewer({ showToast }: LogViewerProps) {
           </div>
         )}
       </div>
+
+      {/* Модальное окно подтверждения очистки */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Подтверждение</h3>
+            <p className="text-gray-600 mb-6">Вы уверены, что хотите удалить все логи?</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={confirmClearLogs}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

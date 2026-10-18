@@ -1603,6 +1603,9 @@ function addLog(action: LogEntry['action'], entityType: string, entityId?: numbe
 }
 
 export function getAllLogs(): LogEntry[] {
+  if (!db || !db.logs) {
+    return [];
+  }
   return [...db.logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 }
 
@@ -1617,6 +1620,10 @@ export function exportLogs(): string {
 }
 
 export function getLogStats(): { total: number; byAction: Record<string, number>; byEntityType: Record<string, number> } {
+  if (!db || !db.logs) {
+    return { total: 0, byAction: {}, byEntityType: {} };
+  }
+  
   const total = db.logs.length;
   const byAction: Record<string, number> = {};
   const byEntityType: Record<string, number> = {};
