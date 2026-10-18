@@ -1,19 +1,15 @@
 import React, { useState } from 'react';
-import { Equipment, getLocationFullPath } from '../db/database';
-import { statusOptions } from './EquipmentForm';
+import { Equipment, Status, getLocationFullPath, getStatusById } from '../db/database';
 
 interface EquipmentListProps {
   equipment: Equipment[];
+  statuses: Status[];
   onEdit: (item: Equipment) => void;
   onDelete: (id: number) => void;
   onView: (item: Equipment) => void;
 }
 
-const getStatusInfo = (status: string) => {
-  return statusOptions.find(opt => opt.value === status) || statusOptions[0];
-};
-
-const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, onEdit, onDelete, onView }) => {
+const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, onEdit, onDelete, onView }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
   if (!equipment.length) {
@@ -29,7 +25,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, onEdit, onDele
   return (
     <div className="space-y-3">
       {equipment.map(item => {
-        const statusInfo = getStatusInfo(item.status);
+        const statusInfo = getStatusById(item.status_id) || { id: 1, name: 'Неизвестно', color: '#6b7280', icon: '?', description: '' };
         return (
           <div
             key={item.id}
@@ -46,8 +42,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, onEdit, onDele
                     >
                       {item.name}
                     </h3>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                      {statusInfo.label}
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: statusInfo.color + '20', color: statusInfo.color }}>
+                      {statusInfo.icon} {statusInfo.name}
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">

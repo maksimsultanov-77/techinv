@@ -1,16 +1,16 @@
 import React from 'react';
-import { Equipment, Employee, getDepartmentName, getLocationFullPath } from '../db/database';
-import { statusOptions } from './EquipmentForm';
+import { Equipment, Employee, Status, getDepartmentName, getLocationFullPath, getStatusById } from '../db/database';
 
 interface EquipmentDetailProps {
   equipment: Equipment;
   employees: Employee[];
+  statuses: Status[];
   onClose: () => void;
   onEdit: () => void;
 }
 
-const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees, onClose, onEdit }) => {
-  const statusInfo = statusOptions.find(opt => opt.value === equipment.status) || statusOptions[0];
+const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees, statuses, onClose, onEdit }) => {
+  const statusInfo = getStatusById(equipment.status_id) || { id: 1, name: 'Неизвестно', color: '#6b7280', icon: '?', description: '' };
 
   // Получаем информацию о сотруднике если есть связь
   const linkedEmployee = equipment.responsible_employee_id 
@@ -26,7 +26,7 @@ const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees,
     { label: 'Модель', value: equipment.model },
     { label: 'Местоположение', value: getLocationFullPath(equipment.location_id) },
     { label: 'Ответственный', value: equipment.responsible_person + (linkedEmployee ? ' 🔗' : '') },
-    { label: 'Статус', value: statusInfo.label, isStatus: true, statusColor: statusInfo.color },
+    { label: 'Статус', value: `${statusInfo.icon} ${statusInfo.name}`, isStatus: true, statusColor: statusInfo.color },
     { label: 'Дата покупки', value: equipment.purchase_date },
     { label: 'Цена', value: equipment.purchase_price ? `${equipment.purchase_price.toLocaleString()} ₽` : '' },
     { label: 'Примечания', value: equipment.notes },
@@ -47,8 +47,8 @@ const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees,
             <span className="text-4xl">{equipment.category_icon}</span>
             <div>
               <h3 className="text-xl font-bold text-gray-800">{equipment.name}</h3>
-              <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                {statusInfo.label}
+              <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium`} style={{ backgroundColor: statusInfo.color + '20', color: statusInfo.color }}>
+                {statusInfo.icon} {statusInfo.name}
               </span>
             </div>
           </div>

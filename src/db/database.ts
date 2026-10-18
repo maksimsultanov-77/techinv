@@ -3,6 +3,14 @@
 
 const DB_KEY = 'equipment_inventory_db';
 
+export interface Status {
+  id: number;
+  name: string;
+  color: string;
+  icon: string;
+  description: string;
+}
+
 export interface Equipment {
   id: number;
   category_id: number;
@@ -16,7 +24,7 @@ export interface Equipment {
   location_id: number;
   responsible_person: string;
   responsible_employee_id: number | null;
-  status: string;
+  status_id: number;
   purchase_date: string;
   purchase_price: number;
   notes: string;
@@ -93,11 +101,13 @@ interface DatabaseSchema {
   employees: Employee[];
   departments: Department[];
   locations: Location[];
+  statuses: Status[];
   nextCategoryId: number;
   nextEquipmentId: number;
   nextEmployeeId: number;
   nextDepartmentId: number;
   nextLocationId: number;
+  nextStatusId: number;
 }
 
 export const EMPLOYEE_TYPES = [
@@ -238,6 +248,60 @@ export function initDatabase(): Promise<void> {
           }
           return eq;
         });
+        
+        // Миграция: добавляем statuses
+        if (!db.statuses) db.statuses = [];
+        if (!db.nextStatusId) db.nextStatusId = 4;
+        
+        // Миграция: добавляем системные статусы если их нет
+        if (!db.statuses.find(s => s.id === 1)) {
+          db.statuses.push({
+            id: 1,
+            name: 'В работе',
+            color: '#10b981',
+            icon: '✓',
+            description: 'Оборудование работает нормально',
+          });
+        }
+        if (!db.statuses.find(s => s.id === 2)) {
+          db.statuses.push({
+            id: 2,
+            name: 'Неисправно',
+            color: '#ef4444',
+            icon: '✗',
+            description: 'Оборудование неисправно',
+          });
+        }
+        if (!db.statuses.find(s => s.id === 3)) {
+          db.statuses.push({
+            id: 3,
+            name: 'В ремонте',
+            color: '#f59e0b',
+            icon: '⚙',
+            description: 'Оборудование находится в ремонте',
+          });
+        }
+        
+        // Миграция: преобразуем status (string) в status_id (number)
+        db.equipment = db.equipment.map(eq => {
+          if ('status' in eq && typeof eq.status === 'string') {
+            const statusMap: Record<string, number> = {
+              'active': 1,
+              'В работе': 1,
+              'broken': 2,
+              'Неисправно': 2,
+              'repair': 3,
+              'В ремонте': 3,
+            };
+            const statusId = statusMap[eq.status] || 1;
+            const { status, ...rest } = eq as any;
+            return { ...rest, status_id: statusId };
+          }
+          if ('status_id' in eq) {
+            return eq;
+          }
+          return { ...eq, status_id: 1 };
+        });
       } catch (e) {
         console.error('Error loading database:', e);
         db = createDefaultDatabase();
@@ -257,11 +321,13 @@ function createDefaultDatabase(): DatabaseSchema {
     employees: [],
     departments: [],
     locations: [],
+    statuses: [],
     nextCategoryId: defaultCategories.length + 1,
     nextEquipmentId: 1,
     nextEmployeeId: 1,
     nextDepartmentId: 4, // Начинаем с 4, т.к. 1, 2 и 3 зарезервированы
     nextLocationId: 3, // Начинаем с 3, т.к. 1 и 2 зарезервированы
+    nextStatusId: 4, // Начинаем с 4, т.к. 1, 2 и 3 зарезервированы
   };
   
   // Создаём обязательные виртуальные подразделения
@@ -301,6 +367,29 @@ function createDefaultDatabase(): DatabaseSchema {
     description: 'Системное местоположение',
     parent_id: null,
     created_at: new Date().toISOString(),
+  });
+  
+  // Создаём системные статусы
+  db.statuses.push({
+    id: 1,
+    name: 'В работе',
+    color: '#10b981',
+    icon: '✓',
+    description: 'Оборудование работает нормально',
+  });
+  db.statuses.push({
+    id: 2,
+    name: 'Неисправно',
+    color: '#ef4444',
+    icon: '✗',
+    description: 'Оборудование неисправно',
+  });
+  db.statuses.push({
+    id: 3,
+    name: 'В ремонте',
+    color: '#f59e0b',
+    icon: '⚙',
+    description: 'Оборудование находится в ремонте',
   });
   
   return db;
@@ -377,7 +466,7 @@ export function addEquipment(data: Omit<Equipment, 'id' | 'category_name' | 'cat
     location_id: data.location_id,
     responsible_person: data.responsible_person || '',
     responsible_employee_id: data.responsible_employee_id || null,
-    status: data.status || 'active',
+    status_id: data.status_id || 1,
     purchase_date: data.purchase_date || '',
     purchase_price: data.purchase_price || 0,
     notes: data.notes || '',
@@ -410,7 +499,7 @@ export function updateEquipment(id: number, data: Omit<Equipment, 'id' | 'catego
     location_id: data.location_id,
     responsible_person: data.responsible_person || '',
     responsible_employee_id: data.responsible_employee_id || null,
-    status: data.status || 'active',
+    status_id: data.status_id || 1,
     purchase_date: data.purchase_date || '',
     purchase_price: data.purchase_price || 0,
     notes: data.notes || '',
@@ -451,7 +540,7 @@ const locations = [
 const firstNames = ['Иван', 'Пётр', 'Сергей', 'Алексей', 'Дмитрий', 'Андрей', 'Михаил', 'Николай', 'Владимир', 'Олег', 'Анна', 'Мария', 'Елена', 'Ольга', 'Татьяна', 'Наталья'];
 const lastNames = ['Иванов', 'Петров', 'Сидоров', 'Смирнов', 'Кузнецов', 'Попов', 'Васильев', 'Соколов', 'Михайлов', 'Новиков', 'Фёдоров', 'Морозов', 'Волков', 'Алексеев', 'Лебедев'];
 
-const statuses = ['active', 'active', 'active', 'active', 'repair', 'reserved', 'storage'];
+const statusIds = [1, 1, 1, 1, 2, 3, 1]; // В работе, В работе, В работе, В работе, Неисправно, В ремонте, В работе
 
 const modelNames: Record<number, string[]> = {
   1: ['OptiPlex 7090', 'ProDesk 400', 'ThinkCentre M70q', 'ROG Strix', 'Veriton'],
@@ -541,7 +630,7 @@ export function generateTestData(): number {
         location_id: locationId,
         responsible_person: responsibleName,
         responsible_employee_id: responsibleEmployeeId,
-        status: randomFrom(statuses),
+        status_id: randomFrom(statusIds),
         purchase_date: randomDate(2018, 2025),
         purchase_price: Math.floor(Math.random() * 300000) + 5000,
         notes: '',
@@ -762,6 +851,63 @@ export function clearAllLocations(): { success: boolean; message: string } {
   
   saveDatabase();
   return { success: true, message: 'Местоположения очищены (остались только Главный офис и Вне офиса)' };
+}
+
+// ============ СТАТУСЫ ============
+
+export function getAllStatuses(): Status[] {
+  return [...db.statuses].sort((a, b) => a.id - b.id);
+}
+
+export function getStatusById(id: number): Status | null {
+  return db.statuses.find(s => s.id === id) || null;
+}
+
+export function getStatusName(id: number): string {
+  const status = db.statuses.find(s => s.id === id);
+  return status ? status.name : 'Неизвестно';
+}
+
+export function addStatus(name: string, color: string, icon: string, description: string = ''): number {
+  const newStatus: Status = {
+    id: db.nextStatusId++,
+    name,
+    color,
+    icon,
+    description,
+  };
+  db.statuses.push(newStatus);
+  saveDatabase();
+  return newStatus.id;
+}
+
+export function updateStatus(id: number, name: string, color: string, icon: string, description: string): void {
+  const index = db.statuses.findIndex(s => s.id === id);
+  if (index === -1) return;
+  db.statuses[index] = {
+    ...db.statuses[index],
+    name,
+    color,
+    icon,
+    description,
+  };
+  saveDatabase();
+}
+
+export function deleteStatus(id: number): { success: boolean; message: string } {
+  // Проверяем, есть ли оборудование с этим статусом
+  const equipment = db.equipment.filter(eq => eq.status_id === id);
+  if (equipment.length > 0) {
+    return { success: false, message: `Нельзя удалить: к статусу привязано ${equipment.length} единиц оборудования` };
+  }
+  
+  db.statuses = db.statuses.filter(s => s.id !== id);
+  saveDatabase();
+  return { success: true, message: 'Статус удалён' };
+}
+
+export function getEquipmentCountByStatus(statusId: number): number {
+  return db.equipment.filter(eq => eq.status_id === statusId).length;
 }
 
 // ============ СОТРУДНИКИ ============

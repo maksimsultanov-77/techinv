@@ -1,25 +1,18 @@
 import React, { useState } from 'react';
-import { Equipment, Employee, Location, getDepartmentName, getLocationFullPath } from '../db/database';
+import { Equipment, Employee, Location, Status, getDepartmentName, getLocationFullPath } from '../db/database';
 
 interface EquipmentFormProps {
   categories: { id: number; name: string; icon: string }[];
   employees: Employee[];
   locations: Location[];
+  statuses: Status[];
   equipment?: Equipment | null;
   onSave: (data: any) => void;
   onCancel: () => void;
   onError?: (message: string) => void;
 }
 
-const statusOptions = [
-  { value: 'active', label: 'В работе', color: 'bg-green-100 text-green-800' },
-  { value: 'repair', label: 'В ремонте', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'reserved', label: 'Зарезервировано', color: 'bg-blue-100 text-blue-800' },
-  { value: 'written_off', label: 'Списано', color: 'bg-red-100 text-red-800' },
-  { value: 'storage', label: 'На складе', color: 'bg-gray-100 text-gray-800' },
-];
-
-const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, locations, equipment, onSave, onCancel, onError }) => {
+const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, locations, statuses, equipment, onSave, onCancel, onError }) => {
   const [formData, setFormData] = useState({
     category_id: equipment?.category_id || (categories[0]?.id || 1),
     name: equipment?.name || '',
@@ -29,7 +22,7 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, lo
     location_id: equipment?.location_id ? String(equipment.location_id) : '',
     responsible_person: equipment?.responsible_person || '',
     responsible_employee_id: equipment?.responsible_employee_id ? String(equipment.responsible_employee_id) : '',
-    status: equipment?.status || 'active',
+    status_id: equipment?.status_id ? String(equipment.status_id) : '1',
     purchase_date: equipment?.purchase_date || '',
     purchase_price: equipment?.purchase_price || '',
     notes: equipment?.notes || '',
@@ -211,13 +204,13 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, lo
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
               <select
-                name="status"
-                value={formData.status}
+                name="status_id"
+                value={formData.status_id}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                {statusOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                {statuses.map(status => (
+                  <option key={status.id} value={status.id}>{status.icon} {status.name}</option>
                 ))}
               </select>
             </div>
@@ -282,4 +275,3 @@ const EquipmentForm: React.FC<EquipmentFormProps> = ({ categories, employees, lo
 };
 
 export default EquipmentForm;
-export { statusOptions };
