@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { AppSettings, getSettings, updateSettings } from '../db/database';
+import { AppSettings, getSettings, updateSettings as dbUpdateSettings } from '../db/database';
 
 interface SettingsContextType {
   settings: AppSettings;
@@ -8,28 +8,54 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
+const defaultSettings: AppSettings = {
+  organizationName: 'Моя Организация',
+  menuPosition: 'top',
+  theme: 'light',
+  language: 'ru',
+  itemsPerPage: 50,
+  showDescriptions: true,
+  autoSaveLogs: true,
+};
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<AppSettings>(getSettings());
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    try {
+      return getSettings();
+    } catch {
+      return defaultSettings;
+    }
+  });
 
   const handleUpdateSettings = (newSettings: Partial<AppSettings>) => {
     const updatedSettings = { ...settings, ...newSettings };
     setSettings(updatedSettings);
-    updateSettings(updatedSettings);
+    dbUpdateSettings(updatedSettings);
+    
+    // Apply theme immediately
+    if (newSettings.theme) {
+      if (newSettings.theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+    
+    // Apply title immediately
+    if (newSettings.organizationName) {
+      document.title = `${newSettings.organizationName} - Учет техники`;
+    }
   };
 
-  // Apply theme
+  // Apply theme on mount
   useEffect(() => {
     if (settings.theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [settings.theme]);
-
-  // Apply document title
-  useEffect(() => {
     document.title = `${settings.organizationName} - Учет техники`;
-  }, [settings.organizationName]);
+  }, []);
 
   return (
     <SettingsContext.Provider value={{ settings, updateSettings: handleUpdateSettings }}>

@@ -36,12 +36,15 @@ export function Sidebar({
 
   return (
     <div className="sidebar">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-800 dark:text-gray-200">
-          {settings.organizationName}
-        </h1>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Система управления
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-3xl">🖥️</span>
+          <h1 className="text-lg font-bold text-gray-800 dark:text-gray-200">
+            {settings.organizationName}
+          </h1>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Система управления оборудованием
         </p>
       </div>
 
@@ -50,16 +53,20 @@ export function Sidebar({
           <button
             key={item.id}
             onClick={() => setActiveView(item.id)}
-            className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+            className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
               activeView === item.id
-                ? 'bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
-                : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">{item.label}</span>
               {item.count !== null && (
-                <span className="text-xs bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded-full">
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  activeView === item.id
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+                }`}>
                   {item.count}
                 </span>
               )}
@@ -67,6 +74,15 @@ export function Sidebar({
           </button>
         ))}
       </nav>
+
+      <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+        <button
+          onClick={() => setActiveView('settings')}
+          className="w-full text-left px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+        >
+          ⚙️ Настройки
+        </button>
+      </div>
     </div>
   );
 }
