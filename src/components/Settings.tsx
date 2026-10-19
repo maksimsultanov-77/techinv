@@ -28,6 +28,9 @@ export function Settings({ showToast }: SettingsProps) {
     if (key === 'organizationName') {
       document.title = `${value} - Учет техники`;
     }
+    
+    // Menu position is applied immediately through settings context
+    // No additional DOM manipulation needed
   };
 
   const handleSave = () => {
