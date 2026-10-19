@@ -58,6 +58,9 @@ import {
   Department,
   Location,
   Status,
+  AppSettings,
+  getSettings,
+  updateSettings,
 } from './db/database';
 import { EmployeeStats, LocationTreeNode, WorkMode } from './types';
 import EquipmentForm from './components/EquipmentForm';
@@ -70,8 +73,9 @@ import { Modal } from './components/Modal';
 import { LogViewer } from './components/LogViewer';
 import { BulkEditEquipment } from './components/BulkEditEquipment';
 import { BulkEditEmployee } from './components/BulkEditEmployee';
+import { Settings } from './components/Settings';
 
-type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs';
+type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings';
 type EquipmentFormData = Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>;
 type EmployeeFormData = Omit<Employee, 'id' | 'created_at' | 'updated_at'>;
 
@@ -158,6 +162,9 @@ function App() {
   // Bulk delete confirmations
   const [showBulkDeleteEquipmentConfirm, setShowBulkDeleteEquipmentConfirm] = useState(false);
   const [showBulkDeleteEmployeeConfirm, setShowBulkDeleteEmployeeConfirm] = useState(false);
+
+  // Settings
+  const [settings, setSettings] = useState<AppSettings>(getSettings());
 
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
@@ -256,6 +263,11 @@ function App() {
       loadCategories();
     }
   }, [dbReady, loadDepartments, loadLocations, loadStatuses, loadCategories]);
+
+  // Update document title when organization name changes
+  useEffect(() => {
+    document.title = `${settings.organizationName} - Учет техники`;
+  }, [settings.organizationName]);
 
   // Reload equipment when filters change
   useEffect(() => {
@@ -568,7 +580,7 @@ function App() {
             <div className="flex items-center gap-3">
               <span className="text-3xl">🖥️</span>
               <div>
-                <h1 className="text-2xl font-bold text-gray-800">Учет техники</h1>
+                <h1 className="text-2xl font-bold text-gray-800">{settings.organizationName}</h1>
                 <p className="text-sm text-gray-500">Система управления оборудованием, сотрудниками и оргструктурой</p>
               </div>
             </div>
@@ -636,6 +648,14 @@ function App() {
               }`}
             >
               📋 Логи
+            </button>
+            <button
+              onClick={() => setActiveView('settings')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${
+                activeView === 'settings' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              ⚙️ Настройки
             </button>
           </div>
         </div>
@@ -1777,6 +1797,14 @@ function App() {
         {/* ============ ЛОГИ ============ */}
         {activeView === 'logs' && (
           <LogViewer showToast={showToast} />
+        )}
+
+        {/* ============ НАСТРОЙКИ ============ */}
+        {activeView === 'settings' && (
+          <Settings 
+            showToast={showToast} 
+            onSettingsChange={(newSettings) => setSettings(newSettings)}
+          />
         )}
       </main>
 

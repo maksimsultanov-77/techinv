@@ -21,6 +21,16 @@ export interface LogEntry {
   details: string;
 }
 
+export interface AppSettings {
+  organizationName: string;
+  menuPosition: 'top' | 'left';
+  theme: 'light' | 'dark';
+  language: 'ru' | 'en';
+  itemsPerPage: number;
+  showDescriptions: boolean;
+  autoSaveLogs: boolean;
+}
+
 export interface Equipment {
   id: number;
   category_id: number;
@@ -114,6 +124,7 @@ interface DatabaseSchema {
   locations: Location[];
   statuses: Status[];
   logs: LogEntry[];
+  settings: AppSettings;
   nextCategoryId: number;
   nextEquipmentId: number;
   nextEmployeeId: number;
@@ -357,6 +368,19 @@ export function initDatabase(): Promise<void> {
         // Миграция: добавляем logs
         if (!db.logs) db.logs = [];
         if (!db.nextLogId) db.nextLogId = 1;
+        
+        // Миграция: добавляем settings
+        if (!db.settings) {
+          db.settings = {
+            organizationName: 'Моя Организация',
+            menuPosition: 'top',
+            theme: 'light',
+            language: 'ru',
+            itemsPerPage: 50,
+            showDescriptions: true,
+            autoSaveLogs: true,
+          };
+        }
       } catch (e) {
         console.error('Error loading database:', e);
         db = createDefaultDatabase();
@@ -378,6 +402,15 @@ function createDefaultDatabase(): DatabaseSchema {
     locations: [],
     statuses: [],
     logs: [],
+    settings: {
+      organizationName: 'Моя Организация',
+      menuPosition: 'top',
+      theme: 'light',
+      language: 'ru',
+      itemsPerPage: 50,
+      showDescriptions: true,
+      autoSaveLogs: true,
+    },
     nextCategoryId: 14,
     nextEquipmentId: 1,
     nextEmployeeId: 1,
@@ -1715,4 +1748,28 @@ export function getLogStats(): { total: number; byAction: Record<string, number>
   });
   
   return { total, byAction, byEntityType };
+}
+
+// ============ НАСТРОЙКИ ============
+
+export function getSettings(): AppSettings {
+  if (!db || !db.settings) {
+    return {
+      organizationName: 'Моя Организация',
+      menuPosition: 'top',
+      theme: 'light',
+      language: 'ru',
+      itemsPerPage: 50,
+      showDescriptions: true,
+      autoSaveLogs: true,
+    };
+  }
+  return { ...db.settings };
+}
+
+export function updateSettings(settings: Partial<AppSettings>): void {
+  if (!db) return;
+  db.settings = { ...getSettings(), ...settings };
+  saveDatabase();
+  addLog('update', 'settings', undefined, undefined, 'Настройки обновлены');
 }
