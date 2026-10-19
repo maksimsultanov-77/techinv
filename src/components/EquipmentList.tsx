@@ -6,6 +6,7 @@ interface EquipmentListProps {
   equipment: Equipment[];
   statuses: Status[];
   employees: Employee[];
+  currentUserRole?: 'superadmin' | 'admin' | 'user' | 'observer';
   selectedIds?: number[];
   onSelectionChange?: (ids: number[]) => void;
   onEdit: (item: Equipment) => void;
@@ -14,7 +15,7 @@ interface EquipmentListProps {
   onViewEmployee?: (employee: Employee) => void;
 }
 
-const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, employees, selectedIds = [], onSelectionChange, onEdit, onDelete, onView, onViewEmployee }) => {
+const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, employees, currentUserRole, selectedIds = [], onSelectionChange, onEdit, onDelete, onView, onViewEmployee }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [printingItem, setPrintingItem] = useState<Equipment | null>(null);
 
@@ -135,27 +136,31 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, empl
                 >
                   👁️
                 </button>
-                <button
-                  onClick={() => setPrintingItem(item)}
-                  className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                  title="Печать этикетки"
-                >
-                  🏷️
-                </button>
-                <button
-                  onClick={() => onEdit(item)}
-                  className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                  title="Редактировать"
-                >
-                  ✏️
-                </button>
-                <button
-                  onClick={() => setDeleteConfirm(item.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Удалить"
-                >
-                  🗑️
-                </button>
+                {currentUserRole !== 'observer' && (
+                  <>
+                    <button
+                      onClick={() => setPrintingItem(item)}
+                      className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                      title="Печать этикетки"
+                    >
+                      🏷️
+                    </button>
+                    <button
+                      onClick={() => onEdit(item)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="Редактировать"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm(item.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Удалить"
+                    >
+                      🗑️
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 

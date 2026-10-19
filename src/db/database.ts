@@ -26,7 +26,7 @@ export interface User {
   username: string;
   password: string;
   fullName: string;
-  role: 'superadmin' | 'admin' | 'user';
+  role: 'superadmin' | 'admin' | 'user' | 'observer';
   createdAt: string;
 }
 
@@ -1914,7 +1914,7 @@ export function authenticateUser(username: string, password: string): User | nul
   return user || null;
 }
 
-export function addUser(username: string, password: string, fullName: string, role: 'superadmin' | 'admin' | 'user' = 'user'): { success: boolean; message: string; userId?: number } {
+export function addUser(username: string, password: string, fullName: string, role: 'superadmin' | 'admin' | 'user' | 'observer' = 'user'): { success: boolean; message: string; userId?: number } {
   if (!db) return { success: false, message: 'База данных не инициализирована' };
   
   // Проверка уникальности username

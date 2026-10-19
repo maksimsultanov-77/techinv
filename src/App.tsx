@@ -217,14 +217,20 @@ function App() {
     try {
       const cats = getCategories();
       setCategories(cats);
-      const items = getAllEquipment(searchQuery || undefined, selectedCategory, selectedStatus, selectedLocation);
+      let items = getAllEquipment(searchQuery || undefined, selectedCategory, selectedStatus, selectedLocation);
+      
+      // Для роли "user" показываем только оборудование, закреплённое за ним
+      if (currentUser?.role === 'user') {
+        items = items.filter(item => item.responsible_employee_id === currentUser.id);
+      }
+      
       setEquipment(items);
       const s = getStats();
       setStats(s);
     } catch (err) {
       console.error('Error loading equipment:', err);
     }
-  }, [searchQuery, selectedCategory, selectedStatus, selectedLocation]);
+  }, [searchQuery, selectedCategory, selectedStatus, selectedLocation, currentUser]);
 
   const loadEmployees = useCallback(() => {
     try {
@@ -786,31 +792,37 @@ function App() {
       {/* ============ ОБОРУДОВАНИЕ ============ */}
       {activeView === 'equipment' && (
         <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            <button
-              onClick={() => setShowTestConfirm(true)}
-              disabled={employees.length === 0 || locations.length === 0}
-              className={`px-3 py-2 text-sm rounded-lg transition-colors font-medium shadow-sm ${
-                employees.length === 0 || locations.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'
-              }`}
-            >
-              🎲 Тестовые данные
-            </button>
-            {currentUser.role === 'superadmin' && stats.total > 0 && (
-              <button
-                onClick={() => setShowClearConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                🗑️ Очистить
-              </button>
-            )}
-            <button
-              onClick={() => { setShowForm(true); setEditingItem(null); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить
-            </button>
-          </div>
+          {currentUser.role !== 'user' && (
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              {currentUser.role !== 'observer' && (
+                <>
+                  <button
+                    onClick={() => setShowTestConfirm(true)}
+                    disabled={employees.length === 0 || locations.length === 0}
+                    className={`px-3 py-2 text-sm rounded-lg transition-colors font-medium shadow-sm ${
+                      employees.length === 0 || locations.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'
+                    }`}
+                  >
+                    🎲 Тестовые данные
+                  </button>
+                  {currentUser.role === 'superadmin' && stats.total > 0 && (
+                    <button
+                      onClick={() => setShowClearConfirm(true)}
+                      className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                    >
+                      🗑️ Очистить
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setShowForm(true); setEditingItem(null); }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+                  >
+                    ➕ Добавить
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -854,7 +866,7 @@ function App() {
             </div>
           </div>
 
-          {selectedEquipmentIds.length > 0 && (
+          {selectedEquipmentIds.length > 0 && currentUser.role !== 'user' && currentUser.role !== 'observer' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-blue-800">
@@ -888,6 +900,7 @@ function App() {
             equipment={equipment}
             statuses={statuses}
             employees={employees}
+            currentUserRole={currentUser.role}
             selectedIds={selectedEquipmentIds}
             onSelectionChange={setSelectedEquipmentIds}
             onEdit={(item) => { setEditingItem(item); setShowForm(false); }}
@@ -1267,7 +1280,7 @@ function App() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-                    <span className="text-lg">{currentUser.role === 'superadmin' ? '👑' : currentUser.role === 'admin' ? '🔑' : '👤'}</span>
+                    <span className="text-lg">{currentUser.role === 'superadmin' ? '👑' : currentUser.role === 'admin' ? '🔑' : currentUser.role === 'observer' ? '👁️' : '👤'}</span>
                     <span className="text-sm font-medium text-gray-700">{currentUser.fullName}</span>
                   </div>
                   <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700">
@@ -1281,70 +1294,80 @@ function App() {
 
               {/* Navigation Tabs */}
               <div className="flex gap-2 mt-4 border-b border-gray-200 -mb-4 overflow-x-auto">
-                <button
-                  onClick={() => setActiveView('structure')}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    activeView === 'structure' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  🏢 Оргструктура <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{departments.length}</span>
-                </button>
-                <button
-                  onClick={() => setActiveView('employees')}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    activeView === 'employees' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  👥 Сотрудники <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{empStats.total}</span>
-                </button>
+                {currentUser.role !== 'user' && (
+                  <>
+                    <button
+                      onClick={() => setActiveView('structure')}
+                      className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                        activeView === 'structure' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      🏢 Оргструктура <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{departments.length}</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveView('employees')}
+                      className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                        activeView === 'employees' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      👥 Сотрудники <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{empStats.total}</span>
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => setActiveView('equipment')}
                   className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
                     activeView === 'equipment' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  🖥️ Оборудование <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{stats.total}</span>
+                  🖥️ Оборудование <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{currentUser.role === 'user' ? getEquipmentByEmployee(currentUser.id).length : stats.total}</span>
                 </button>
-                <button
-                  onClick={() => setActiveView('locations')}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    activeView === 'locations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  📍 Местоположения <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{locations.length}</span>
-                </button>
-                <button
-                  onClick={() => setActiveView('statuses')}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    activeView === 'statuses' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  🏷️ Статусы <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{statuses.length}</span>
-                </button>
-                <button
-                  onClick={() => setActiveView('categories')}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    activeView === 'categories' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  📁 Категории <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{categories.length}</span>
-                </button>
-                <button
-                  onClick={() => setActiveView('logs')}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    activeView === 'logs' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  📋 Логи
-                </button>
-                <button
-                  onClick={() => setActiveView('settings')}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    activeView === 'settings' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  ⚙️ Настройки
-                </button>
+                {currentUser.role !== 'user' && (
+                  <>
+                    <button
+                      onClick={() => setActiveView('locations')}
+                      className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                        activeView === 'locations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      📍 Местоположения <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{locations.length}</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveView('statuses')}
+                      className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                        activeView === 'statuses' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      🏷️ Статусы <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{statuses.length}</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveView('categories')}
+                      className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                        activeView === 'categories' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      📁 Категории <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{categories.length}</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveView('logs')}
+                      className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                        activeView === 'logs' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      📋 Логи
+                    </button>
+                  </>
+                )}
+                {currentUser.role !== 'user' && (
+                  <button
+                    onClick={() => setActiveView('settings')}
+                    className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                      activeView === 'settings' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    ⚙️ Настройки
+                  </button>
+                )}
                 {(currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
                   <button
                     onClick={() => setActiveView('users')}

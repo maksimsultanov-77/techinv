@@ -30,14 +30,18 @@ export function Sidebar({
   const { settings } = useSettings();
 
   const menuItems = [
-    { id: 'structure', label: '🏢 Оргструктура', count: departments.length },
-    { id: 'employees', label: '👥 Сотрудники', count: empStats.total },
-    { id: 'equipment', label: '🖥️ Оборудование', count: stats.total },
-    { id: 'locations', label: '📍 Местоположения', count: locations.length },
-    { id: 'statuses', label: '🏷️ Статусы', count: statuses.length },
-    { id: 'categories', label: '📁 Категории', count: categories.length },
-    { id: 'logs', label: '📋 Логи', count: null },
-    { id: 'settings', label: '⚙️ Настройки', count: null },
+    ...(currentUser.role !== 'user' ? [
+      { id: 'structure', label: '🏢 Оргструктура', count: departments.length },
+      { id: 'employees', label: '👥 Сотрудники', count: empStats.total },
+    ] : []),
+    { id: 'equipment', label: '🖥️ Оборудование', count: currentUser.role === 'user' ? 0 : stats.total },
+    ...(currentUser.role !== 'user' ? [
+      { id: 'locations', label: '📍 Местоположения', count: locations.length },
+      { id: 'statuses', label: '🏷️ Статусы', count: statuses.length },
+      { id: 'categories', label: '📁 Категории', count: categories.length },
+      { id: 'logs', label: '📋 Логи', count: null },
+      { id: 'settings', label: '⚙️ Настройки', count: null },
+    ] : []),
     ...(currentUser.role === 'superadmin' || currentUser.role === 'admin' ? [{ id: 'users', label: '👥 Пользователи', count: null }] : []),
   ];
 
@@ -84,13 +88,13 @@ export function Sidebar({
 
       <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3 mb-4 px-4">
-          <span className="text-2xl">{currentUser.role === 'superadmin' ? '👑' : currentUser.role === 'admin' ? '🔑' : '👤'}</span>
+          <span className="text-2xl">{currentUser.role === 'superadmin' ? '👑' : currentUser.role === 'admin' ? '🔑' : currentUser.role === 'observer' ? '👁️' : '👤'}</span>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
               {currentUser.fullName}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">
-              {currentUser.role === 'superadmin' ? 'Суперадмин' : currentUser.role === 'admin' ? 'Администратор базы' : 'Пользователь'}
+              {currentUser.role === 'superadmin' ? 'Суперадмин' : currentUser.role === 'admin' ? 'Администратор базы' : currentUser.role === 'observer' ? 'Наблюдатель' : 'Пользователь'}
             </div>
           </div>
         </div>
