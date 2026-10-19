@@ -89,6 +89,15 @@ function App() {
   const [activeView, setActiveView] = useState<ViewMode>('structure');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
+  // Устанавливаем активную вкладку по умолчанию в зависимости от роли
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role === 'user') {
+        setActiveView('equipment');
+      }
+    }
+  }, [currentUser]);
+
   // Equipment state
   const [categories, setCategories] = useState<Category[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
@@ -219,9 +228,12 @@ function App() {
       setCategories(cats);
       let items = getAllEquipment(searchQuery || undefined, selectedCategory, selectedStatus, selectedLocation);
       
-      // Для роли "user" показываем только оборудование, закреплённое за ним
-      if (currentUser?.role === 'user') {
-        items = items.filter(item => item.responsible_employee_id === currentUser.id);
+      // Для роли "user" показываем только оборудование, закреплённое за привязанным сотрудником
+      if (currentUser?.role === 'user' && currentUser.employee_id) {
+        items = items.filter(item => item.responsible_employee_id === currentUser.employee_id);
+      } else if (currentUser?.role === 'user' && !currentUser.employee_id) {
+        // Если пользователь не привязан к сотруднику, не показываем ничего
+        items = [];
       }
       
       setEquipment(items);
@@ -314,6 +326,15 @@ function App() {
   };
 
   const handleDelete = (id: number) => {
+    // Проверяем, что пользователь может удалить это оборудование
+    if (currentUser?.role === 'user') {
+      const item = equipment.find(eq => eq.id === id);
+      if (!item || item.responsible_employee_id !== currentUser.employee_id) {
+        showToast('Вы можете удалять только закреплённое за вами оборудование', 'error');
+        return;
+      }
+    }
+    
     deleteEquipment(id);
     loadEquipment();
     showToast('Оборудование удалено', 'success');
@@ -1326,7 +1347,7 @@ function App() {
                     activeView === 'equipment' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  🖥️ Оборудование <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{currentUser.role === 'user' ? getEquipmentByEmployee(currentUser.id).length : stats.total}</span>
+                  🖥️ Оборудование <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{currentUser.role === 'user' && currentUser.employee_id ? getEquipmentByEmployee(currentUser.employee_id).length : stats.total}</span>
                 </button>
                 {currentUser.role !== 'user' && (
                   <>

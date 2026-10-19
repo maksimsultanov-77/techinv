@@ -27,6 +27,7 @@ export interface User {
   password: string;
   fullName: string;
   role: 'superadmin' | 'admin' | 'user' | 'observer';
+  employee_id?: number | null;
   createdAt: string;
 }
 
@@ -1914,12 +1915,17 @@ export function authenticateUser(username: string, password: string): User | nul
   return user || null;
 }
 
-export function addUser(username: string, password: string, fullName: string, role: 'superadmin' | 'admin' | 'user' | 'observer' = 'user'): { success: boolean; message: string; userId?: number } {
+export function addUser(username: string, password: string, fullName: string, role: 'superadmin' | 'admin' | 'user' | 'observer' = 'user', employee_id?: number | null): { success: boolean; message: string; userId?: number } {
   if (!db) return { success: false, message: 'База данных не инициализирована' };
   
   // Проверка уникальности username
   if (db.users.some(u => u.username === username)) {
     return { success: false, message: 'Пользователь с таким логином уже существует' };
+  }
+  
+  // Проверка, что сотрудник не привязан к другому пользователю
+  if (employee_id && db.users.some(u => u.employee_id === employee_id)) {
+    return { success: false, message: 'Этот сотрудник уже привязан к другому пользователю' };
   }
   
   const newUser: User = {
@@ -1928,6 +1934,7 @@ export function addUser(username: string, password: string, fullName: string, ro
     password,
     fullName,
     role,
+    employee_id: employee_id || null,
     createdAt: new Date().toISOString(),
   };
   
@@ -1948,6 +1955,13 @@ export function updateUser(id: number, updates: Partial<Omit<User, 'id' | 'creat
   if (updates.username && updates.username !== db.users[index].username) {
     if (db.users.some(u => u.username === updates.username)) {
       return { success: false, message: 'Пользователь с таким логином уже существует' };
+    }
+  }
+  
+  // Проверка, что сотрудник не привязан к другому пользователю
+  if (updates.employee_id && updates.employee_id !== db.users[index].employee_id) {
+    if (db.users.some(u => u.employee_id === updates.employee_id && u.id !== id)) {
+      return { success: false, message: 'Этот сотрудник уже привязан к другому пользователю' };
     }
   }
   

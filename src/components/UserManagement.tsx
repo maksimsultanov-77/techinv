@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, getAllUsers, addUser, updateUser, deleteUser, changePassword } from '../db/database';
+import { User, Employee, getAllUsers, addUser, updateUser, deleteUser, changePassword, getAllEmployees } from '../db/database';
 
 interface UserManagementProps {
   currentUser: User;
@@ -8,6 +8,7 @@ interface UserManagementProps {
 
 export function UserManagement({ currentUser, showToast }: UserManagementProps) {
   const [users, setUsers] = useState<User[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -18,13 +19,19 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'superadmin' | 'admin' | 'user' | 'observer'>('user');
+  const [employeeId, setEmployeeId] = useState<number | null>(null);
 
   useEffect(() => {
     loadUsers();
+    loadEmployees();
   }, []);
 
   const loadUsers = () => {
     setUsers(getAllUsers());
+  };
+
+  const loadEmployees = () => {
+    setEmployees(getAllEmployees());
   };
 
   const handleAdd = () => {
@@ -33,6 +40,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
     setPassword('');
     setFullName('');
     setRole('user');
+    setEmployeeId(null);
     setShowForm(true);
   };
 
@@ -42,6 +50,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
     setPassword('');
     setFullName(user.fullName);
     setRole(user.role);
+    setEmployeeId(user.employee_id || null);
     setShowForm(true);
   };
 
@@ -57,11 +66,18 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
       return;
     }
 
+    // Для роли "user" обязательно должен быть выбран сотрудник
+    if (role === 'user' && !employeeId) {
+      showToast('Для роли "Пользователь" необходимо выбрать сотрудника', 'error');
+      return;
+    }
+
     if (editingUser) {
       const updates: Partial<Omit<User, 'id' | 'createdAt'>> = {
         username: username.trim(),
         fullName: fullName.trim(),
         role,
+        employee_id: employeeId,
       };
       
       if (password) {
@@ -82,7 +98,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
         return;
       }
 
-      const result = addUser(username.trim(), password, fullName.trim(), role);
+      const result = addUser(username.trim(), password, fullName.trim(), role, employeeId);
       if (result.success) {
         showToast(result.message, 'success');
         setShowForm(false);
@@ -193,6 +209,12 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
                           <span>🔑 {user.username}</span>
                           <span className="mx-2">•</span>
                           <span>📅 {new Date(user.createdAt).toLocaleDateString('ru-RU')}</span>
+                          {user.employee_id && (
+                            <>
+                              <span className="mx-2">•</span>
+                              <span>👤 {employees.find(e => e.id === user.employee_id)?.full_name || 'Сотрудник не найден'}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -285,6 +307,30 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
                   <option value="superadmin">👑 Суперадминистратор</option>
                 </select>
               </div>
+              {(role === 'user' || role === 'observer') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Привязка к сотруднику {role === 'user' ? '*' : '(опционально)'}
+                  </label>
+                  <select
+                    value={employeeId || ''}
+                    onChange={(e) => setEmployeeId(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">— Не привязан —</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.full_name}
+                      </option>
+                    ))}
+                  </select>
+                  {role === 'user' && !employeeId && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      ⚠️ Для роли "Пользователь" необходимо выбрать сотрудника
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <button
                   onClick={() => setShowForm(false)}
