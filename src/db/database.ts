@@ -881,6 +881,29 @@ export function getEquipmentCountByLocation(locationId: number): number {
   return db.equipment.filter(eq => eq.location_id === locationId).length;
 }
 
+export function getEquipmentByLocation(locationId: number, includeChildren: boolean = true): Equipment[] {
+  if (!includeChildren) {
+    return db.equipment.filter(eq => eq.location_id === locationId);
+  }
+  
+  // Получаем все дочерние местоположения
+  const getChildLocationIds = (parentId: number): number[] => {
+    const children = db.locations.filter(l => l.parent_id === parentId);
+    const childIds = children.map(l => l.id);
+    const allChildIds = [...childIds];
+    
+    // Рекурсивно получаем всех потомков
+    for (const childId of childIds) {
+      allChildIds.push(...getChildLocationIds(childId));
+    }
+    
+    return allChildIds;
+  };
+  
+  const allLocationIds = [locationId, ...getChildLocationIds(locationId)];
+  return db.equipment.filter(eq => allLocationIds.includes(eq.location_id));
+}
+
 export function getLocationTree(): (Location & { children: Location[]; equipmentCount: number })[] {
   const rootLocations = db.locations.filter(l => l.parent_id === null);
   
@@ -1070,6 +1093,10 @@ export function getEquipmentCountByStatus(statusId: number): number {
   return db.equipment.filter(eq => eq.status_id === statusId).length;
 }
 
+export function getEquipmentByStatus(statusId: number): Equipment[] {
+  return db.equipment.filter(eq => eq.status_id === statusId);
+}
+
 export function clearAllStatuses(): { success: boolean; message: string } {
   // Перемещаем всё оборудование со статусами, отличными от системных, в "В работе" (id=1)
   db.equipment = db.equipment.map(eq => {
@@ -1182,6 +1209,29 @@ export function deleteCategory(id: number): { success: boolean; message: string 
 
 export function getEquipmentCountByCategory(categoryId: number): number {
   return db.equipment.filter(eq => eq.category_id === categoryId).length;
+}
+
+export function getEquipmentByCategory(categoryId: number, includeChildren: boolean = true): Equipment[] {
+  if (!includeChildren) {
+    return db.equipment.filter(eq => eq.category_id === categoryId);
+  }
+  
+  // Получаем все дочерние категории
+  const getChildCategoryIds = (parentId: number): number[] => {
+    const children = db.categories.filter(c => c.parent_id === parentId);
+    const childIds = children.map(c => c.id);
+    const allChildIds = [...childIds];
+    
+    // Рекурсивно получаем всех потомков
+    for (const childId of childIds) {
+      allChildIds.push(...getChildCategoryIds(childId));
+    }
+    
+    return allChildIds;
+  };
+  
+  const allCategoryIds = [categoryId, ...getChildCategoryIds(categoryId)];
+  return db.equipment.filter(eq => allCategoryIds.includes(eq.category_id));
 }
 
 export function getCategoryTree(): (Category & { children: Category[]; equipmentCount: number })[] {

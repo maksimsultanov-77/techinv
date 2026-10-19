@@ -40,12 +40,16 @@ import {
   getLocationTree,
   getLocationFullPath,
   isSystemLocation,
+  getCategoryFullPath,
   getAllStatuses,
   addStatus,
   deleteStatus,
   clearAllStatuses,
   isSystemStatus,
   getEquipmentCountByStatus,
+  getEquipmentByStatus,
+  getEquipmentByCategory,
+  getEquipmentByLocation,
   getAllCategories,
   addCategory,
   deleteCategory,
@@ -117,6 +121,9 @@ function App() {
   const [collapsedDepts, setCollapsedDepts] = useState<Set<number>>(new Set());
   const [viewingDeptEquipment, setViewingDeptEquipment] = useState<number | null>(null);
   const [viewingDeptEmployees, setViewingDeptEmployees] = useState<number | null>(null);
+  const [viewingStatusEquipment, setViewingStatusEquipment] = useState<number | null>(null);
+  const [viewingCategoryEquipment, setViewingCategoryEquipment] = useState<number | null>(null);
+  const [viewingLocationEquipment, setViewingLocationEquipment] = useState<number | null>(null);
 
   // Locations state
   const [locations, setLocations] = useState<Location[]>([]);
@@ -931,14 +938,25 @@ function App() {
                         </div>
                       </div>
                     </div>
-                    {!isSystem && (
-                      <button
-                        onClick={() => handleDeleteLocation(loc.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        🗑️
-                      </button>
-                    )}
+                    <div className="flex gap-1">
+                      {loc.equipmentCount > 0 && (
+                        <button
+                          onClick={() => setViewingLocationEquipment(loc.id)}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Просмотр оборудования"
+                        >
+                          🖥️
+                        </button>
+                      )}
+                      {!isSystem && (
+                        <button
+                          onClick={() => handleDeleteLocation(loc.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {loc.children.length > 0 && !isCollapsed && (
                     <div className="p-2 space-y-1">
@@ -951,12 +969,23 @@ function App() {
                               <span className="text-xs text-gray-400 ml-2">🖥️ {child.equipmentCount}</span>
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleDeleteLocation(child.id)}
-                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-                          >
-                            🗑️
-                          </button>
+                          <div className="flex gap-1">
+                            {child.equipmentCount > 0 && (
+                              <button
+                                onClick={() => setViewingLocationEquipment(child.id)}
+                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
+                                title="Просмотр оборудования"
+                              >
+                                🖥️
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteLocation(child.id)}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1022,14 +1051,25 @@ function App() {
                         </div>
                       </div>
                     </div>
-                    {!isSystem && (
-                      <button
-                        onClick={() => handleDeleteStatus(status.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        🗑️
-                      </button>
-                    )}
+                    <div className="flex gap-1">
+                      {eqCount > 0 && (
+                        <button
+                          onClick={() => setViewingStatusEquipment(status.id)}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Просмотр оборудования"
+                        >
+                          🖥️
+                        </button>
+                      )}
+                      {!isSystem && (
+                        <button
+                          onClick={() => handleDeleteStatus(status.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -1103,14 +1143,25 @@ function App() {
                         </div>
                       </div>
                     </div>
-                    {!isSystem && (
-                      <button
-                        onClick={() => handleDeleteCategory(cat.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        🗑️
-                      </button>
-                    )}
+                    <div className="flex gap-1">
+                      {cat.equipmentCount > 0 && (
+                        <button
+                          onClick={() => setViewingCategoryEquipment(cat.id)}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Просмотр оборудования"
+                        >
+                          🖥️
+                        </button>
+                      )}
+                      {!isSystem && (
+                        <button
+                          onClick={() => handleDeleteCategory(cat.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {cat.children.length > 0 && !isCollapsed && (
                     <div className="p-2 space-y-1">
@@ -1123,12 +1174,23 @@ function App() {
                               <span className="text-xs text-gray-400 ml-2">🖥️ {child.equipmentCount}</span>
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleDeleteCategory(child.id)}
-                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-                          >
-                            🗑️
-                          </button>
+                          <div className="flex gap-1">
+                            {child.equipmentCount > 0 && (
+                              <button
+                                onClick={() => setViewingCategoryEquipment(child.id)}
+                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
+                                title="Просмотр оборудования"
+                              >
+                                🖥️
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteCategory(child.id)}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -2063,6 +2125,205 @@ function App() {
             <div className="p-6 border-t border-gray-200 flex justify-end">
               <button
                 onClick={() => setViewingDeptEmployees(null)}
+                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Просмотр оборудования по статусу */}
+      {viewingStatusEquipment !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-800">
+                🖥️ Оборудование со статусом "{statuses.find(s => s.id === viewingStatusEquipment)?.name}"
+              </h2>
+              <button 
+                onClick={() => setViewingStatusEquipment(null)} 
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="p-6">
+              {(() => {
+                const statusEquipment = getEquipmentByStatus(viewingStatusEquipment);
+                if (statusEquipment.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-5xl mb-4">📦</div>
+                      <p>Нет оборудования с этим статусом</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-3">
+                    {statusEquipment.map(eq => (
+                      <div key={eq.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <span className="text-3xl">{eq.category_icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-800">{eq.name}</div>
+                            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                              <span className="bg-gray-100 px-2 py-0.5 rounded">{eq.category_name}</span>
+                              {eq.manufacturer && <span>🏭 {eq.manufacturer}</span>}
+                              {eq.model && <span>📋 {eq.model}</span>}
+                              {eq.inventory_number && <span>📝 {eq.inventory_number}</span>}
+                              {eq.serial_number && <span>🔢 {eq.serial_number}</span>}
+                            </div>
+                            {eq.responsible_employee_id && (
+                              <div className="mt-2 text-xs text-gray-400">
+                                👤 {employees.find(e => e.id === eq.responsible_employee_id)?.full_name || 'Неизвестно'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setViewingStatusEquipment(null)}
+                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Просмотр оборудования по категории */}
+      {viewingCategoryEquipment !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-800">
+                🖥️ Оборудование в категории "{getCategoryFullPath(viewingCategoryEquipment)}"
+              </h2>
+              <button 
+                onClick={() => setViewingCategoryEquipment(null)} 
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="p-6">
+              {(() => {
+                const categoryEquipment = getEquipmentByCategory(viewingCategoryEquipment, true);
+                if (categoryEquipment.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-5xl mb-4">📦</div>
+                      <p>Нет оборудования в этой категории</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-3">
+                    {categoryEquipment.map(eq => (
+                      <div key={eq.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <span className="text-3xl">{eq.category_icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-800">{eq.name}</div>
+                            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                              <span className="bg-gray-100 px-2 py-0.5 rounded">{getCategoryFullPath(eq.category_id)}</span>
+                              {eq.manufacturer && <span>🏭 {eq.manufacturer}</span>}
+                              {eq.model && <span>📋 {eq.model}</span>}
+                              {eq.inventory_number && <span>📝 {eq.inventory_number}</span>}
+                              {eq.serial_number && <span>🔢 {eq.serial_number}</span>}
+                            </div>
+                            {eq.responsible_employee_id && (
+                              <div className="mt-2 text-xs text-gray-400">
+                                👤 {employees.find(e => e.id === eq.responsible_employee_id)?.full_name || 'Неизвестно'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setViewingCategoryEquipment(null)}
+                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Просмотр оборудования по местоположению */}
+      {viewingLocationEquipment !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-800">
+                🖥️ Оборудование в местоположении "{getLocationFullPath(viewingLocationEquipment)}"
+              </h2>
+              <button 
+                onClick={() => setViewingLocationEquipment(null)} 
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="p-6">
+              {(() => {
+                const locationEquipment = getEquipmentByLocation(viewingLocationEquipment, true);
+                if (locationEquipment.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-5xl mb-4">📦</div>
+                      <p>Нет оборудования в этом местоположении</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-3">
+                    {locationEquipment.map(eq => (
+                      <div key={eq.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <span className="text-3xl">{eq.category_icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-800">{eq.name}</div>
+                            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                              <span className="bg-gray-100 px-2 py-0.5 rounded">{eq.category_name}</span>
+                              <span>📍 {getLocationFullPath(eq.location_id)}</span>
+                              {eq.manufacturer && <span>🏭 {eq.manufacturer}</span>}
+                              {eq.model && <span>📋 {eq.model}</span>}
+                              {eq.inventory_number && <span>📝 {eq.inventory_number}</span>}
+                              {eq.serial_number && <span>🔢 {eq.serial_number}</span>}
+                            </div>
+                            {eq.responsible_employee_id && (
+                              <div className="mt-2 text-xs text-gray-400">
+                                👤 {employees.find(e => e.id === eq.responsible_employee_id)?.full_name || 'Неизвестно'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setViewingLocationEquipment(null)}
                 className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Закрыть
