@@ -294,9 +294,13 @@ function App() {
   };
 
   const handleDeleteEmployee = (id: number) => {
-    deleteEmployee(id);
+    const result = deleteEmployee(id);
+    if (!result.success) {
+      showToast(result.message, 'error');
+      return;
+    }
     loadEmployees();
-    showToast('Сотрудник удалён', 'success');
+    showToast(result.message, 'success');
   };
 
   // Department handlers
@@ -1279,11 +1283,16 @@ function App() {
               </button>
               <button
                 onClick={() => {
-                  bulkDeleteEmployee(selectedEmployeeIds);
+                  const result = bulkDeleteEmployee(selectedEmployeeIds);
+                  if (!result.success) {
+                    showToast(result.message, 'error');
+                    setShowBulkDeleteEmployeeConfirm(false);
+                    return;
+                  }
                   setSelectedEmployeeIds([]);
                   setShowBulkDeleteEmployeeConfirm(false);
                   loadEmployees();
-                  showToast('Сотрудники удалены', 'success');
+                  showToast(result.message, 'success');
                 }}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
               >

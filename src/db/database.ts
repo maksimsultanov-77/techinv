@@ -1336,18 +1336,22 @@ export function updateEmployee(id: number, data: Omit<Employee, 'id' | 'created_
   addLog('update', 'employee', id, data.full_name, 'Сотрудник обновлён');
 }
 
-export function deleteEmployee(id: number): void {
+export function deleteEmployee(id: number): { success: boolean; message: string } {
+  // Проверяем, есть ли оборудование, привязанное к этому сотруднику
+  const linkedEquipment = db.equipment.filter(eq => eq.responsible_employee_id === id);
+  if (linkedEquipment.length > 0) {
+    return { 
+      success: false, 
+      message: `Нельзя удалить: за сотрудником закреплено ${linkedEquipment.length} единиц оборудования` 
+    };
+  }
+  
   const employee = db.employees.find(emp => emp.id === id);
   const name = employee?.full_name || 'Неизвестно';
   db.employees = db.employees.filter(emp => emp.id !== id);
-  // Очищаем связь в оборудовании
-  db.equipment = db.equipment.map(eq => 
-    eq.responsible_employee_id === id 
-      ? { ...eq, responsible_employee_id: null }
-      : eq
-  );
   saveDatabase();
   addLog('delete', 'employee', id, name, 'Сотрудник удалён');
+  return { success: true, message: 'Сотрудник удалён' };
 }
 
 export function bulkUpdateEmployee(ids: number[], updates: Partial<Omit<Employee, 'id' | 'created_at' | 'updated_at'>>): number {
@@ -1374,18 +1378,25 @@ export function bulkUpdateEmployee(ids: number[], updates: Partial<Omit<Employee
   return updatedCount;
 }
 
-export function bulkDeleteEmployee(ids: number[]): number {
+export function bulkDeleteEmployee(ids: number[]): { success: boolean; message: string; deletedCount: number } {
+  // Проверяем, есть ли оборудование, привязанное к любому из удаляемых сотрудников
+  const linkedEquipment = db.equipment.filter(eq => 
+    eq.responsible_employee_id && ids.includes(eq.responsible_employee_id)
+  );
+  
+  if (linkedEquipment.length > 0) {
+    return { 
+      success: false, 
+      message: `Нельзя удалить: за выбранными сотрудниками закреплено ${linkedEquipment.length} единиц оборудования`,
+      deletedCount: 0
+    };
+  }
+  
   const deletedCount = ids.length;
   db.employees = db.employees.filter(emp => !ids.includes(emp.id));
-  // Очищаем связи в оборудовании
-  db.equipment = db.equipment.map(eq => 
-    ids.includes(eq.responsible_employee_id || 0)
-      ? { ...eq, responsible_employee_id: null }
-      : eq
-  );
   saveDatabase();
   addLog('delete', 'employee', undefined, undefined, `Групповое удаление: ${deletedCount} сотрудников`);
-  return deletedCount;
+  return { success: true, message: `Удалено ${deletedCount} сотрудников`, deletedCount };
 }
 
 export function getEmployeeStats(): {
