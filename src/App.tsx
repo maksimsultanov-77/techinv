@@ -58,9 +58,6 @@ import {
   Department,
   Location,
   Status,
-  AppSettings,
-  getSettings,
-  updateSettings,
 } from './db/database';
 import { EmployeeStats, LocationTreeNode, WorkMode } from './types';
 import EquipmentForm from './components/EquipmentForm';
@@ -74,6 +71,8 @@ import { LogViewer } from './components/LogViewer';
 import { BulkEditEquipment } from './components/BulkEditEquipment';
 import { BulkEditEmployee } from './components/BulkEditEmployee';
 import { Settings } from './components/Settings';
+import { Sidebar } from './components/Sidebar';
+import { useSettings } from './contexts/SettingsContext';
 
 type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings';
 type EquipmentFormData = Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>;
@@ -163,8 +162,8 @@ function App() {
   const [showBulkDeleteEquipmentConfirm, setShowBulkDeleteEquipmentConfirm] = useState(false);
   const [showBulkDeleteEmployeeConfirm, setShowBulkDeleteEmployeeConfirm] = useState(false);
 
-  // Settings
-  const [settings, setSettings] = useState<AppSettings>(getSettings());
+  // Settings from context
+  const { settings } = useSettings();
 
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
@@ -264,10 +263,7 @@ function App() {
     }
   }, [dbReady, loadDepartments, loadLocations, loadStatuses, loadCategories]);
 
-  // Update document title when organization name changes
-  useEffect(() => {
-    document.title = `${settings.organizationName} - Учет техники`;
-  }, [settings.organizationName]);
+
 
   // Reload equipment when filters change
   useEffect(() => {
@@ -572,24 +568,27 @@ function App() {
   const deptTree = getDepartmentTree() as DeptTreeNode[];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">🖥️</span>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800">{settings.organizationName}</h1>
-                <p className="text-sm text-gray-500">Система управления оборудованием, сотрудниками и оргструктурой</p>
+    <div className={settings.theme === 'dark' ? 'dark' : ''}>
+      <div className={`min-h-screen ${settings.theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        {settings.menuPosition === 'top' ? (
+          <>
+            {/* Header */}
+            <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">🖥️</span>
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">{settings.organizationName}</h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Система управления оборудованием, сотрудниками и оргструктурой</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300">
+                    💾 Экспорт
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700">
-                💾 Экспорт
-              </button>
-            </div>
-          </div>
 
           {/* Navigation Tabs */}
           <div className="flex gap-2 mt-4 border-b border-gray-200 -mb-4">
@@ -660,9 +659,22 @@ function App() {
           </div>
         </div>
       </header>
+        </>
+      ) : (
+        <Sidebar
+          activeView={activeView}
+          setActiveView={setActiveView}
+          stats={stats}
+          empStats={empStats}
+          departments={departments}
+          locations={locations}
+          statuses={statuses}
+          categories={categories}
+        />
+      )}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className={`${settings.menuPosition === 'top' ? 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6' : 'p-6'} dark:bg-gray-900`}>
         {/* ============ ОРГСТРУКТУРА ============ */}
         {activeView === 'structure' && (
           <>
@@ -1050,8 +1062,8 @@ function App() {
             {/* Stats Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
               <div
-                className={`bg-white rounded-xl p-4 border cursor-pointer transition-all ${
-                  !selectedCategory ? 'border-blue-500 shadow-md ring-2 ring-blue-100' : 'border-gray-200 hover:shadow-sm'
+                className={`bg-white dark:bg-gray-800 rounded-xl p-4 border cursor-pointer transition-all ${
+                  !selectedCategory ? 'border-blue-500 shadow-md ring-2 ring-blue-100' : 'border-gray-200 dark:border-gray-700 hover:shadow-sm'
                 }`}
                 onClick={() => setSelectedCategory(undefined)}
               >
@@ -1062,9 +1074,9 @@ function App() {
               {stats.byCategory.slice(0, 5).map(cat => (
                 <div
                   key={cat.name}
-                  className={`bg-white rounded-xl p-4 border cursor-pointer transition-all ${
+                  className={`bg-white dark:bg-gray-800 rounded-xl p-4 border cursor-pointer transition-all ${
                     selectedCategory === categories.find(c => c.name === cat.name)?.id
-                      ? 'border-blue-500 shadow-md ring-2 ring-blue-100' : 'border-gray-200 hover:shadow-sm'
+                      ? 'border-blue-500 shadow-md ring-2 ring-blue-100' : 'border-gray-200 dark:border-gray-700 hover:shadow-sm'
                   }`}
                   onClick={() => {
                     const catId = categories.find(c => c.name === cat.name)?.id;
@@ -1079,7 +1091,7 @@ function App() {
             </div>
 
             {/* Search and Filters */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
@@ -1801,10 +1813,7 @@ function App() {
 
         {/* ============ НАСТРОЙКИ ============ */}
         {activeView === 'settings' && (
-          <Settings 
-            showToast={showToast} 
-            onSettingsChange={(newSettings) => setSettings(newSettings)}
-          />
+          <Settings showToast={showToast} />
         )}
       </main>
 
@@ -2074,6 +2083,7 @@ function App() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

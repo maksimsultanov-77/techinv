@@ -1,31 +1,43 @@
-import { useState, useEffect } from 'react';
-import { AppSettings, getSettings, updateSettings } from '../db/database';
+import { useState } from 'react';
+import { AppSettings } from '../db/database';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface SettingsProps {
   showToast: (message: string, type: 'success' | 'error' | 'info') => void;
-  onSettingsChange?: (settings: AppSettings) => void;
 }
 
-export function Settings({ showToast, onSettingsChange }: SettingsProps) {
-  const [settings, setSettings] = useState<AppSettings>(getSettings());
+export function Settings({ showToast }: SettingsProps) {
+  const { settings, updateSettings } = useSettings();
+  const [draftSettings, setDraftSettings] = useState<AppSettings>(settings);
   const [hasChanges, setHasChanges] = useState(false);
 
   const handleChange = (key: keyof AppSettings, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    const newSettings = { ...draftSettings, [key]: value };
+    setDraftSettings(newSettings);
     setHasChanges(true);
+    
+    // Apply settings immediately for certain options
+    if (key === 'theme') {
+      if (value === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+    
+    if (key === 'organizationName') {
+      document.title = `${value} - Учет техники`;
+    }
   };
 
   const handleSave = () => {
-    updateSettings(settings);
+    updateSettings(draftSettings);
     setHasChanges(false);
-    if (onSettingsChange) {
-      onSettingsChange(settings);
-    }
-    showToast('Настройки сохранены', 'success');
+    showToast('Настройки сохранены и применены', 'success');
   };
 
   const handleReset = () => {
-    setSettings(getSettings());
+    setDraftSettings(settings);
     setHasChanges(false);
   };
 
@@ -53,7 +65,7 @@ export function Settings({ showToast, onSettingsChange }: SettingsProps) {
               </label>
               <input
                 type="text"
-                value={settings.organizationName}
+                value={draftSettings.organizationName}
                 onChange={(e) => handleChange('organizationName', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Введите название организации"
@@ -78,7 +90,7 @@ export function Settings({ showToast, onSettingsChange }: SettingsProps) {
                 <button
                   onClick={() => handleChange('menuPosition', 'top')}
                   className={`p-4 border-2 rounded-lg transition-all ${
-                    settings.menuPosition === 'top'
+                    draftSettings.menuPosition === 'top'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
@@ -90,7 +102,7 @@ export function Settings({ showToast, onSettingsChange }: SettingsProps) {
                 <button
                   onClick={() => handleChange('menuPosition', 'left')}
                   className={`p-4 border-2 rounded-lg transition-all ${
-                    settings.menuPosition === 'left'
+                    draftSettings.menuPosition === 'left'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
@@ -110,7 +122,7 @@ export function Settings({ showToast, onSettingsChange }: SettingsProps) {
                 <button
                   onClick={() => handleChange('theme', 'light')}
                   className={`p-4 border-2 rounded-lg transition-all ${
-                    settings.theme === 'light'
+                    draftSettings.theme === 'light'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
@@ -122,7 +134,7 @@ export function Settings({ showToast, onSettingsChange }: SettingsProps) {
                 <button
                   onClick={() => handleChange('theme', 'dark')}
                   className={`p-4 border-2 rounded-lg transition-all ${
-                    settings.theme === 'dark'
+                    draftSettings.theme === 'dark'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
@@ -139,7 +151,7 @@ export function Settings({ showToast, onSettingsChange }: SettingsProps) {
                 Язык интерфейса
               </label>
               <select
-                value={settings.language}
+                value={draftSettings.language}
                 onChange={(e) => handleChange('language', e.target.value as 'ru' | 'en')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
@@ -160,7 +172,7 @@ export function Settings({ showToast, onSettingsChange }: SettingsProps) {
                 Элементов на странице
               </label>
               <select
-                value={settings.itemsPerPage}
+                value={draftSettings.itemsPerPage}
                 onChange={(e) => handleChange('itemsPerPage', Number(e.target.value))}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
@@ -178,7 +190,7 @@ export function Settings({ showToast, onSettingsChange }: SettingsProps) {
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={settings.showDescriptions}
+                  checked={draftSettings.showDescriptions}
                   onChange={(e) => handleChange('showDescriptions', e.target.checked)}
                   className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
@@ -202,7 +214,7 @@ export function Settings({ showToast, onSettingsChange }: SettingsProps) {
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={settings.autoSaveLogs}
+                  checked={draftSettings.autoSaveLogs}
                   onChange={(e) => handleChange('autoSaveLogs', e.target.checked)}
                   className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
