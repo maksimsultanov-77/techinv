@@ -155,6 +155,10 @@ function App() {
   const [statusSearchQuery, setStatusSearchQuery] = useState('');
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
 
+  // Bulk delete confirmations
+  const [showBulkDeleteEquipmentConfirm, setShowBulkDeleteEquipmentConfirm] = useState(false);
+  const [showBulkDeleteEmployeeConfirm, setShowBulkDeleteEmployeeConfirm] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -960,14 +964,7 @@ function App() {
                       ✏️ Редактировать
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm(`Удалить ${selectedEmployeeIds.length} сотрудников?`)) {
-                          bulkDeleteEmployee(selectedEmployeeIds);
-                          setSelectedEmployeeIds([]);
-                          loadEmployees();
-                          showToast('Сотрудники удалены', 'success');
-                        }
-                      }}
+                      onClick={() => setShowBulkDeleteEmployeeConfirm(true)}
                       className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
                     >
                       🗑️ Удалить
@@ -1136,14 +1133,7 @@ function App() {
                       ✏️ Редактировать
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm(`Удалить ${selectedEquipmentIds.length} единиц оборудования?`)) {
-                          bulkDeleteEquipment(selectedEquipmentIds);
-                          setSelectedEquipmentIds([]);
-                          loadEquipment();
-                          showToast('Оборудование удалено', 'success');
-                        }
-                      }}
+                      onClick={() => setShowBulkDeleteEquipmentConfirm(true)}
                       className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
                     >
                       🗑️ Удалить
@@ -1824,6 +1814,38 @@ function App() {
         />
       )}
 
+      {showBulkDeleteEquipmentConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="text-5xl text-center mb-4">⚠️</div>
+            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Удалить оборудование?</h3>
+            <p className="text-gray-600 text-center mb-4">
+              Будет удалено <strong>{selectedEquipmentIds.length}</strong> единиц оборудования. Это действие нельзя отменить.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBulkDeleteEquipmentConfirm(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  bulkDeleteEquipment(selectedEquipmentIds);
+                  setSelectedEquipmentIds([]);
+                  setShowBulkDeleteEquipmentConfirm(false);
+                  loadEquipment();
+                  showToast('Оборудование удалено', 'success');
+                }}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Employee Modals */}
       {showEmpForm && (
         <EmployeeForm departments={departments} onSave={handleAddEmployee} onCancel={() => setShowEmpForm(false)} onError={(msg) => showToast(msg, 'error')} />
@@ -1852,6 +1874,38 @@ function App() {
           }}
           onCancel={() => setShowBulkEditEmployee(false)}
         />
+      )}
+
+      {showBulkDeleteEmployeeConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <div className="text-5xl text-center mb-4">⚠️</div>
+            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Удалить сотрудников?</h3>
+            <p className="text-gray-600 text-center mb-4">
+              Будет удалено <strong>{selectedEmployeeIds.length}</strong> сотрудников. Это действие нельзя отменить.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBulkDeleteEmployeeConfirm(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  bulkDeleteEmployee(selectedEmployeeIds);
+                  setSelectedEmployeeIds([]);
+                  setShowBulkDeleteEmployeeConfirm(false);
+                  loadEmployees();
+                  showToast('Сотрудники удалены', 'success');
+                }}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Test Data Confirm Modals */}
