@@ -17,7 +17,9 @@ export function BulkEditEmployee({
   const [updates, setUpdates] = useState<Partial<Omit<Employee, 'id' | 'created_at' | 'updated_at'>>>({});
 
   const handleChange = (field: string, value: any) => {
-    if (value === '' || value === null) {
+    // Для select элементов: если выбрано "Не изменять", удаляем поле
+    // Для input элементов: сохраняем даже пустые значения
+    if ((value === '' || value === null) && (field === 'department_id' || field === 'employee_type' || field === 'work_mode')) {
       const newUpdates = { ...updates };
       delete newUpdates[field as keyof typeof newUpdates];
       setUpdates(newUpdates);
