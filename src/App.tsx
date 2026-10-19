@@ -1474,6 +1474,7 @@ function App() {
         <EmployeeDetail
           employee={viewingEmployee}
           departments={departments}
+          currentUserRole={currentUser.role}
           onClose={() => setViewingEmployee(null)}
           onEdit={() => { setEditingEmployee(viewingEmployee); setViewingEmployee(null); }}
         />

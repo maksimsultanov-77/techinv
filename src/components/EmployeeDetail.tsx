@@ -4,6 +4,7 @@ import { Employee, Department, TIMEZONES, EMPLOYEE_TYPES, getDepartmentName, get
 interface EmployeeDetailProps {
   employee: Employee;
   departments: Department[];
+  currentUserRole?: 'superadmin' | 'admin' | 'user' | 'observer';
   onClose: () => void;
   onEdit: () => void;
 }
@@ -14,7 +15,7 @@ const workModeLabels: Record<string, { label: string; icon: string; color: strin
   hybrid: { label: 'Гибрид', icon: '🔄', color: 'bg-purple-100 text-purple-800' },
 };
 
-const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, departments, onClose, onEdit }) => {
+const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, departments, currentUserRole, onClose, onEdit }) => {
   const modeInfo = workModeLabels[employee.work_mode] || workModeLabels.office;
   const genderIcon = employee.gender === 'female' ? '👩' : '👨';
   const genderLabel = employee.gender === 'female' ? 'Женский' : 'Мужской';
@@ -110,12 +111,14 @@ const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, departments, 
             >
               Закрыть
             </button>
-            <button
-              onClick={onEdit}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              ✏️ Редактировать
-            </button>
+            {currentUserRole !== 'user' && (
+              <button
+                onClick={onEdit}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                ✏️ Редактировать
+              </button>
+            )}
           </div>
         </div>
       </div>
