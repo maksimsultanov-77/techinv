@@ -1,5 +1,7 @@
 import { useSettings } from '../contexts/SettingsContext';
 
+import { User } from '../db/database';
+
 interface SidebarProps {
   activeView: string;
   setActiveView: (view: any) => void;
@@ -9,6 +11,8 @@ interface SidebarProps {
   locations: any[];
   statuses: any[];
   categories: any[];
+  currentUser: User;
+  onLogout: () => void;
 }
 
 export function Sidebar({
@@ -20,6 +24,8 @@ export function Sidebar({
   locations,
   statuses,
   categories,
+  currentUser,
+  onLogout,
 }: SidebarProps) {
   const { settings } = useSettings();
 
@@ -32,6 +38,7 @@ export function Sidebar({
     { id: 'categories', label: '📁 Категории', count: categories.length },
     { id: 'logs', label: '📋 Логи', count: null },
     { id: 'settings', label: '⚙️ Настройки', count: null },
+    ...(currentUser.role === 'admin' ? [{ id: 'users', label: '👥 Пользователи', count: null }] : []),
   ];
 
   return (
@@ -48,7 +55,7 @@ export function Sidebar({
         </p>
       </div>
 
-      <nav className="space-y-1">
+      <nav className="space-y-1 flex-1">
         {menuItems.map((item) => (
           <button
             key={item.id}
@@ -74,6 +81,26 @@ export function Sidebar({
           </button>
         ))}
       </nav>
+
+      <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-3 mb-4 px-4">
+          <span className="text-2xl">{currentUser.role === 'admin' ? '👑' : '👤'}</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+              {currentUser.fullName}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {currentUser.role === 'admin' ? 'Администратор' : 'Пользователь'}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={onLogout}
+          className="w-full px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+        >
+          🚪 Выйти
+        </button>
+      </div>
     </div>
   );
 }

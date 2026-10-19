@@ -21,6 +21,15 @@ export interface LogEntry {
   details: string;
 }
 
+export interface User {
+  id: number;
+  username: string;
+  password: string;
+  fullName: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+}
+
 export interface AppSettings {
   organizationName: string;
   menuPosition: 'top' | 'left';
@@ -125,6 +134,7 @@ interface DatabaseSchema {
   statuses: Status[];
   logs: LogEntry[];
   settings: AppSettings;
+  users: User[];
   nextCategoryId: number;
   nextEquipmentId: number;
   nextEmployeeId: number;
@@ -132,6 +142,7 @@ interface DatabaseSchema {
   nextLocationId: number;
   nextStatusId: number;
   nextLogId: number;
+  nextUserId: number;
 }
 
 export function isSystemCategory(id: number): boolean {
@@ -381,6 +392,23 @@ export function initDatabase(): Promise<void> {
             autoSaveLogs: true,
           };
         }
+        
+        // Миграция: добавляем users
+        if (!db.users) {
+          db.users = [
+            {
+              id: 1,
+              username: 'admin',
+              password: 'admin',
+              fullName: 'Администратор',
+              role: 'admin',
+              createdAt: new Date().toISOString(),
+            },
+          ];
+        }
+        if (!db.nextUserId) {
+          db.nextUserId = db.users.length > 0 ? Math.max(...db.users.map(u => u.id)) + 1 : 1;
+        }
       } catch (e) {
         console.error('Error loading database:', e);
         db = createDefaultDatabase();
@@ -411,6 +439,16 @@ function createDefaultDatabase(): DatabaseSchema {
       showDescriptions: true,
       autoSaveLogs: true,
     },
+    users: [
+      {
+        id: 1,
+        username: 'admin',
+        password: 'admin',
+        fullName: 'Администратор',
+        role: 'admin',
+        createdAt: new Date().toISOString(),
+      },
+    ],
     nextCategoryId: 14,
     nextEquipmentId: 1,
     nextEmployeeId: 1,
@@ -418,6 +456,7 @@ function createDefaultDatabase(): DatabaseSchema {
     nextLocationId: 3, // Начинаем с 3, т.к. 1 и 2 зарезервированы
     nextStatusId: 4, // Начинаем с 4, т.к. 1, 2 и 3 зарезервированы
     nextLogId: 1,
+    nextUserId: 2, // Начинаем с 2, т.к. 1 зарезервирован для admin
   };
   
   // Создаём обязательные виртуальные подразделения
@@ -1848,4 +1887,100 @@ export function updateSettings(settings: Partial<AppSettings>): void {
   db.settings = { ...getSettings(), ...settings };
   saveDatabase();
   addLog('update', 'settings', undefined, undefined, 'Настройки обновлены');
+}
+
+// ============ ПОЛЬЗОВАТЕЛИ ============
+
+export function getAllUsers(): User[] {
+  if (!db || !db.users) return [];
+  return [...db.users].sort((a, b) => a.username.localeCompare(b.username));
+}
+
+export function getUserById(id: number): User | null {
+  if (!db || !db.users) return null;
+  return db.users.find(u => u.id === id) || null;
+}
+
+export function authenticateUser(username: string, password: string): User | null {
+  if (!db || !db.users) return null;
+  const user = db.users.find(u => u.username === username && u.password === password);
+  return user || null;
+}
+
+export function addUser(username: string, password: string, fullName: string, role: 'admin' | 'user' = 'user'): { success: boolean; message: string; userId?: number } {
+  if (!db) return { success: false, message: 'База данных не инициализирована' };
+  
+  // Проверка уникальности username
+  if (db.users.some(u => u.username === username)) {
+    return { success: false, message: 'Пользователь с таким логином уже существует' };
+  }
+  
+  const newUser: User = {
+    id: db.nextUserId++,
+    username,
+    password,
+    fullName,
+    role,
+    createdAt: new Date().toISOString(),
+  };
+  
+  db.users.push(newUser);
+  saveDatabase();
+  addLog('create', 'user', newUser.id, newUser.username, `Пользователь создан: ${fullName} (${role})`);
+  
+  return { success: true, message: 'Пользователь создан', userId: newUser.id };
+}
+
+export function updateUser(id: number, updates: Partial<Omit<User, 'id' | 'createdAt'>>): { success: boolean; message: string } {
+  if (!db) return { success: false, message: 'База данных не инициализирована' };
+  
+  const index = db.users.findIndex(u => u.id === id);
+  if (index === -1) return { success: false, message: 'Пользователь не найден' };
+  
+  // Проверка уникальности username если он меняется
+  if (updates.username && updates.username !== db.users[index].username) {
+    if (db.users.some(u => u.username === updates.username)) {
+      return { success: false, message: 'Пользователь с таким логином уже существует' };
+    }
+  }
+  
+  db.users[index] = { ...db.users[index], ...updates };
+  saveDatabase();
+  addLog('update', 'user', id, updates.username || db.users[index].username, 'Пользователь обновлён');
+  
+  return { success: true, message: 'Пользователь обновлён' };
+}
+
+export function deleteUser(id: number): { success: boolean; message: string } {
+  if (!db) return { success: false, message: 'База данных не инициализирована' };
+  
+  const user = db.users.find(u => u.id === id);
+  if (!user) return { success: false, message: 'Пользователь не найден' };
+  
+  // Нельзя удалить последнего администратора
+  if (user.role === 'admin') {
+    const adminCount = db.users.filter(u => u.role === 'admin').length;
+    if (adminCount === 1) {
+      return { success: false, message: 'Нельзя удалить последнего администратора' };
+    }
+  }
+  
+  db.users = db.users.filter(u => u.id !== id);
+  saveDatabase();
+  addLog('delete', 'user', id, user.username, `Пользователь удалён: ${user.fullName}`);
+  
+  return { success: true, message: 'Пользователь удалён' };
+}
+
+export function changePassword(id: number, newPassword: string): { success: boolean; message: string } {
+  if (!db) return { success: false, message: 'База данных не инициализирована' };
+  
+  const index = db.users.findIndex(u => u.id === id);
+  if (index === -1) return { success: false, message: 'Пользователь не найден' };
+  
+  db.users[index].password = newPassword;
+  saveDatabase();
+  addLog('update', 'user', id, db.users[index].username, 'Пароль изменён');
+  
+  return { success: true, message: 'Пароль изменён' };
 }

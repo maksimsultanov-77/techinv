@@ -77,13 +77,17 @@ import { BulkEditEquipment } from './components/BulkEditEquipment';
 import { BulkEditEmployee } from './components/BulkEditEmployee';
 import { Settings } from './components/Settings';
 import { Sidebar } from './components/Sidebar';
+import { Login } from './components/Login';
+import { UserManagement } from './components/UserManagement';
 import { useSettings } from './contexts/SettingsContext';
+import { User } from './db/database';
 
-type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings';
+type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings' | 'users';
 
 function App() {
   const { settings, isLoaded } = useSettings();
   const [activeView, setActiveView] = useState<ViewMode>('structure');
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Equipment state
   const [categories, setCategories] = useState<Category[]>([]);
@@ -180,12 +184,34 @@ function App() {
     }, 3000);
   };
 
+  // Проверка авторизации при загрузке
+  useEffect(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('currentUser');
+      }
+    }
+  }, []);
+
   // Database is already initialized by SettingsProvider
   useEffect(() => {
     if (isLoaded) {
       setLoading(false);
     }
   }, [isLoaded]);
+
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+    localStorage.setItem('currentUser', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('currentUser');
+  };
 
   const loadEquipment = useCallback(() => {
     try {
@@ -482,6 +508,11 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  // Проверка авторизации
+  if (!currentUser) {
+    return <Login onLogin={handleLogin} />;
   }
 
   const mainContent = (
@@ -1211,6 +1242,11 @@ function App() {
       {activeView === 'settings' && (
         <Settings showToast={showToast} />
       )}
+
+      {/* ============ ПОЛЬЗОВАТЕЛИ ============ */}
+      {activeView === 'users' && currentUser.role === 'admin' && (
+        <UserManagement currentUser={currentUser} showToast={showToast} />
+      )}
     </>
   );
 
@@ -1230,8 +1266,15 @@ function App() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+                    <span className="text-lg">{currentUser.role === 'admin' ? '👑' : '👤'}</span>
+                    <span className="text-sm font-medium text-gray-700">{currentUser.fullName}</span>
+                  </div>
                   <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700">
                     💾 Экспорт
+                  </button>
+                  <button onClick={handleLogout} className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                    🚪 Выйти
                   </button>
                 </div>
               </div>
@@ -1302,6 +1345,16 @@ function App() {
                 >
                   ⚙️ Настройки
                 </button>
+                {currentUser.role === 'admin' && (
+                  <button
+                    onClick={() => setActiveView('users')}
+                    className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                      activeView === 'users' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    👥 Пользователи
+                  </button>
+                )}
               </div>
             </div>
           </header>
@@ -1322,6 +1375,8 @@ function App() {
             locations={locations}
             statuses={statuses}
             categories={categories}
+            currentUser={currentUser}
+            onLogout={handleLogout}
           />
           <div className="sidebar-content">
             <main className="p-6">
