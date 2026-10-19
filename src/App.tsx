@@ -26,6 +26,7 @@ import {
   getDepartmentTree,
   getDepartmentName,
   getEquipmentByDepartment,
+  getEquipmentByEmployee,
   generateTestDepartments,
   clearAllDepartments,
   isSystemDepartment,
@@ -115,6 +116,7 @@ function App() {
   const [showClearDeptConfirm, setShowClearDeptConfirm] = useState(false);
   const [collapsedDepts, setCollapsedDepts] = useState<Set<number>>(new Set());
   const [viewingDeptEquipment, setViewingDeptEquipment] = useState<number | null>(null);
+  const [viewingDeptEmployees, setViewingDeptEmployees] = useState<number | null>(null);
 
   // Locations state
   const [locations, setLocations] = useState<Location[]>([]);
@@ -551,6 +553,15 @@ function App() {
                       </div>
                     </div>
                     <div className="flex gap-1">
+                      {dept.employeeCount > 0 && (
+                        <button
+                          onClick={() => setViewingDeptEmployees(dept.id)}
+                          className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Просмотр сотрудников"
+                        >
+                          👥
+                        </button>
+                      )}
                       {deptEquipmentCount > 0 && (
                         <button
                           onClick={() => setViewingDeptEquipment(dept.id)}
@@ -587,6 +598,15 @@ function App() {
                               </div>
                             </div>
                             <div className="flex gap-1">
+                              {child.employeeCount > 0 && (
+                                <button
+                                  onClick={() => setViewingDeptEmployees(child.id)}
+                                  className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors text-sm"
+                                  title="Просмотр сотрудников"
+                                >
+                                  👥
+                                </button>
+                              )}
                               {childEquipmentCount > 0 && (
                                 <button
                                   onClick={() => setViewingDeptEquipment(child.id)}
@@ -1957,6 +1977,92 @@ function App() {
             <div className="p-6 border-t border-gray-200 flex justify-end">
               <button
                 onClick={() => setViewingDeptEquipment(null)}
+                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Просмотр сотрудников подразделения */}
+      {viewingDeptEmployees !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-800">
+                👥 Сотрудники подразделения "{getDepartmentName(viewingDeptEmployees)}"
+              </h2>
+              <button 
+                onClick={() => setViewingDeptEmployees(null)} 
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="p-6">
+              {(() => {
+                const deptEmployees = employees.filter(emp => emp.department_id === viewingDeptEmployees);
+                if (deptEmployees.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-5xl mb-4">👥</div>
+                      <p>Нет сотрудников в подразделении</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-3">
+                    {deptEmployees.map(emp => {
+                      const genderIcon = emp.gender === 'female' ? '👩' : '👨';
+                      const empEquipmentCount = getEquipmentByEmployee(emp.id).length;
+                      return (
+                        <div key={emp.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-start gap-3">
+                            <span className="text-3xl flex-shrink-0">{genderIcon}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div className="font-semibold text-gray-800">{emp.full_name}</div>
+                                {emp.employee_type !== 'staff' && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                    {emp.employee_type === 'external' ? '🌐 Внешний' : '📝 Подрядчик'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                                {emp.position && <span>💼 {emp.position}</span>}
+                                {emp.phone && <span>📞 {emp.phone}</span>}
+                                {emp.email && <span>✉️ {emp.email}</span>}
+                                {emp.city && <span>📍 {emp.city}</span>}
+                                {empEquipmentCount > 0 && (
+                                  <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                                    🖥️ {empEquipmentCount} {empEquipmentCount === 1 ? 'устройство' : empEquipmentCount < 5 ? 'устройства' : 'устройств'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setViewingDeptEmployees(null);
+                                setViewingEmployee(emp);
+                              }}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Просмотр карточки"
+                            >
+                              👁️
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setViewingDeptEmployees(null)}
                 className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Закрыть
