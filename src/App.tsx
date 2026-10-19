@@ -283,6 +283,7 @@ function App() {
     addEmployee(data);
     setShowEmpForm(false);
     loadEmployees();
+    loadDepartments();
     showToast('Сотрудник добавлен', 'success');
   };
 
@@ -291,6 +292,8 @@ function App() {
       updateEmployee(editingEmployee.id, data);
       setEditingEmployee(null);
       loadEmployees();
+      loadDepartments();
+      loadEquipment();
       showToast('Сотрудник обновлён', 'success');
     }
   };
@@ -302,6 +305,7 @@ function App() {
       return;
     }
     loadEmployees();
+    loadDepartments();
     showToast(result.message, 'success');
   };
 
@@ -1293,6 +1297,8 @@ function App() {
             setShowBulkEditEmployee(false);
             setSelectedEmployeeIds([]);
             loadEmployees();
+            loadDepartments();
+            loadEquipment();
             showToast('Сотрудники обновлены', 'success');
           }}
           onCancel={() => setShowBulkEditEmployee(false)}
@@ -1324,6 +1330,7 @@ function App() {
                   setSelectedEmployeeIds([]);
                   setShowBulkDeleteEmployeeConfirm(false);
                   loadEmployees();
+                  loadDepartments();
                   showToast(result.message, 'success');
                 }}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
