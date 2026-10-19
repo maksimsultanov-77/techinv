@@ -837,7 +837,7 @@ function App() {
                   >
                     🎲 Тестовые данные
                   </button>
-                  {currentUser.role === 'superadmin' && stats.total > 0 && (
+                  {stats.total > 0 && (
                     <button
                       onClick={() => setShowClearConfirm(true)}
                       className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
@@ -845,14 +845,14 @@ function App() {
                       🗑️ Очистить
                     </button>
                   )}
-                  <button
-                    onClick={() => { setShowForm(true); setEditingItem(null); }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-                  >
-                    ➕ Добавить
-                  </button>
                 </>
               )}
+              <button
+                onClick={() => { setShowForm(true); setEditingItem(null); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+              >
+                ➕ Добавить
+              </button>
             </div>
           )}
 
