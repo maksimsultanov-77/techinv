@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  initDatabase,
   getCategories,
   getAllEquipment,
   addEquipment,
@@ -76,8 +75,7 @@ import { useSettings } from './contexts/SettingsContext';
 type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings';
 
 function App() {
-  const { settings } = useSettings();
-  const [dbReady, setDbReady] = useState(false);
+  const { settings, isLoaded } = useSettings();
   const [activeView, setActiveView] = useState<ViewMode>('structure');
 
   // Equipment state
@@ -170,17 +168,12 @@ function App() {
     }, 3000);
   };
 
+  // Database is already initialized by SettingsProvider
   useEffect(() => {
-    initDatabase()
-      .then(() => {
-        setDbReady(true);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error('Database init error:', err);
-        setLoading(false);
-      });
-  }, []);
+    if (isLoaded) {
+      setLoading(false);
+    }
+  }, [isLoaded]);
 
   const loadEquipment = useCallback(() => {
     try {
@@ -239,25 +232,25 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (dbReady) {
+    if (isLoaded) {
       loadDepartments();
       loadLocations();
       loadStatuses();
       loadCategories();
     }
-  }, [dbReady, loadDepartments, loadLocations, loadStatuses, loadCategories]);
+  }, [isLoaded, loadDepartments, loadLocations, loadStatuses, loadCategories]);
 
   useEffect(() => {
-    if (dbReady) {
+    if (isLoaded) {
       loadEquipment();
     }
-  }, [dbReady, loadEquipment]);
+  }, [isLoaded, loadEquipment]);
 
   useEffect(() => {
-    if (dbReady) {
+    if (isLoaded) {
       loadEmployees();
     }
-  }, [dbReady, loadEmployees]);
+  }, [isLoaded, loadEmployees]);
 
   // Equipment handlers
   const handleAdd = (data: any) => {
