@@ -829,11 +829,13 @@ function App() {
           <EquipmentList
             equipment={equipment}
             statuses={statuses}
+            employees={employees}
             selectedIds={selectedEquipmentIds}
             onSelectionChange={setSelectedEquipmentIds}
             onEdit={(item) => { setEditingItem(item); setShowForm(false); }}
             onDelete={handleDelete}
             onView={(item) => setViewingItem(item)}
+            onViewEmployee={(emp) => setViewingEmployee(emp)}
           />
         </>
       )}
@@ -1371,6 +1373,10 @@ function App() {
           statuses={statuses}
           onClose={() => setViewingItem(null)}
           onEdit={() => { setEditingItem(viewingItem); setViewingItem(null); }}
+          onViewEmployee={(emp) => {
+            setViewingItem(null);
+            setViewingEmployee(emp);
+          }}
         />
       )}
       {showBulkEditEquipment && (

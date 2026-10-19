@@ -8,9 +8,10 @@ interface EquipmentDetailProps {
   statuses: Status[];
   onClose: () => void;
   onEdit: () => void;
+  onViewEmployee?: (employee: Employee) => void;
 }
 
-const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees, statuses, onClose, onEdit }) => {
+const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees, statuses, onClose, onEdit, onViewEmployee }) => {
   const [showLabelPrint, setShowLabelPrint] = useState(false);
   const statusInfo = getStatusById(equipment.status_id) || { id: 1, name: 'Неизвестно', color: '#6b7280', icon: '?', description: '' };
 
@@ -68,6 +69,14 @@ const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees,
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
                 🔗 Связанный сотрудник
+                {onViewEmployee && (
+                  <button
+                    onClick={() => onViewEmployee(linkedEmployee)}
+                    className="ml-auto text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    👁️ Просмотр карточки
+                  </button>
+                )}
               </h4>
               <div className="space-y-1 text-sm">
                 <p><strong>ФИО:</strong> {linkedEmployee.full_name}</p>

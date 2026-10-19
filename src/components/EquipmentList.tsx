@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
-import { Equipment, Status, getLocationFullPath, getStatusById, getCategoryFullPath } from '../db/database';
+import { Equipment, Status, Employee, getLocationFullPath, getStatusById, getCategoryFullPath } from '../db/database';
 import { LabelPrint } from './LabelPrint';
 
 interface EquipmentListProps {
   equipment: Equipment[];
   statuses: Status[];
+  employees: Employee[];
   selectedIds?: number[];
   onSelectionChange?: (ids: number[]) => void;
   onEdit: (item: Equipment) => void;
   onDelete: (id: number) => void;
   onView: (item: Equipment) => void;
+  onViewEmployee?: (employee: Employee) => void;
 }
 
-const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, selectedIds = [], onSelectionChange, onEdit, onDelete, onView }) => {
+const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, employees, selectedIds = [], onSelectionChange, onEdit, onDelete, onView, onViewEmployee }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [printingItem, setPrintingItem] = useState<Equipment | null>(null);
 
@@ -102,8 +104,17 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, sele
                     {item.responsible_person && (
                       <span className="flex items-center gap-1">
                         👤 {item.responsible_person}
-                        {item.responsible_employee_id && (
-                          <span className="text-xs text-blue-500" title="Связан с сотрудником">🔗</span>
+                        {item.responsible_employee_id && onViewEmployee && (
+                          <button
+                            onClick={() => {
+                              const employee = employees.find(e => e.id === item.responsible_employee_id);
+                              if (employee) onViewEmployee(employee);
+                            }}
+                            className="text-xs text-blue-500 hover:text-blue-700"
+                            title="Просмотр карточки сотрудника"
+                          >
+                            🔗
+                          </button>
                         )}
                       </span>
                     )}
