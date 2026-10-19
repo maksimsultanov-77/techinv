@@ -34,7 +34,7 @@ export function Sidebar({
       { id: 'structure', label: '🏢 Оргструктура', count: departments.length },
       { id: 'employees', label: '👥 Сотрудники', count: empStats.total },
     ] : []),
-    { id: 'equipment', label: '🖥️ Оборудование', count: currentUser.role === 'user' && currentUser.employee_id ? getEquipmentByEmployee(currentUser.employee_id).length : stats.total },
+    { id: 'equipment', label: '🖥️ Оборудование', count: currentUser.role === 'user' ? (currentUser.employee_id ? getEquipmentByEmployee(currentUser.employee_id).length : 0) : stats.total },
     ...(currentUser.role !== 'user' ? [
       { id: 'locations', label: '📍 Местоположения', count: locations.length },
       { id: 'statuses', label: '🏷️ Статусы', count: statuses.length },

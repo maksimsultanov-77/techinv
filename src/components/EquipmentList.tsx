@@ -144,7 +144,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, empl
                 >
                   👁️
                 </button>
-                {currentUserRole !== 'observer' && (
+                {currentUserRole !== 'observer' && currentUserRole !== 'user' && (
                   <>
                     <button
                       onClick={() => setPrintingItem(item)}
