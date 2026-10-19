@@ -1558,6 +1558,7 @@ function App() {
           equipment={viewingItem}
           employees={employees}
           statuses={statuses}
+          currentUserRole={currentUser.role}
           onClose={() => setViewingItem(null)}
           onEdit={() => { setEditingItem(viewingItem); setViewingItem(null); }}
           onViewEmployee={(emp) => {

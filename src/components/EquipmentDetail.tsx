@@ -6,12 +6,13 @@ interface EquipmentDetailProps {
   equipment: Equipment;
   employees: Employee[];
   statuses: Status[];
+  currentUserRole?: 'superadmin' | 'admin' | 'user' | 'observer';
   onClose: () => void;
   onEdit: () => void;
   onViewEmployee?: (employee: Employee) => void;
 }
 
-const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees, statuses, onClose, onEdit, onViewEmployee }) => {
+const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees, statuses, currentUserRole, onClose, onEdit, onViewEmployee }) => {
   const [showLabelPrint, setShowLabelPrint] = useState(false);
   const statusInfo = getStatusById(equipment.status_id) || { id: 1, name: 'Неизвестно', color: '#6b7280', icon: '?', description: '' };
 
@@ -96,18 +97,22 @@ const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees,
             >
               Закрыть
             </button>
-            <button
-              onClick={() => setShowLabelPrint(true)}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-            >
-              🏷️ Печать этикетки
-            </button>
-            <button
-              onClick={onEdit}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              ✏️ Редактировать
-            </button>
+            {currentUserRole !== 'user' && (
+              <>
+                <button
+                  onClick={() => setShowLabelPrint(true)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                >
+                  🏷️ Печать этикетки
+                </button>
+                <button
+                  onClick={onEdit}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  ✏️ Редактировать
+                </button>
+              </>
+            )}
           </div>
 
           {showLabelPrint && (
