@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Employee, Department, EMPLOYEE_TYPES, getDepartmentName } from '../db/database';
+import { Employee, Department, EMPLOYEE_TYPES, getDepartmentName, getEquipmentByEmployee } from '../db/database';
 
 interface EmployeeListProps {
   employees: Employee[];
@@ -71,6 +71,7 @@ const EmployeeList: React.FC<EmployeeListProps> = ({ employees, departments, sel
         const typeInfo = EMPLOYEE_TYPES.find(t => t.value === emp.employee_type) || EMPLOYEE_TYPES[0];
         const deptName = getDepartmentName(emp.department_id);
         const isSelected = selectedIds.includes(emp.id);
+        const equipmentCount = getEquipmentByEmployee(emp.id).length;
 
         return (
           <div
@@ -115,6 +116,11 @@ const EmployeeList: React.FC<EmployeeListProps> = ({ employees, departments, sel
                     {emp.city && <span>📍 {emp.city}</span>}
                     {emp.phone && <span>📞 {emp.phone}</span>}
                     {emp.email && <span>✉️ {emp.email}</span>}
+                    {equipmentCount > 0 && (
+                      <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                        🖥️ {equipmentCount} {equipmentCount === 1 ? 'устройство' : equipmentCount < 5 ? 'устройства' : 'устройств'}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 text-xs text-gray-400">
                     ID: {emp.id}

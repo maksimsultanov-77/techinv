@@ -1,5 +1,5 @@
 import React from 'react';
-import { Employee, Department, TIMEZONES, EMPLOYEE_TYPES, getDepartmentName } from '../db/database';
+import { Employee, Department, TIMEZONES, EMPLOYEE_TYPES, getDepartmentName, getEquipmentByEmployee } from '../db/database';
 
 interface EmployeeDetailProps {
   employee: Employee;
@@ -20,6 +20,7 @@ const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, departments, 
   const genderLabel = employee.gender === 'female' ? 'Женский' : 'Мужской';
   const typeInfo = EMPLOYEE_TYPES.find(t => t.value === employee.employee_type) || EMPLOYEE_TYPES[0];
   const deptName = getDepartmentName(employee.department_id);
+  const employeeEquipment = getEquipmentByEmployee(employee.id);
 
   const getTzLabel = (tz: string): string => {
     const found = TIMEZONES.find(t => t.value === tz);
@@ -74,6 +75,33 @@ const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, departments, 
               </div>
             ))}
           </div>
+
+          {employeeEquipment.length > 0 && (
+            <div className="mt-6">
+              <h4 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                🖥️ Закреплённое оборудование
+                <span className="text-sm font-normal text-gray-500">({employeeEquipment.length})</span>
+              </h4>
+              <div className="space-y-2">
+                {employeeEquipment.map(eq => (
+                  <div key={eq.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <span className="text-2xl">{eq.category_icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-800">{eq.name}</div>
+                        <div className="text-sm text-gray-500 mt-1">
+                          <span className="bg-gray-100 px-2 py-0.5 rounded text-xs">{eq.category_name}</span>
+                          {eq.inventory_number && (
+                            <span className="ml-2 text-xs">Инв. №: {eq.inventory_number}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 flex justify-end gap-3">
             <button

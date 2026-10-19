@@ -1399,6 +1399,10 @@ export function bulkDeleteEmployee(ids: number[]): { success: boolean; message: 
   return { success: true, message: `Удалено ${deletedCount} сотрудников`, deletedCount };
 }
 
+export function getEquipmentByEmployee(employeeId: number): Equipment[] {
+  return db.equipment.filter(eq => eq.responsible_employee_id === employeeId);
+}
+
 export function getEmployeeStats(): {
   total: number;
   byDepartment: { id: number; name: string; count: number }[];
