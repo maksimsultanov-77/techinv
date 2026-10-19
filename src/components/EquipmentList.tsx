@@ -5,14 +5,36 @@ import { LabelPrint } from './LabelPrint';
 interface EquipmentListProps {
   equipment: Equipment[];
   statuses: Status[];
+  selectedIds?: number[];
+  onSelectionChange?: (ids: number[]) => void;
   onEdit: (item: Equipment) => void;
   onDelete: (id: number) => void;
   onView: (item: Equipment) => void;
 }
 
-const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, onEdit, onDelete, onView }) => {
+const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, selectedIds = [], onSelectionChange, onEdit, onDelete, onView }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [printingItem, setPrintingItem] = useState<Equipment | null>(null);
+
+  const handleSelectAll = () => {
+    if (onSelectionChange) {
+      if (selectedIds.length === equipment.length) {
+        onSelectionChange([]);
+      } else {
+        onSelectionChange(equipment.map(item => item.id));
+      }
+    }
+  };
+
+  const handleSelectItem = (id: number) => {
+    if (onSelectionChange) {
+      if (selectedIds.includes(id)) {
+        onSelectionChange(selectedIds.filter(sid => sid !== id));
+      } else {
+        onSelectionChange([...selectedIds, id]);
+      }
+    }
+  };
 
   if (!equipment.length) {
     return (
@@ -26,15 +48,39 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, onEd
 
   return (
     <div className="space-y-3">
+      {onSelectionChange && (
+        <div className="bg-white border border-gray-200 rounded-xl p-3 flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={selectedIds.length === equipment.length && equipment.length > 0}
+            onChange={handleSelectAll}
+            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <span className="text-sm text-gray-700">
+            {selectedIds.length === equipment.length && equipment.length > 0 ? 'Снять выделение' : 'Выбрать все'}
+          </span>
+        </div>
+      )}
       {equipment.map(item => {
         const statusInfo = getStatusById(item.status_id) || { id: 1, name: 'Неизвестно', color: '#6b7280', icon: '?', description: '' };
+        const isSelected = selectedIds.includes(item.id);
         return (
           <div
             key={item.id}
-            className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+            className={`bg-white border rounded-xl p-4 hover:shadow-md transition-shadow ${
+              isSelected ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'
+            }`}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3 flex-1 min-w-0">
+                {onSelectionChange && (
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleSelectItem(item.id)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1"
+                  />
+                )}
                 <div className="text-3xl flex-shrink-0">{item.category_icon}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">

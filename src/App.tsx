@@ -6,6 +6,8 @@ import {
   addEquipment,
   updateEquipment,
   deleteEquipment,
+  bulkUpdateEquipment,
+  bulkDeleteEquipment,
   getStats,
   generateTestData,
   clearAllEquipment,
@@ -13,6 +15,8 @@ import {
   addEmployee,
   updateEmployee,
   deleteEmployee,
+  bulkUpdateEmployee,
+  bulkDeleteEmployee,
   getEmployeeStats,
   generateTestEmployees,
   clearAllEmployees,
@@ -64,6 +68,8 @@ import EmployeeList from './components/EmployeeList';
 import EmployeeDetail from './components/EmployeeDetail';
 import { Modal } from './components/Modal';
 import { LogViewer } from './components/LogViewer';
+import { BulkEditEquipment } from './components/BulkEditEquipment';
+import { BulkEditEmployee } from './components/BulkEditEmployee';
 
 type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs';
 type EquipmentFormData = Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>;
@@ -85,6 +91,10 @@ function App() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>(undefined);
+  const [selectedStatus, setSelectedStatus] = useState<number | undefined>(undefined);
+  const [selectedLocation, setSelectedLocation] = useState<number | undefined>(undefined);
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<number[]>([]);
+  const [showBulkEditEquipment, setShowBulkEditEquipment] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
   const [viewingItem, setViewingItem] = useState<Equipment | null>(null);
@@ -96,6 +106,9 @@ function App() {
   const [empSearchQuery, setEmpSearchQuery] = useState('');
   const [empDepartment, setEmpDepartment] = useState<number | undefined>(undefined);
   const [empWorkMode, setEmpWorkMode] = useState<string | undefined>(undefined);
+  const [empType, setEmpType] = useState<string | undefined>(undefined);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
+  const [showBulkEditEmployee, setShowBulkEditEmployee] = useState(false);
   const [showEmpForm, setShowEmpForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
@@ -136,6 +149,12 @@ function App() {
   const [showClearCategoryConfirm, setShowClearCategoryConfirm] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<number>>(new Set());
 
+  // Filters for structure, locations, statuses, categories
+  const [deptSearchQuery, setDeptSearchQuery] = useState('');
+  const [locSearchQuery, setLocSearchQuery] = useState('');
+  const [statusSearchQuery, setStatusSearchQuery] = useState('');
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [showTestConfirm, setShowTestConfirm] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -172,25 +191,25 @@ function App() {
     try {
       const cats = getCategories();
       setCategories(cats);
-      const items = getAllEquipment(searchQuery || undefined, selectedCategory);
+      const items = getAllEquipment(searchQuery || undefined, selectedCategory, selectedStatus, selectedLocation);
       setEquipment(items);
       const s = getStats();
       setStats(s);
     } catch (err) {
       console.error('Error loading equipment:', err);
     }
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, selectedStatus, selectedLocation]);
 
   const loadEmployees = useCallback(() => {
     try {
-      const items = getAllEmployees(empSearchQuery || undefined, empDepartment, empWorkMode);
+      const items = getAllEmployees(empSearchQuery || undefined, empDepartment, empWorkMode, empType);
       setEmployees(items);
       const s = getEmployeeStats();
       setEmpStats(s);
     } catch (err) {
       console.error('Error loading employees:', err);
     }
-  }, [empSearchQuery, empDepartment, empWorkMode]);
+  }, [empSearchQuery, empDepartment, empWorkMode, empType]);
 
   const loadDepartments = useCallback(() => {
     try {
@@ -646,8 +665,30 @@ function App() {
               </button>
             </div>
 
+            {/* Department Search */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                <input
+                  type="text"
+                  value={deptSearchQuery}
+                  onChange={(e) => setDeptSearchQuery(e.target.value)}
+                  placeholder="Поиск подразделений..."
+                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                {deptSearchQuery && (
+                  <button onClick={() => setDeptSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-3">
-              {deptTree.map(dept => {
+              {deptTree.filter(dept => {
+                if (!deptSearchQuery) return true;
+                const query = deptSearchQuery.toLowerCase();
+                return dept.name.toLowerCase().includes(query) || 
+                       dept.children.some(child => child.name.toLowerCase().includes(query));
+              }).map(dept => {
                 const isCollapsed = collapsedDepts.has(dept.id);
                 const isSystem = dept.id === 1 || dept.id === 2 || dept.id === 3;
                 const icon = isSystem 
@@ -846,14 +887,14 @@ function App() {
 
             {/* Employee Search and Filters */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 relative">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
                   <input
                     type="text"
                     value={empSearchQuery}
                     onChange={(e) => setEmpSearchQuery(e.target.value)}
-                    placeholder="Поиск по ФИО, телефону, email, должности, городу..."
+                    placeholder="Поиск..."
                     className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   {empSearchQuery && (
@@ -863,19 +904,39 @@ function App() {
                 <select
                   value={empDepartment || ''}
                   onChange={(e) => setEmpDepartment(e.target.value ? Number(e.target.value) : undefined)}
-                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[180px]"
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Все подразделения</option>
                   {departments.map(dep => (
-                    <option key={dep.id} value={dep.id}>{dep.name}</option>
+                    <option key={dep.id} value={dep.id}>🏢 {dep.name}</option>
                   ))}
+                </select>
+                <select
+                  value={empType || ''}
+                  onChange={(e) => setEmpType(e.target.value || undefined)}
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Все типы</option>
+                  <option value="staff">👤 Штатный</option>
+                  <option value="external">🌐 Внешний</option>
+                  <option value="contractor">📝 Подрядчик</option>
+                </select>
+                <select
+                  value={empWorkMode || ''}
+                  onChange={(e) => setEmpWorkMode(e.target.value || undefined)}
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Все режимы</option>
+                  <option value="office">🏢 В офисе</option>
+                  <option value="remote">🏠 Удалённо</option>
+                  <option value="hybrid">🔄 Гибрид</option>
                 </select>
               </div>
               <div className="mt-2 flex items-center justify-between text-sm text-gray-500">
                 <span>Найдено: <strong>{employees.length}</strong> сотрудников</span>
-                {(empSearchQuery || empDepartment || empWorkMode) && (
+                {(empSearchQuery || empDepartment || empWorkMode || empType) && (
                   <button
-                    onClick={() => { setEmpSearchQuery(''); setEmpDepartment(undefined); setEmpWorkMode(undefined); }}
+                    onClick={() => { setEmpSearchQuery(''); setEmpDepartment(undefined); setEmpWorkMode(undefined); setEmpType(undefined); }}
                     className="text-blue-600 hover:text-blue-700 font-medium"
                   >
                     Сбросить фильтры
@@ -884,9 +945,49 @@ function App() {
               </div>
             </div>
 
+            {/* Bulk Actions */}
+            {selectedEmployeeIds.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-blue-800">
+                    <strong>Выбрано: {selectedEmployeeIds.length}</strong> сотрудников
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowBulkEditEmployee(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      ✏️ Редактировать
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Удалить ${selectedEmployeeIds.length} сотрудников?`)) {
+                          bulkDeleteEmployee(selectedEmployeeIds);
+                          setSelectedEmployeeIds([]);
+                          loadEmployees();
+                          showToast('Сотрудники удалены', 'success');
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                    >
+                      🗑️ Удалить
+                    </button>
+                    <button
+                      onClick={() => setSelectedEmployeeIds([])}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <EmployeeList
               employees={employees}
               departments={departments}
+              selectedIds={selectedEmployeeIds}
+              onSelectionChange={setSelectedEmployeeIds}
               onEdit={(emp) => { setEditingEmployee(emp); setShowEmpForm(false); }}
               onDelete={handleDeleteEmployee}
               onView={(emp) => setViewingEmployee(emp)}
@@ -962,14 +1063,14 @@ function App() {
 
             {/* Search and Filters */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 relative">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Поиск по названию, серийному номеру, расположению..."
+                    placeholder="Поиск..."
                     className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   {searchQuery && (
@@ -979,19 +1080,39 @@ function App() {
                 <select
                   value={selectedCategory || ''}
                   onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : undefined)}
-                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[180px]"
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Все категории</option>
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
                   ))}
                 </select>
+                <select
+                  value={selectedStatus || ''}
+                  onChange={(e) => setSelectedStatus(e.target.value ? Number(e.target.value) : undefined)}
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Все статусы</option>
+                  {statuses.map(status => (
+                    <option key={status.id} value={status.id}>{status.icon} {status.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedLocation || ''}
+                  onChange={(e) => setSelectedLocation(e.target.value ? Number(e.target.value) : undefined)}
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Все местоположения</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>📍 {loc.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="mt-2 flex items-center justify-between text-sm text-gray-500">
                 <span>Найдено: <strong>{equipment.length}</strong> записей</span>
-                {(searchQuery || selectedCategory) && (
+                {(searchQuery || selectedCategory || selectedStatus || selectedLocation) && (
                   <button
-                    onClick={() => { setSearchQuery(''); setSelectedCategory(undefined); }}
+                    onClick={() => { setSearchQuery(''); setSelectedCategory(undefined); setSelectedStatus(undefined); setSelectedLocation(undefined); }}
                     className="text-blue-600 hover:text-blue-700 font-medium"
                   >
                     Сбросить фильтры
@@ -1000,9 +1121,49 @@ function App() {
               </div>
             </div>
 
+            {/* Bulk Actions */}
+            {selectedEquipmentIds.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-blue-800">
+                    <strong>Выбрано: {selectedEquipmentIds.length}</strong> единиц оборудования
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowBulkEditEquipment(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      ✏️ Редактировать
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Удалить ${selectedEquipmentIds.length} единиц оборудования?`)) {
+                          bulkDeleteEquipment(selectedEquipmentIds);
+                          setSelectedEquipmentIds([]);
+                          loadEquipment();
+                          showToast('Оборудование удалено', 'success');
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                    >
+                      🗑️ Удалить
+                    </button>
+                    <button
+                      onClick={() => setSelectedEquipmentIds([])}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <EquipmentList
               equipment={equipment}
               statuses={statuses}
+              selectedIds={selectedEquipmentIds}
+              onSelectionChange={setSelectedEquipmentIds}
               onEdit={(item) => { setEditingItem(item); setShowForm(false); }}
               onDelete={handleDelete}
               onView={(item) => setViewingItem(item)}
@@ -1036,6 +1197,23 @@ function App() {
               </button>
             </div>
 
+            {/* Location Search */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                <input
+                  type="text"
+                  value={locSearchQuery}
+                  onChange={(e) => setLocSearchQuery(e.target.value)}
+                  placeholder="Поиск местоположений..."
+                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                {locSearchQuery && (
+                  <button onClick={() => setLocSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
+                )}
+              </div>
+            </div>
+
             {locations.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
                 <div className="text-6xl mb-4">📍</div>
@@ -1044,7 +1222,12 @@ function App() {
               </div>
             ) : (
               <div className="space-y-3">
-                {(getLocationTree() as LocationTreeNode[]).map(loc => {
+                {(getLocationTree() as LocationTreeNode[]).filter(loc => {
+                  if (!locSearchQuery) return true;
+                  const query = locSearchQuery.toLowerCase();
+                  return loc.name.toLowerCase().includes(query) || 
+                         loc.children.some(child => child.name.toLowerCase().includes(query));
+                }).map(loc => {
                   const isCollapsed = collapsedLocations.has(loc.id);
                   const isSystem = isSystemLocation(loc.id);
                   const bgColor = isSystem ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100';
@@ -1624,6 +1807,23 @@ function App() {
         />
       )}
 
+      {showBulkEditEquipment && (
+        <BulkEditEquipment
+          selectedIds={selectedEquipmentIds}
+          categories={categories}
+          employees={employees}
+          locations={locations}
+          statuses={statuses}
+          onSave={() => {
+            setShowBulkEditEquipment(false);
+            setSelectedEquipmentIds([]);
+            loadEquipment();
+            showToast('Оборудование обновлено', 'success');
+          }}
+          onCancel={() => setShowBulkEditEquipment(false)}
+        />
+      )}
+
       {/* Employee Modals */}
       {showEmpForm && (
         <EmployeeForm departments={departments} onSave={handleAddEmployee} onCancel={() => setShowEmpForm(false)} onError={(msg) => showToast(msg, 'error')} />
@@ -1637,6 +1837,20 @@ function App() {
           departments={departments}
           onClose={() => setViewingEmployee(null)}
           onEdit={() => { setEditingEmployee(viewingEmployee); setViewingEmployee(null); }}
+        />
+      )}
+
+      {showBulkEditEmployee && (
+        <BulkEditEmployee
+          selectedIds={selectedEmployeeIds}
+          departments={departments}
+          onSave={() => {
+            setShowBulkEditEmployee(false);
+            setSelectedEmployeeIds([]);
+            loadEmployees();
+            showToast('Сотрудники обновлены', 'success');
+          }}
+          onCancel={() => setShowBulkEditEmployee(false)}
         />
       )}
 

@@ -460,11 +460,19 @@ export function getCategories(): Category[] {
   return [...db.categories];
 }
 
-export function getAllEquipment(searchQuery?: string, categoryId?: number): Equipment[] {
+export function getAllEquipment(searchQuery?: string, categoryId?: number, statusId?: number, locationId?: number): Equipment[] {
   let result = [...db.equipment];
 
   if (categoryId) {
     result = result.filter(eq => eq.category_id === categoryId);
+  }
+
+  if (statusId) {
+    result = result.filter(eq => eq.status_id === statusId);
+  }
+
+  if (locationId) {
+    result = result.filter(eq => eq.location_id === locationId);
   }
 
   if (searchQuery) {
@@ -574,6 +582,41 @@ export function deleteEquipment(id: number): void {
   db.equipment = db.equipment.filter(eq => eq.id !== id);
   saveDatabase();
   addLog('delete', 'equipment', id, name, 'Оборудование удалено');
+}
+
+export function bulkUpdateEquipment(ids: number[], updates: Partial<Omit<Equipment, 'id' | 'created_at' | 'updated_at'>>): number {
+  let updatedCount = 0;
+  const now = new Date().toISOString();
+  
+  ids.forEach(id => {
+    const index = db.equipment.findIndex(eq => eq.id === id);
+    if (index !== -1) {
+      const category = updates.category_id ? db.categories.find(c => c.id === updates.category_id) : null;
+      db.equipment[index] = {
+        ...db.equipment[index],
+        ...updates,
+        category_name: category?.name || db.equipment[index].category_name,
+        category_icon: category?.icon || db.equipment[index].category_icon,
+        updated_at: now,
+      };
+      updatedCount++;
+    }
+  });
+  
+  if (updatedCount > 0) {
+    saveDatabase();
+    addLog('update', 'equipment', undefined, undefined, `Групповое обновление: ${updatedCount} единиц оборудования`);
+  }
+  
+  return updatedCount;
+}
+
+export function bulkDeleteEquipment(ids: number[]): number {
+  const deletedCount = ids.length;
+  db.equipment = db.equipment.filter(eq => !ids.includes(eq.id));
+  saveDatabase();
+  addLog('delete', 'equipment', undefined, undefined, `Групповое удаление: ${deletedCount} единиц оборудования`);
+  return deletedCount;
 }
 
 // Генерация тестовых данных
@@ -1272,6 +1315,44 @@ export function deleteEmployee(id: number): void {
   );
   saveDatabase();
   addLog('delete', 'employee', id, name, 'Сотрудник удалён');
+}
+
+export function bulkUpdateEmployee(ids: number[], updates: Partial<Omit<Employee, 'id' | 'created_at' | 'updated_at'>>): number {
+  let updatedCount = 0;
+  const now = new Date().toISOString();
+  
+  ids.forEach(id => {
+    const index = db.employees.findIndex(emp => emp.id === id);
+    if (index !== -1) {
+      db.employees[index] = {
+        ...db.employees[index],
+        ...updates,
+        updated_at: now,
+      };
+      updatedCount++;
+    }
+  });
+  
+  if (updatedCount > 0) {
+    saveDatabase();
+    addLog('update', 'employee', undefined, undefined, `Групповое обновление: ${updatedCount} сотрудников`);
+  }
+  
+  return updatedCount;
+}
+
+export function bulkDeleteEmployee(ids: number[]): number {
+  const deletedCount = ids.length;
+  db.employees = db.employees.filter(emp => !ids.includes(emp.id));
+  // Очищаем связи в оборудовании
+  db.equipment = db.equipment.map(eq => 
+    ids.includes(eq.responsible_employee_id || 0)
+      ? { ...eq, responsible_employee_id: null }
+      : eq
+  );
+  saveDatabase();
+  addLog('delete', 'employee', undefined, undefined, `Групповое удаление: ${deletedCount} сотрудников`);
+  return deletedCount;
 }
 
 export function getEmployeeStats(): {

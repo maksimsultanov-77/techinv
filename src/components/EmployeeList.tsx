@@ -4,6 +4,8 @@ import { Employee, Department, EMPLOYEE_TYPES, getDepartmentName } from '../db/d
 interface EmployeeListProps {
   employees: Employee[];
   departments: Department[];
+  selectedIds?: number[];
+  onSelectionChange?: (ids: number[]) => void;
   onEdit: (emp: Employee) => void;
   onDelete: (id: number) => void;
   onView: (emp: Employee) => void;
@@ -15,8 +17,28 @@ const workModeLabels: Record<string, { label: string; icon: string; color: strin
   hybrid: { label: 'Гибрид', icon: '🔄', color: 'bg-purple-100 text-purple-800' },
 };
 
-const EmployeeList: React.FC<EmployeeListProps> = ({ employees, departments, onEdit, onDelete, onView }) => {
+const EmployeeList: React.FC<EmployeeListProps> = ({ employees, departments, selectedIds = [], onSelectionChange, onEdit, onDelete, onView }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+
+  const handleSelectAll = () => {
+    if (onSelectionChange) {
+      if (selectedIds.length === employees.length) {
+        onSelectionChange([]);
+      } else {
+        onSelectionChange(employees.map(emp => emp.id));
+      }
+    }
+  };
+
+  const handleSelectItem = (id: number) => {
+    if (onSelectionChange) {
+      if (selectedIds.includes(id)) {
+        onSelectionChange(selectedIds.filter(sid => sid !== id));
+      } else {
+        onSelectionChange([...selectedIds, id]);
+      }
+    }
+  };
 
   if (!employees.length) {
     return (
@@ -30,19 +52,43 @@ const EmployeeList: React.FC<EmployeeListProps> = ({ employees, departments, onE
 
   return (
     <div className="space-y-3">
+      {onSelectionChange && (
+        <div className="bg-white border border-gray-200 rounded-xl p-3 flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={selectedIds.length === employees.length && employees.length > 0}
+            onChange={handleSelectAll}
+            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <span className="text-sm text-gray-700">
+            {selectedIds.length === employees.length && employees.length > 0 ? 'Снять выделение' : 'Выбрать все'}
+          </span>
+        </div>
+      )}
       {employees.map(emp => {
         const modeInfo = workModeLabels[emp.work_mode] || workModeLabels.office;
         const genderIcon = emp.gender === 'female' ? '👩' : '👨';
         const typeInfo = EMPLOYEE_TYPES.find(t => t.value === emp.employee_type) || EMPLOYEE_TYPES[0];
         const deptName = getDepartmentName(emp.department_id);
+        const isSelected = selectedIds.includes(emp.id);
 
         return (
           <div
             key={emp.id}
-            className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+            className={`bg-white border rounded-xl p-4 hover:shadow-md transition-shadow ${
+              isSelected ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'
+            }`}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3 flex-1 min-w-0">
+                {onSelectionChange && (
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleSelectItem(emp.id)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-1"
+                  />
+                )}
                 <div className="text-3xl flex-shrink-0">{genderIcon}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
