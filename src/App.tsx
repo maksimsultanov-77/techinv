@@ -25,6 +25,7 @@ import {
   deleteDepartment,
   getDepartmentTree,
   getDepartmentName,
+  getEquipmentByDepartment,
   generateTestDepartments,
   clearAllDepartments,
   isSystemDepartment,
@@ -113,6 +114,7 @@ function App() {
   const [newDeptParent, setNewDeptParent] = useState<string>('');
   const [showClearDeptConfirm, setShowClearDeptConfirm] = useState(false);
   const [collapsedDepts, setCollapsedDepts] = useState<Set<number>>(new Set());
+  const [viewingDeptEquipment, setViewingDeptEquipment] = useState<number | null>(null);
 
   // Locations state
   const [locations, setLocations] = useState<Location[]>([]);
@@ -502,6 +504,7 @@ function App() {
               const isCollapsed = collapsedDepts.has(dept.id);
               const isSystem = isSystemDepartment(dept.id);
               const bgColor = isSystem ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100';
+              const deptEquipmentCount = getEquipmentByDepartment(dept.id).length;
               
               return (
                 <div key={dept.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -539,37 +542,66 @@ function App() {
                         <div className="text-xs text-gray-500 flex gap-3">
                           <span>👥 {dept.employeeCount} сотр.</span>
                           {dept.children.length > 0 && <span>📁 {dept.children.length} подразд.</span>}
+                          {deptEquipmentCount > 0 && <span>🖥️ {deptEquipmentCount} оборуд.</span>}
                         </div>
                       </div>
                     </div>
-                    {!isSystem && (
-                      <button
-                        onClick={() => handleDeleteDepartment(dept.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        🗑️
-                      </button>
-                    )}
+                    <div className="flex gap-1">
+                      {deptEquipmentCount > 0 && (
+                        <button
+                          onClick={() => setViewingDeptEquipment(dept.id)}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Просмотр оборудования"
+                        >
+                          🖥️
+                        </button>
+                      )}
+                      {!isSystem && (
+                        <button
+                          onClick={() => handleDeleteDepartment(dept.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {dept.children.length > 0 && !isCollapsed && (
                     <div className="p-2 space-y-1">
-                      {dept.children.map((child: any) => (
-                        <div key={child.id} className="flex items-center justify-between p-2 ml-6 rounded-lg hover:bg-gray-50">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">📁</span>
-                            <div>
-                              <span className="text-sm font-medium text-gray-700">{child.name}</span>
-                              <span className="text-xs text-gray-400 ml-2">👥 {child.employeeCount}</span>
+                      {dept.children.map((child: any) => {
+                        const childEquipmentCount = getEquipmentByDepartment(child.id).length;
+                        return (
+                          <div key={child.id} className="flex items-center justify-between p-2 ml-6 rounded-lg hover:bg-gray-50">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">📁</span>
+                              <div>
+                                <span className="text-sm font-medium text-gray-700">{child.name}</span>
+                                <span className="text-xs text-gray-400 ml-2">👥 {child.employeeCount}</span>
+                                {childEquipmentCount > 0 && (
+                                  <span className="text-xs text-gray-400 ml-2">🖥️ {childEquipmentCount}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              {childEquipmentCount > 0 && (
+                                <button
+                                  onClick={() => setViewingDeptEquipment(child.id)}
+                                  className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
+                                  title="Просмотр оборудования"
+                                >
+                                  🖥️
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteDepartment(child.id)}
+                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                              >
+                                🗑️
+                              </button>
                             </div>
                           </div>
-                          <button
-                            onClick={() => handleDeleteDepartment(child.id)}
-                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1849,6 +1881,72 @@ function App() {
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
               >
                 Очистить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Просмотр оборудования подразделения */}
+      {viewingDeptEquipment !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-800">
+                🖥️ Оборудование подразделения "{getDepartmentName(viewingDeptEquipment)}"
+              </h2>
+              <button 
+                onClick={() => setViewingDeptEquipment(null)} 
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="p-6">
+              {(() => {
+                const deptEquipment = getEquipmentByDepartment(viewingDeptEquipment);
+                if (deptEquipment.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-5xl mb-4">📦</div>
+                      <p>Нет закреплённого оборудования</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-3">
+                    {deptEquipment.map(eq => (
+                      <div key={eq.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <span className="text-3xl">{eq.category_icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-800">{eq.name}</div>
+                            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                              <span className="bg-gray-100 px-2 py-0.5 rounded">{eq.category_name}</span>
+                              {eq.manufacturer && <span>🏭 {eq.manufacturer}</span>}
+                              {eq.model && <span>📋 {eq.model}</span>}
+                              {eq.inventory_number && <span>📝 {eq.inventory_number}</span>}
+                              {eq.serial_number && <span>🔢 {eq.serial_number}</span>}
+                            </div>
+                            {eq.responsible_employee_id && (
+                              <div className="mt-2 text-xs text-gray-400">
+                                👤 {employees.find(e => e.id === eq.responsible_employee_id)?.full_name || 'Неизвестно'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setViewingDeptEquipment(null)}
+                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Закрыть
               </button>
             </div>
           </div>

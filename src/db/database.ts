@@ -1403,6 +1403,17 @@ export function getEquipmentByEmployee(employeeId: number): Equipment[] {
   return db.equipment.filter(eq => eq.responsible_employee_id === employeeId);
 }
 
+export function getEquipmentByDepartment(departmentId: number): Equipment[] {
+  // Получаем всех сотрудников подразделения
+  const departmentEmployees = db.employees.filter(emp => emp.department_id === departmentId);
+  const employeeIds = departmentEmployees.map(emp => emp.id);
+  
+  // Возвращаем оборудование, закреплённое за этими сотрудниками
+  return db.equipment.filter(eq => 
+    eq.responsible_employee_id && employeeIds.includes(eq.responsible_employee_id)
+  );
+}
+
 export function getEmployeeStats(): {
   total: number;
   byDepartment: { id: number; name: string; count: number }[];
