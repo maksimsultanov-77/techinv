@@ -547,30 +547,32 @@ function App() {
       {/* ============ ОРГСТРУКТУРА ============ */}
       {activeView === 'structure' && (
         <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            {currentUser.role === 'superadmin' && (
+          {currentUser.role !== 'observer' && (
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              {currentUser.role === 'superadmin' && (
+                <button
+                  onClick={() => setShowDeptTestConfirm(true)}
+                  className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+                >
+                  🎲 Тестовая структура
+                </button>
+              )}
+              {currentUser.role === 'superadmin' && departments.some(d => !isSystemDepartment(d.id)) && (
+                <button
+                  onClick={() => setShowClearDeptConfirm(true)}
+                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  🗑️ Очистить
+                </button>
+              )}
               <button
-                onClick={() => setShowDeptTestConfirm(true)}
-                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+                onClick={() => { setShowDeptForm(true); setNewDeptName(''); setNewDeptParent(''); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
               >
-                🎲 Тестовая структура
+                ➕ Добавить подразделение
               </button>
-            )}
-            {currentUser.role === 'superadmin' && departments.some(d => !isSystemDepartment(d.id)) && (
-              <button
-                onClick={() => setShowClearDeptConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                🗑️ Очистить
-              </button>
-            )}
-            <button
-              onClick={() => { setShowDeptForm(true); setNewDeptName(''); setNewDeptParent(''); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить подразделение
-            </button>
-          </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             {getDepartmentTree().map(dept => {
@@ -638,7 +640,7 @@ function App() {
                           🖥️
                         </button>
                       )}
-                      {!isSystem && (
+                      {!isSystem && currentUser.role !== 'observer' && (
                         <button
                           onClick={() => handleDeleteDepartment(dept.id)}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -683,12 +685,14 @@ function App() {
                                   🖥️
                                 </button>
                               )}
-                              <button
-                                onClick={() => handleDeleteDepartment(child.id)}
-                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-                              >
-                                🗑️
-                              </button>
+                              {currentUser.role !== 'observer' && (
+                                <button
+                                  onClick={() => handleDeleteDepartment(child.id)}
+                                  className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                                >
+                                  🗑️
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -705,30 +709,32 @@ function App() {
       {/* ============ СОТРУДНИКИ ============ */}
       {activeView === 'employees' && (
         <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            {currentUser.role === 'superadmin' && (
+          {currentUser.role !== 'observer' && (
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              {currentUser.role === 'superadmin' && (
+                <button
+                  onClick={() => setShowEmpTestConfirm(true)}
+                  className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+                >
+                  🎲 Тестовые данные
+                </button>
+              )}
+              {currentUser.role === 'superadmin' && empStats.total > 0 && (
+                <button
+                  onClick={() => setShowEmpClearConfirm(true)}
+                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  🗑️ Очистить
+                </button>
+              )}
               <button
-                onClick={() => setShowEmpTestConfirm(true)}
-                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+                onClick={() => { setShowEmpForm(true); setEditingEmployee(null); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
               >
-                🎲 Тестовые данные
+                ➕ Добавить сотрудника
               </button>
-            )}
-            {currentUser.role === 'superadmin' && empStats.total > 0 && (
-              <button
-                onClick={() => setShowEmpClearConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                🗑️ Очистить
-              </button>
-            )}
-            <button
-              onClick={() => { setShowEmpForm(true); setEditingEmployee(null); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить сотрудника
-            </button>
-          </div>
+            </div>
+          )}
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -805,8 +811,9 @@ function App() {
           <EmployeeList
             employees={employees}
             departments={departments}
+            currentUserRole={currentUser.role}
             selectedIds={selectedEmployeeIds}
-            onSelectionChange={setSelectedEmployeeIds}
+            onSelectionChange={currentUser.role !== 'observer' ? setSelectedEmployeeIds : undefined}
             onEdit={(emp) => { setEditingEmployee(emp); setShowEmpForm(false); }}
             onDelete={handleDeleteEmployee}
             onView={(emp) => setViewingEmployee(emp)}
@@ -817,7 +824,7 @@ function App() {
       {/* ============ ОБОРУДОВАНИЕ ============ */}
       {activeView === 'equipment' && (
         <>
-          {currentUser.role !== 'user' && (
+          {currentUser.role !== 'user' && currentUser.role !== 'observer' && (
             <div className="flex justify-end gap-2 mb-4 flex-wrap">
               {currentUser.role === 'superadmin' && (
                 <>
@@ -939,30 +946,32 @@ function App() {
       {/* ============ МЕСТОПОЛОЖЕНИЯ ============ */}
       {activeView === 'locations' && (
         <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            {currentUser.role === 'superadmin' && (
+          {currentUser.role !== 'observer' && (
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              {currentUser.role === 'superadmin' && (
+                <button
+                  onClick={() => setShowLocTestConfirm(true)}
+                  className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+                >
+                  🎲 Тестовые данные
+                </button>
+              )}
+              {currentUser.role === 'superadmin' && locations.some(l => !isSystemLocation(l.id)) && (
+                <button
+                  onClick={() => setShowClearLocConfirm(true)}
+                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  🗑️ Очистить
+                </button>
+              )}
               <button
-                onClick={() => setShowLocTestConfirm(true)}
-                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+                onClick={() => { setShowLocForm(true); setNewLocName(''); setNewLocDesc(''); setNewLocParent(''); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
               >
-                🎲 Тестовые данные
+                ➕ Добавить местоположение
               </button>
-            )}
-            {currentUser.role === 'superadmin' && locations.some(l => !isSystemLocation(l.id)) && (
-              <button
-                onClick={() => setShowClearLocConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                🗑️ Очистить
-              </button>
-            )}
-            <button
-              onClick={() => { setShowLocForm(true); setNewLocName(''); setNewLocDesc(''); setNewLocParent(''); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить местоположение
-            </button>
-          </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             {(getLocationTree() as LocationTreeNode[]).map(loc => {
@@ -1019,7 +1028,7 @@ function App() {
                           🖥️
                         </button>
                       )}
-                      {!isSystem && (
+                      {!isSystem && currentUser.role !== 'observer' && (
                         <button
                           onClick={() => handleDeleteLocation(loc.id)}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -1050,12 +1059,14 @@ function App() {
                                 🖥️
                               </button>
                             )}
-                            <button
-                              onClick={() => handleDeleteLocation(child.id)}
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-                            >
-                              🗑️
-                            </button>
+                            {currentUser.role !== 'observer' && (
+                              <button
+                                onClick={() => handleDeleteLocation(child.id)}
+                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                              >
+                                🗑️
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -1071,22 +1082,24 @@ function App() {
       {/* ============ СТАТУСЫ ============ */}
       {activeView === 'statuses' && (
         <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            {currentUser.role === 'superadmin' && statuses.some(s => !isSystemStatus(s.id)) && (
+          {currentUser.role !== 'observer' && (
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              {currentUser.role === 'superadmin' && statuses.some(s => !isSystemStatus(s.id)) && (
+                <button
+                  onClick={() => setShowClearStatusConfirm(true)}
+                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  🗑️ Очистить
+                </button>
+              )}
               <button
-                onClick={() => setShowClearStatusConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                onClick={() => { setShowStatusForm(true); setNewStatusName(''); setNewStatusColor('#10b981'); setNewStatusIcon('✓'); setNewStatusDesc(''); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
               >
-                🗑️ Очистить
+                ➕ Добавить статус
               </button>
-            )}
-            <button
-              onClick={() => { setShowStatusForm(true); setNewStatusName(''); setNewStatusColor('#10b981'); setNewStatusIcon('✓'); setNewStatusDesc(''); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить статус
-            </button>
-          </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             {statuses.map(status => {
@@ -1132,7 +1145,7 @@ function App() {
                           🖥️
                         </button>
                       )}
-                      {!isSystem && (
+                      {!isSystem && currentUser.role !== 'observer' && (
                         <button
                           onClick={() => handleDeleteStatus(status.id)}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -1152,22 +1165,24 @@ function App() {
       {/* ============ КАТЕГОРИИ ============ */}
       {activeView === 'categories' && (
         <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            {currentUser.role === 'superadmin' && categories.some(c => !isSystemCategory(c.id)) && (
+          {currentUser.role !== 'observer' && (
+            <div className="flex justify-end gap-2 mb-4 flex-wrap">
+              {currentUser.role === 'superadmin' && categories.some(c => !isSystemCategory(c.id)) && (
+                <button
+                  onClick={() => setShowClearCategoryConfirm(true)}
+                  className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  🗑️ Очистить
+                </button>
+              )}
               <button
-                onClick={() => setShowClearCategoryConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                onClick={() => { setShowCategoryForm(true); setNewCategoryName(''); setNewCategoryIcon('📦'); setNewCategoryDesc(''); setNewCategoryParent(''); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
               >
-                🗑️ Очистить
+                ➕ Добавить категорию
               </button>
-            )}
-            <button
-              onClick={() => { setShowCategoryForm(true); setNewCategoryName(''); setNewCategoryIcon('📦'); setNewCategoryDesc(''); setNewCategoryParent(''); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить категорию
-            </button>
-          </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             {getCategoryTree().map(cat => {
@@ -1224,7 +1239,7 @@ function App() {
                           🖥️
                         </button>
                       )}
-                      {!isSystem && (
+                      {!isSystem && currentUser.role !== 'observer' && (
                         <button
                           onClick={() => handleDeleteCategory(cat.id)}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -1255,12 +1270,14 @@ function App() {
                                 🖥️
                               </button>
                             )}
-                            <button
-                              onClick={() => handleDeleteCategory(child.id)}
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-                            >
-                              🗑️
-                            </button>
+                            {currentUser.role !== 'observer' && (
+                              <button
+                                onClick={() => handleDeleteCategory(child.id)}
+                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                              >
+                                🗑️
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}

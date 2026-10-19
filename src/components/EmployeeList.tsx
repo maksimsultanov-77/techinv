@@ -4,6 +4,7 @@ import { Employee, Department, EMPLOYEE_TYPES, getDepartmentName, getEquipmentBy
 interface EmployeeListProps {
   employees: Employee[];
   departments: Department[];
+  currentUserRole?: 'superadmin' | 'admin' | 'user' | 'observer';
   selectedIds?: number[];
   onSelectionChange?: (ids: number[]) => void;
   onEdit: (emp: Employee) => void;
@@ -17,7 +18,7 @@ const workModeLabels: Record<string, { label: string; icon: string; color: strin
   hybrid: { label: 'Гибрид', icon: '🔄', color: 'bg-purple-100 text-purple-800' },
 };
 
-const EmployeeList: React.FC<EmployeeListProps> = ({ employees, departments, selectedIds = [], onSelectionChange, onEdit, onDelete, onView }) => {
+const EmployeeList: React.FC<EmployeeListProps> = ({ employees, departments, currentUserRole, selectedIds = [], onSelectionChange, onEdit, onDelete, onView }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
   const handleSelectAll = () => {
@@ -135,20 +136,24 @@ const EmployeeList: React.FC<EmployeeListProps> = ({ employees, departments, sel
                 >
                   👁️
                 </button>
-                <button
-                  onClick={() => onEdit(emp)}
-                  className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                  title="Редактировать"
-                >
-                  ✏️
-                </button>
-                <button
-                  onClick={() => setDeleteConfirm(emp.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Удалить"
-                >
-                  🗑️
-                </button>
+                {currentUserRole !== 'observer' && (
+                  <>
+                    <button
+                      onClick={() => onEdit(emp)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="Редактировать"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm(emp.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Удалить"
+                    >
+                      🗑️
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 

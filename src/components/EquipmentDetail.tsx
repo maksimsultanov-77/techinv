@@ -97,7 +97,7 @@ const EquipmentDetail: React.FC<EquipmentDetailProps> = ({ equipment, employees,
             >
               Закрыть
             </button>
-            {currentUserRole !== 'user' && (
+            {currentUserRole !== 'user' && currentUserRole !== 'observer' && (
               <>
                 <button
                   onClick={() => setShowLabelPrint(true)}
