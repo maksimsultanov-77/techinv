@@ -26,7 +26,7 @@ export interface User {
   username: string;
   password: string;
   fullName: string;
-  role: 'admin' | 'user';
+  role: 'superadmin' | 'admin' | 'user';
   createdAt: string;
 }
 
@@ -400,11 +400,18 @@ export function initDatabase(): Promise<void> {
               id: 1,
               username: 'admin',
               password: 'admin',
-              fullName: 'Администратор',
-              role: 'admin',
+              fullName: 'Суперадминистратор',
+              role: 'superadmin',
               createdAt: new Date().toISOString(),
             },
           ];
+        } else {
+          // Миграция: обновляем существующего admin до superadmin
+          const adminUser = db.users.find(u => u.username === 'admin' && u.id === 1);
+          if (adminUser && adminUser.role === 'admin') {
+            adminUser.role = 'superadmin';
+            adminUser.fullName = 'Суперадминистратор';
+          }
         }
         if (!db.nextUserId) {
           db.nextUserId = db.users.length > 0 ? Math.max(...db.users.map(u => u.id)) + 1 : 1;
@@ -444,8 +451,8 @@ function createDefaultDatabase(): DatabaseSchema {
         id: 1,
         username: 'admin',
         password: 'admin',
-        fullName: 'Администратор',
-        role: 'admin',
+        fullName: 'Суперадминистратор',
+        role: 'superadmin',
         createdAt: new Date().toISOString(),
       },
     ],
@@ -1907,7 +1914,7 @@ export function authenticateUser(username: string, password: string): User | nul
   return user || null;
 }
 
-export function addUser(username: string, password: string, fullName: string, role: 'admin' | 'user' = 'user'): { success: boolean; message: string; userId?: number } {
+export function addUser(username: string, password: string, fullName: string, role: 'superadmin' | 'admin' | 'user' = 'user'): { success: boolean; message: string; userId?: number } {
   if (!db) return { success: false, message: 'База данных не инициализирована' };
   
   // Проверка уникальности username
@@ -1957,11 +1964,16 @@ export function deleteUser(id: number): { success: boolean; message: string } {
   const user = db.users.find(u => u.id === id);
   if (!user) return { success: false, message: 'Пользователь не найден' };
   
+  // Нельзя удалить суперадминистратора
+  if (user.role === 'superadmin') {
+    return { success: false, message: 'Нельзя удалить суперадминистратора' };
+  }
+  
   // Нельзя удалить последнего администратора
   if (user.role === 'admin') {
     const adminCount = db.users.filter(u => u.role === 'admin').length;
     if (adminCount === 1) {
-      return { success: false, message: 'Нельзя удалить последнего администратора' };
+      return { success: false, message: 'Нельзя удалить последнего администратора базы' };
     }
   }
   

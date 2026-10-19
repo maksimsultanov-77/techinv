@@ -38,7 +38,7 @@ export function Sidebar({
     { id: 'categories', label: '📁 Категории', count: categories.length },
     { id: 'logs', label: '📋 Логи', count: null },
     { id: 'settings', label: '⚙️ Настройки', count: null },
-    ...(currentUser.role === 'admin' ? [{ id: 'users', label: '👥 Пользователи', count: null }] : []),
+    ...(currentUser.role === 'superadmin' || currentUser.role === 'admin' ? [{ id: 'users', label: '👥 Пользователи', count: null }] : []),
   ];
 
   return (
@@ -84,13 +84,13 @@ export function Sidebar({
 
       <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-3 mb-4 px-4">
-          <span className="text-2xl">{currentUser.role === 'admin' ? '👑' : '👤'}</span>
+          <span className="text-2xl">{currentUser.role === 'superadmin' ? '👑' : currentUser.role === 'admin' ? '🔑' : '👤'}</span>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
               {currentUser.fullName}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">
-              {currentUser.role === 'admin' ? 'Администратор' : 'Пользователь'}
+              {currentUser.role === 'superadmin' ? 'Суперадмин' : currentUser.role === 'admin' ? 'Администратор базы' : 'Пользователь'}
             </div>
           </div>
         </div>

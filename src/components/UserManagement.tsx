@@ -17,7 +17,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'admin' | 'user'>('user');
+  const [role, setRole] = useState<'superadmin' | 'admin' | 'user'>('user');
 
   useEffect(() => {
     loadUsers();
@@ -114,6 +114,11 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
       return;
     }
 
+    if (user.role === 'superadmin') {
+      showToast('Нельзя удалить суперадминистратора', 'error');
+      return;
+    }
+
     if (!confirm(`Удалить пользователя "${user.fullName}"?`)) {
       return;
     }
@@ -162,17 +167,19 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 flex-1">
                       <div className="text-3xl">
-                        {user.role === 'admin' ? '👑' : '👤'}
+                        {user.role === 'superadmin' ? '👑' : user.role === 'admin' ? '🔑' : '👤'}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold text-gray-800">{user.fullName}</h3>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            user.role === 'admin' 
+                            user.role === 'superadmin' 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : user.role === 'admin'
                               ? 'bg-purple-100 text-purple-800' 
                               : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {user.role === 'admin' ? 'Администратор' : 'Пользователь'}
+                            {user.role === 'superadmin' ? 'Суперадмин' : user.role === 'admin' ? 'Администратор базы' : 'Пользователь'}
                           </span>
                           {user.id === currentUser.id && (
                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -267,11 +274,12 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
                 <label className="block text-sm font-medium text-gray-700 mb-1">Роль</label>
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value as 'admin' | 'user')}
+                  onChange={(e) => setRole(e.target.value as 'superadmin' | 'admin' | 'user')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="user">👤 Пользователь</option>
-                  <option value="admin">👑 Администратор</option>
+                  <option value="admin">🔑 Администратор базы</option>
+                  <option value="superadmin">👑 Суперадминистратор</option>
                 </select>
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t">

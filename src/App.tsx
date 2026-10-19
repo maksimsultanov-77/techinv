@@ -527,7 +527,7 @@ function App() {
             >
               🎲 Тестовая структура
             </button>
-            {departments.some(d => !isSystemDepartment(d.id)) && (
+            {currentUser.role === 'superadmin' && departments.some(d => !isSystemDepartment(d.id)) && (
               <button
                 onClick={() => setShowClearDeptConfirm(true)}
                 className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
@@ -683,7 +683,7 @@ function App() {
             >
               🎲 Тестовые данные
             </button>
-            {empStats.total > 0 && (
+            {currentUser.role === 'superadmin' && empStats.total > 0 && (
               <button
                 onClick={() => setShowEmpClearConfirm(true)}
                 className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
@@ -796,7 +796,7 @@ function App() {
             >
               🎲 Тестовые данные
             </button>
-            {stats.total > 0 && (
+            {currentUser.role === 'superadmin' && stats.total > 0 && (
               <button
                 onClick={() => setShowClearConfirm(true)}
                 className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
@@ -908,7 +908,7 @@ function App() {
             >
               🎲 Тестовые данные
             </button>
-            {locations.some(l => !isSystemLocation(l.id)) && (
+            {currentUser.role === 'superadmin' && locations.some(l => !isSystemLocation(l.id)) && (
               <button
                 onClick={() => setShowClearLocConfirm(true)}
                 className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
@@ -1032,7 +1032,7 @@ function App() {
       {activeView === 'statuses' && (
         <>
           <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            {statuses.some(s => !isSystemStatus(s.id)) && (
+            {currentUser.role === 'superadmin' && statuses.some(s => !isSystemStatus(s.id)) && (
               <button
                 onClick={() => setShowClearStatusConfirm(true)}
                 className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
@@ -1113,7 +1113,7 @@ function App() {
       {activeView === 'categories' && (
         <>
           <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            {categories.some(c => !isSystemCategory(c.id)) && (
+            {currentUser.role === 'superadmin' && categories.some(c => !isSystemCategory(c.id)) && (
               <button
                 onClick={() => setShowClearCategoryConfirm(true)}
                 className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
@@ -1235,7 +1235,7 @@ function App() {
 
       {/* ============ ЛОГИ ============ */}
       {activeView === 'logs' && (
-        <LogViewer showToast={showToast} />
+        <LogViewer showToast={showToast} currentUser={currentUser} />
       )}
 
       {/* ============ НАСТРОЙКИ ============ */}
@@ -1244,7 +1244,7 @@ function App() {
       )}
 
       {/* ============ ПОЛЬЗОВАТЕЛИ ============ */}
-      {activeView === 'users' && currentUser.role === 'admin' && (
+      {activeView === 'users' && (currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
         <UserManagement currentUser={currentUser} showToast={showToast} />
       )}
     </>
@@ -1267,7 +1267,7 @@ function App() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-                    <span className="text-lg">{currentUser.role === 'admin' ? '👑' : '👤'}</span>
+                    <span className="text-lg">{currentUser.role === 'superadmin' ? '👑' : currentUser.role === 'admin' ? '🔑' : '👤'}</span>
                     <span className="text-sm font-medium text-gray-700">{currentUser.fullName}</span>
                   </div>
                   <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700">
@@ -1345,7 +1345,7 @@ function App() {
                 >
                   ⚙️ Настройки
                 </button>
-                {currentUser.role === 'admin' && (
+                {(currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
                   <button
                     onClick={() => setActiveView('users')}
                     className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${

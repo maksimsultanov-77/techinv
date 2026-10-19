@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { LogEntry, getAllLogs, clearAllLogs, exportLogs, getLogStats } from '../db/database';
+import { LogEntry, User, getAllLogs, clearAllLogs, exportLogs, getLogStats } from '../db/database';
 
 interface LogViewerProps {
   showToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  currentUser?: User;
 }
 
-export function LogViewer({ showToast }: LogViewerProps) {
+export function LogViewer({ showToast, currentUser }: LogViewerProps) {
   const [logs, setLogs] = useState<LogEntry[]>(() => {
     try {
       return getAllLogs();
@@ -250,13 +251,15 @@ export function LogViewer({ showToast }: LogViewerProps) {
         >
           📊 Экспорт CSV
         </button>
-        <button
-          onClick={handleClearLogs}
-          disabled={logs.length === 0}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:bg-gray-300 disabled:cursor-not-allowed ml-auto"
-        >
-          🗑️ Очистить логи
-        </button>
+        {currentUser?.role === 'superadmin' && (
+          <button
+            onClick={handleClearLogs}
+            disabled={logs.length === 0}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:bg-gray-300 disabled:cursor-not-allowed ml-auto"
+          >
+            🗑️ Очистить логи
+          </button>
+        )}
       </div>
 
       {/* Список логов */}
