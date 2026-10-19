@@ -527,12 +527,14 @@ function App() {
       {activeView === 'structure' && (
         <>
           <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            <button
-              onClick={() => setShowDeptTestConfirm(true)}
-              className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
-            >
-              🎲 Тестовая структура
-            </button>
+            {currentUser.role === 'superadmin' && (
+              <button
+                onClick={() => setShowDeptTestConfirm(true)}
+                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+              >
+                🎲 Тестовая структура
+              </button>
+            )}
             {currentUser.role === 'superadmin' && departments.some(d => !isSystemDepartment(d.id)) && (
               <button
                 onClick={() => setShowClearDeptConfirm(true)}
@@ -683,12 +685,14 @@ function App() {
       {activeView === 'employees' && (
         <>
           <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            <button
-              onClick={() => setShowEmpTestConfirm(true)}
-              className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
-            >
-              🎲 Тестовые данные
-            </button>
+            {currentUser.role === 'superadmin' && (
+              <button
+                onClick={() => setShowEmpTestConfirm(true)}
+                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+              >
+                🎲 Тестовые данные
+              </button>
+            )}
             {currentUser.role === 'superadmin' && empStats.total > 0 && (
               <button
                 onClick={() => setShowEmpClearConfirm(true)}
@@ -794,7 +798,7 @@ function App() {
         <>
           {currentUser.role !== 'user' && (
             <div className="flex justify-end gap-2 mb-4 flex-wrap">
-              {currentUser.role !== 'observer' && (
+              {currentUser.role === 'superadmin' && (
                 <>
                   <button
                     onClick={() => setShowTestConfirm(true)}
@@ -915,12 +919,14 @@ function App() {
       {activeView === 'locations' && (
         <>
           <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            <button
-              onClick={() => setShowLocTestConfirm(true)}
-              className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
-            >
-              🎲 Тестовые данные
-            </button>
+            {currentUser.role === 'superadmin' && (
+              <button
+                onClick={() => setShowLocTestConfirm(true)}
+                className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
+              >
+                🎲 Тестовые данные
+              </button>
+            )}
             {currentUser.role === 'superadmin' && locations.some(l => !isSystemLocation(l.id)) && (
               <button
                 onClick={() => setShowClearLocConfirm(true)}
