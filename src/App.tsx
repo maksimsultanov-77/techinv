@@ -926,35 +926,37 @@ function App() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-3">
             {statuses.map(status => {
               const eqCount = getEquipmentCountByStatus(status.id);
               const isSystem = isSystemStatus(status.id);
               
               return (
-                <div key={status.id} className={`bg-white rounded-xl border-2 p-4 hover:shadow-md transition-shadow ${isSystem ? 'border-green-200' : 'border-gray-200'}`}>
+                <div key={status.id} className={`bg-white rounded-xl border p-4 hover:shadow-md transition-shadow ${isSystem ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 flex-1">
                       <div 
-                        className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold"
+                        className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold flex-shrink-0"
                         style={{ backgroundColor: status.color + '20', color: status.color }}
                       >
                         {status.icon}
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                          {status.name}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            {status.name}
+                          </h3>
                           {isSystem && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               системный
                             </span>
                           )}
-                        </h3>
+                        </div>
                         {status.description && (
                           <p className="text-sm text-gray-500 mt-1">{status.description}</p>
                         )}
-                        <div className="mt-2 text-xs text-gray-400">
-                          🖥️ {eqCount} единиц оборудования
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                          <span className="bg-gray-100 px-2 py-0.5 rounded">🖥️ {eqCount} единиц оборудования</span>
                         </div>
                       </div>
                     </div>
