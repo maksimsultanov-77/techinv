@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Employee, getAllUsers, addUser, updateUser, deleteUser, changePassword, getAllEmployees } from '../db/database';
 
 interface UserManagementProps {

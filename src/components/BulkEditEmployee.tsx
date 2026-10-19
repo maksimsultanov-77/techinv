@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Employee, Department, bulkUpdateEmployee } from '../db/database';
 
 interface BulkEditEmployeeProps {

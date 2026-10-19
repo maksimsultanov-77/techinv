@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import JsBarcode from 'jsbarcode';
 import { Equipment } from '../db/database';
 

@@ -41,11 +41,19 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ equipment, statuses, empl
 
   if (!equipment.length) {
     return (
-      <div className="text-center py-16">
-        <div className="text-6xl mb-4">📦</div>
-        <h3 className="text-xl font-medium text-gray-500 mb-2">Оборудование не найдено</h3>
-        <p className="text-gray-400">Добавьте первое устройство или измените параметры поиска</p>
-      </div>
+      <>
+        <div className="text-center py-16">
+          <div className="text-6xl mb-4">📦</div>
+          <h3 className="text-xl font-medium text-gray-500 mb-2">Оборудование не найдено</h3>
+          <p className="text-gray-400">Добавьте первое устройство или измените параметры поиска</p>
+        </div>
+        {printingItem && (
+          <LabelPrint
+            equipment={printingItem}
+            onClose={() => setPrintingItem(null)}
+          />
+        )}
+      </>
     );
   }
 

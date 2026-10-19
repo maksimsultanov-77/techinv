@@ -1,3 +1,4 @@
+import React from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { User, getEquipmentByEmployee } from '../db/database';
 
