@@ -570,37 +570,34 @@ function App() {
         />
       )}
       
-      <div className={settings.menuPosition === 'left' ? 'ml-64' : ''}>
-        <header className={`${settings.theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} shadow-sm border-b`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">🖥️</span>
-                <div>
-                  <h1 className={`text-2xl font-bold ${settings.theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{settings.organizationName}</h1>
-                  <p className={`text-sm ${settings.theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Система управления оборудованием, сотрудниками и оргструктурой</p>
+      <div className={settings.menuPosition === 'left' ? 'sidebar-content' : ''}>
+        {settings.menuPosition === 'top' && (
+          <header className={`${settings.theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} shadow-sm border-b`}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">🖥️</span>
+                  <div>
+                    <h1 className={`text-2xl font-bold ${settings.theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{settings.organizationName}</h1>
+                    <p className={`text-sm ${settings.theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Система управления оборудованием, сотрудниками и оргструктурой</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {settings.menuPosition !== 'left' && (
+                <div className="flex items-center gap-2 flex-wrap">
                   <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
                     <span className="text-lg">{currentUser.role === 'superadmin' ? '👑' : currentUser.role === 'admin' ? '🔑' : currentUser.role === 'observer' ? '👁️' : '👤'}</span>
                     <span className="text-sm font-medium text-gray-700">{currentUser.fullName}</span>
                   </div>
-                )}
-                <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700">
-                  💾 Экспорт
-                </button>
-                {settings.menuPosition !== 'left' && (
+                  <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700">
+                    💾 Экспорт
+                  </button>
                   <button onClick={handleLogout} className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
                     🚪 Выйти
                   </button>
-                )}
+                </div>
               </div>
-            </div>
 
-            {/* Navigation Tabs */}
-            <div className="flex gap-2 mt-4 border-b border-gray-200 -mb-4 overflow-x-auto">
+              {/* Navigation Tabs */}
+              <div className="flex gap-2 mt-4 border-b border-gray-200 -mb-4 overflow-x-auto">
             {currentUser.role !== 'user' && (
               <>
                 <button
@@ -685,9 +682,10 @@ function App() {
                 👥 Пользователи
               </button>
             )}
-          </div>
-        </div>
-      </header>
+              </div>
+            </div>
+          </header>
+        )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

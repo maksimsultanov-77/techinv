@@ -1,1 +1,27 @@
 @import "tailwindcss";
+
+/* Sidebar Styles */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 256px;
+  overflow-y: auto;
+  z-index: 40;
+}
+
+.sidebar-content {
+  margin-left: 256px;
+  min-height: 100vh;
+}
+
+/* Dark theme support */
+.dark .sidebar {
+  background-color: #1f2937;
+  border-color: #374151;
+}
+
+.dark .sidebar-content {
+  background-color: #111827;
+}

@@ -46,7 +46,7 @@ export function Sidebar({
   ];
 
   return (
-    <div className={`w-64 ${settings.theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-r min-h-screen p-4`}>
+    <div className={`sidebar ${settings.theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-r p-4`}>
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <span className="text-3xl">🖥️</span>
