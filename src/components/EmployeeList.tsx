@@ -4,6 +4,9 @@ import { Employee, Department, getDepartmentName, getEquipmentByEmployee } from 
 interface EmployeeListProps {
   employees: Employee[];
   departments: Department[];
+  currentUserRole?: 'superadmin' | 'admin' | 'user' | 'observer';
+  selectedIds?: number[];
+  onSelectionChange?: (ids: number[]) => void;
   onEdit: (emp: Employee) => void;
   onDelete: (id: number) => void;
   onView: (emp: Employee) => void;

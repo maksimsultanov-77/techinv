@@ -6,13 +6,15 @@ interface EquipmentListProps {
   statuses: Status[];
   employees: Employee[];
   currentUserRole?: string;
+  selectedIds?: number[];
+  onSelectionChange?: (ids: number[]) => void;
   onEdit: (item: Equipment) => void;
   onDelete: (id: number) => void;
   onView: (item: Equipment) => void;
   onViewEmployee?: (employee: Employee) => void;
 }
 
-export default function EquipmentList({ equipment, statuses, employees, currentUserRole, onEdit, onDelete, onView, onViewEmployee }: EquipmentListProps) {
+export default function EquipmentList({ equipment, statuses, employees, currentUserRole, selectedIds = [], onSelectionChange, onEdit, onDelete, onView, onViewEmployee }: EquipmentListProps) {
   if (!equipment.length) {
     return (
       <div className="text-center py-16">

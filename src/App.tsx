@@ -6,38 +6,54 @@ import {
   addEquipment,
   updateEquipment,
   deleteEquipment,
+  bulkUpdateEquipment,
+  bulkDeleteEquipment,
   getStats,
+  generateTestData,
+  clearAllEquipment,
   getAllEmployees,
   addEmployee,
   updateEmployee,
   deleteEmployee,
+  bulkUpdateEmployee,
+  bulkDeleteEmployee,
   getEmployeeStats,
+  generateTestEmployees,
+  clearAllEmployees,
   getAllDepartments,
   addDepartment,
   deleteDepartment,
   getDepartmentTree,
+  getDepartmentName,
+  generateTestDepartments,
+  clearAllDepartments,
+  isSystemDepartment,
   getAllLocations,
   addLocation,
   deleteLocation,
+  generateTestLocations,
+  clearAllLocations,
+  getLocationFullPath,
+  isSystemLocation,
   getAllStatuses,
   addStatus,
   deleteStatus,
+  clearAllStatuses,
+  isSystemStatus,
+  getEquipmentCountByStatus,
+  getEquipmentByStatus,
   getAllCategories,
   addCategory,
   deleteCategory,
+  clearAllCategories,
+  isSystemCategory,
+  getEquipmentCountByCategory,
+  getEquipmentByCategory,
   getCategoryTree,
+  getCategoryFullPath,
   getEquipmentByEmployee,
   getEquipmentByDepartment,
-  getEquipmentByStatus,
-  getEquipmentByCategory,
   getEquipmentByLocation,
-  getDepartmentName,
-  getLocationFullPath,
-  getCategoryFullPath,
-  isSystemDepartment,
-  isSystemLocation,
-  isSystemStatus,
-  isSystemCategory,
   authenticateUser,
   User,
   Category,
@@ -56,9 +72,10 @@ import EmployeeDetail from './components/EmployeeDetail';
 import { LogViewer } from './components/LogViewer';
 import { Settings } from './components/Settings';
 import { Login } from './components/Login';
+import { UserManagement } from './components/UserManagement';
 import { useSettings } from './contexts/SettingsContext';
 
-type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings';
+type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings' | 'users';
 
 function App() {
   const { settings, isLoaded } = useSettings();
@@ -72,6 +89,8 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<number | undefined>(undefined);
   const [selectedLocation, setSelectedLocation] = useState<number | undefined>(undefined);
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<number[]>([]);
+  const [showBulkEditEquipment, setShowBulkEditEquipment] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
   const [viewingItem, setViewingItem] = useState<Equipment | null>(null);
@@ -85,6 +104,8 @@ function App() {
   const [empDepartment, setEmpDepartment] = useState<number | undefined>(undefined);
   const [empWorkMode, setEmpWorkMode] = useState<string | undefined>(undefined);
   const [empType, setEmpType] = useState<string | undefined>(undefined);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
+  const [showBulkEditEmployee, setShowBulkEditEmployee] = useState(false);
   const [showEmpForm, setShowEmpForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
@@ -94,6 +115,10 @@ function App() {
   const [showDeptForm, setShowDeptForm] = useState(false);
   const [newDeptName, setNewDeptName] = useState('');
   const [newDeptParent, setNewDeptParent] = useState<string>('');
+  const [showClearDeptConfirm, setShowClearDeptConfirm] = useState(false);
+  const [collapsedDepts, setCollapsedDepts] = useState<Set<number>>(new Set());
+  const [viewingDeptEquipment, setViewingDeptEquipment] = useState<number | null>(null);
+  const [viewingDeptEmployees, setViewingDeptEmployees] = useState<number | null>(null);
 
   // Locations state
   const [locations, setLocations] = useState<Location[]>([]);
@@ -101,6 +126,9 @@ function App() {
   const [newLocName, setNewLocName] = useState('');
   const [newLocDesc, setNewLocDesc] = useState('');
   const [newLocParent, setNewLocParent] = useState<string>('');
+  const [showClearLocConfirm, setShowClearLocConfirm] = useState(false);
+  const [collapsedLocations, setCollapsedLocations] = useState<Set<number>>(new Set());
+  const [viewingLocationEquipment, setViewingLocationEquipment] = useState<number | null>(null);
 
   // Statuses state
   const [statuses, setStatuses] = useState<Status[]>([]);
@@ -109,6 +137,8 @@ function App() {
   const [newStatusColor, setNewStatusColor] = useState('#10b981');
   const [newStatusIcon, setNewStatusIcon] = useState('✓');
   const [newStatusDesc, setNewStatusDesc] = useState('');
+  const [showClearStatusConfirm, setShowClearStatusConfirm] = useState(false);
+  const [viewingStatusEquipment, setViewingStatusEquipment] = useState<number | null>(null);
 
   // Categories state
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -116,8 +146,21 @@ function App() {
   const [newCategoryIcon, setNewCategoryIcon] = useState('📦');
   const [newCategoryDesc, setNewCategoryDesc] = useState('');
   const [newCategoryParent, setNewCategoryParent] = useState<string>('');
+  const [showClearCategoryConfirm, setShowClearCategoryConfirm] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<number>>(new Set());
+  const [viewingCategoryEquipment, setViewingCategoryEquipment] = useState<number | null>(null);
+
+  // Bulk delete confirmations
+  const [showBulkDeleteEquipmentConfirm, setShowBulkDeleteEquipmentConfirm] = useState(false);
+  const [showBulkDeleteEmployeeConfirm, setShowBulkDeleteEmployeeConfirm] = useState(false);
 
   const [loading, setLoading] = useState(true);
+  const [showTestConfirm, setShowTestConfirm] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showEmpTestConfirm, setShowEmpTestConfirm] = useState(false);
+  const [showEmpClearConfirm, setShowEmpClearConfirm] = useState(false);
+  const [showDeptTestConfirm, setShowDeptTestConfirm] = useState(false);
+  const [showLocTestConfirm, setShowLocTestConfirm] = useState(false);
 
   // Toast notifications
   interface Toast {
@@ -278,6 +321,13 @@ function App() {
   };
 
   const handleDelete = (id: number) => {
+    if (currentUser?.role === 'user') {
+      const item = equipment.find(eq => eq.id === id);
+      if (!item || item.responsible_employee_id !== currentUser.employee_id) {
+        showToast('Вы можете удалять только закреплённое за вами оборудование', 'error');
+        return;
+      }
+    }
     deleteEquipment(id);
     loadEquipment();
     showToast('Оборудование удалено', 'success');
@@ -336,6 +386,15 @@ function App() {
     showToast('Подразделение удалено', 'success');
   };
 
+  const handleGenerateTestDepartments = () => {
+    const count = generateTestDepartments();
+    setShowDeptTestConfirm(false);
+    loadDepartments();
+    loadEmployees();
+    loadAllEmployees();
+    showToast(`Создано ${count} подразделений`, 'success');
+  };
+
   // Location handlers
   const handleAddLocation = () => {
     if (!newLocName.trim()) return;
@@ -356,6 +415,13 @@ function App() {
     }
     loadLocations();
     showToast('Местоположение удалено', 'success');
+  };
+
+  const handleGenerateTestLocations = () => {
+    const count = generateTestLocations();
+    setShowLocTestConfirm(false);
+    loadLocations();
+    showToast(`Создано ${count} местоположений`, 'success');
   };
 
   // Status handlers
@@ -404,6 +470,59 @@ function App() {
     showToast('Категория удалена', 'success');
   };
 
+  const handleExport = () => {
+    const data = localStorage.getItem('equipment_inventory_db');
+    if (data) {
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Данные экспортированы', 'success');
+    }
+  };
+
+  const handleGenerateTest = () => {
+    try {
+      const count = generateTestData();
+      setShowTestConfirm(false);
+      loadEquipment();
+      loadAllEmployees();
+      showToast(`Создано ${count} единиц оборудования`, 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Ошибка', 'error');
+    }
+  };
+
+  const handleClearAll = () => {
+    clearAllEquipment();
+    setShowClearConfirm(false);
+    loadEquipment();
+    showToast('Оборудование очищено', 'success');
+  };
+
+  const handleGenerateTestEmployees = () => {
+    try {
+      const count = generateTestEmployees();
+      setShowEmpTestConfirm(false);
+      loadEmployees();
+      loadAllEmployees();
+      showToast(`Создано ${count} сотрудников`, 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Ошибка', 'error');
+    }
+  };
+
+  const handleClearAllEmployees = () => {
+    clearAllEmployees();
+    setShowEmpClearConfirm(false);
+    loadEmployees();
+    loadAllEmployees();
+    showToast('Сотрудники очищены', 'success');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -423,62 +542,158 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-800">{settings.organizationName}</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">{currentUser.fullName}</span>
-              <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                Выйти
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🖥️</span>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">{settings.organizationName}</h1>
+                <p className="text-sm text-gray-500">Система управления оборудованием, сотрудниками и оргструктурой</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+                <span className="text-lg">{currentUser.role === 'superadmin' ? '👑' : currentUser.role === 'admin' ? '🔑' : currentUser.role === 'observer' ? '👁️' : '👤'}</span>
+                <span className="text-sm font-medium text-gray-700">{currentUser.fullName}</span>
+              </div>
+              <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700">
+                💾 Экспорт
+              </button>
+              <button onClick={handleLogout} className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                🚪 Выйти
               </button>
             </div>
+          </div>
+
+          {/* Navigation Tabs */}
+          <div className="flex gap-2 mt-4 border-b border-gray-200 -mb-4 overflow-x-auto">
+            {currentUser.role !== 'user' && (
+              <>
+                <button
+                  onClick={() => setActiveView('structure')}
+                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                    activeView === 'structure' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  🏢 Оргструктура <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{departments.length}</span>
+                </button>
+                <button
+                  onClick={() => setActiveView('employees')}
+                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                    activeView === 'employees' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  👥 Сотрудники <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{empStats.total}</span>
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setActiveView('equipment')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                activeView === 'equipment' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              🖥️ Оборудование <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{currentUser.role === 'user' ? (currentUser.employee_id ? getEquipmentByEmployee(currentUser.employee_id).length : 0) : stats.total}</span>
+            </button>
+            {currentUser.role !== 'user' && (
+              <>
+                <button
+                  onClick={() => setActiveView('locations')}
+                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                    activeView === 'locations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  📍 Местоположения <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{locations.length}</span>
+                </button>
+                <button
+                  onClick={() => setActiveView('statuses')}
+                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                    activeView === 'statuses' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  🏷️ Статусы <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{statuses.length}</span>
+                </button>
+                <button
+                  onClick={() => setActiveView('categories')}
+                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                    activeView === 'categories' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  📁 Категории <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{categories.length}</span>
+                </button>
+                <button
+                  onClick={() => setActiveView('logs')}
+                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                    activeView === 'logs' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  📋 Логи
+                </button>
+              </>
+            )}
+            {currentUser.role !== 'user' && (
+              <button
+                onClick={() => setActiveView('settings')}
+                className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                  activeView === 'settings' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                ⚙️ Настройки
+              </button>
+            )}
+            {(currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
+              <button
+                onClick={() => setActiveView('users')}
+                className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                  activeView === 'users' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                👥 Пользователи
+              </button>
+            )}
           </div>
         </div>
       </header>
 
+      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="mb-6 flex gap-2 border-b border-gray-200">
-          <button onClick={() => setActiveView('structure')} className={`px-4 py-2 ${activeView === 'structure' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>
-            Оргструктура
-          </button>
-          <button onClick={() => setActiveView('employees')} className={`px-4 py-2 ${activeView === 'employees' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>
-            Сотрудники
-          </button>
-          <button onClick={() => setActiveView('equipment')} className={`px-4 py-2 ${activeView === 'equipment' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>
-            Оборудование
-          </button>
-          <button onClick={() => setActiveView('locations')} className={`px-4 py-2 ${activeView === 'locations' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>
-            Местоположения
-          </button>
-          <button onClick={() => setActiveView('statuses')} className={`px-4 py-2 ${activeView === 'statuses' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>
-            Статусы
-          </button>
-          <button onClick={() => setActiveView('categories')} className={`px-4 py-2 ${activeView === 'categories' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>
-            Категории
-          </button>
-          <button onClick={() => setActiveView('logs')} className={`px-4 py-2 ${activeView === 'logs' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>
-            Логи
-          </button>
-          <button onClick={() => setActiveView('settings')} className={`px-4 py-2 ${activeView === 'settings' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}>
-            Настройки
-          </button>
-        </div>
-
-        {activeView === 'structure' && (
+        {/* Structure View */}
+        {activeView === 'structure' && currentUser.role !== 'user' && (
           <div>
-            <h2 className="text-xl font-bold mb-4">Оргструктура</h2>
-            <button onClick={() => setShowDeptForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mb-4">
-              ➕ Добавить подразделение
-            </button>
+            <h2 className="text-2xl font-bold mb-4">Оргструктура</h2>
+            {currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                {currentUser.role === 'superadmin' && (
+                  <button onClick={() => setShowDeptTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                    🎲 Тестовая структура
+                  </button>
+                )}
+                <button onClick={() => setShowDeptForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить подразделение
+                </button>
+              </div>
+            )}
             <div className="space-y-3">
-              {getDepartmentTree().map(dept => (
+              {getDepartmentTree().map((dept: any) => (
                 <div key={dept.id} className="bg-white rounded-lg p-4 border border-gray-200">
                   <div className="flex justify-between items-center">
                     <h3 className="font-semibold">{dept.name}</h3>
-                    {!isSystemDepartment(dept.id) && (
-                      <button onClick={() => handleDeleteDepartment(dept.id)} className="text-red-600 hover:text-red-800">
-                        🗑️
-                      </button>
-                    )}
+                    <div className="flex gap-2">
+                      {dept.employeeCount > 0 && (
+                        <button onClick={() => setViewingDeptEmployees(dept.id)} className="text-green-600 hover:text-green-800">
+                          👥 {dept.employeeCount}
+                        </button>
+                      )}
+                      {getEquipmentByDepartment(dept.id).length > 0 && (
+                        <button onClick={() => setViewingDeptEquipment(dept.id)} className="text-blue-600 hover:text-blue-800">
+                          🖥️ {getEquipmentByDepartment(dept.id).length}
+                        </button>
+                      )}
+                      {!isSystemDepartment(dept.id) && currentUser.role !== 'observer' && (
+                        <button onClick={() => handleDeleteDepartment(dept.id)} className="text-red-600 hover:text-red-800">
+                          🗑️
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -486,15 +701,28 @@ function App() {
           </div>
         )}
 
-        {activeView === 'employees' && (
+        {/* Employees View */}
+        {activeView === 'employees' && currentUser.role !== 'user' && (
           <div>
-            <h2 className="text-xl font-bold mb-4">Сотрудники</h2>
-            <button onClick={() => setShowEmpForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mb-4">
-              ➕ Добавить сотрудника
-            </button>
+            <h2 className="text-2xl font-bold mb-4">Сотрудники</h2>
+            {currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                {currentUser.role === 'superadmin' && (
+                  <button onClick={() => setShowEmpTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                    🎲 Тестовые данные
+                  </button>
+                )}
+                <button onClick={() => setShowEmpForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить сотрудника
+                </button>
+              </div>
+            )}
             <EmployeeList
               employees={employees}
               departments={departments}
+              currentUserRole={currentUser.role}
+              selectedIds={selectedEmployeeIds}
+              onSelectionChange={currentUser.role !== 'observer' ? setSelectedEmployeeIds : undefined}
               onEdit={(emp) => { setEditingEmployee(emp); setShowEmpForm(false); }}
               onDelete={handleDeleteEmployee}
               onView={(emp) => setViewingEmployee(emp)}
@@ -502,17 +730,34 @@ function App() {
           </div>
         )}
 
+        {/* Equipment View */}
         {activeView === 'equipment' && (
           <div>
-            <h2 className="text-xl font-bold mb-4">Оборудование</h2>
-            <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mb-4">
-              ➕ Добавить оборудование
-            </button>
+            <h2 className="text-2xl font-bold mb-4">Оборудование</h2>
+            {currentUser.role !== 'user' && currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                {currentUser.role === 'superadmin' && (
+                  <>
+                    <button onClick={() => setShowTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                      🎲 Тестовые данные
+                    </button>
+                    <button onClick={() => setShowClearConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                      🗑️ Очистить
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить
+                </button>
+              </div>
+            )}
             <EquipmentList
               equipment={equipment}
               statuses={statuses}
               employees={allEmployees}
               currentUserRole={currentUser.role}
+              selectedIds={selectedEquipmentIds}
+              onSelectionChange={currentUser.role !== 'user' && currentUser.role !== 'observer' ? setSelectedEquipmentIds : undefined}
               onEdit={(item) => { setEditingItem(item); setShowForm(false); }}
               onDelete={handleDelete}
               onView={(item) => setViewingItem(item)}
@@ -521,22 +766,39 @@ function App() {
           </div>
         )}
 
-        {activeView === 'locations' && (
+        {/* Locations View */}
+        {activeView === 'locations' && currentUser.role !== 'user' && (
           <div>
-            <h2 className="text-xl font-bold mb-4">Местоположения</h2>
-            <button onClick={() => setShowLocForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mb-4">
-              ➕ Добавить местоположение
-            </button>
+            <h2 className="text-2xl font-bold mb-4">Местоположения</h2>
+            {currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                {currentUser.role === 'superadmin' && (
+                  <button onClick={() => setShowLocTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                    🎲 Тестовые данные
+                  </button>
+                )}
+                <button onClick={() => setShowLocForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить местоположение
+                </button>
+              </div>
+            )}
             <div className="space-y-3">
               {locations.map(loc => (
                 <div key={loc.id} className="bg-white rounded-lg p-4 border border-gray-200">
                   <div className="flex justify-between items-center">
                     <h3 className="font-semibold">{loc.name}</h3>
-                    {!isSystemLocation(loc.id) && (
-                      <button onClick={() => handleDeleteLocation(loc.id)} className="text-red-600 hover:text-red-800">
-                        🗑️
-                      </button>
-                    )}
+                    <div className="flex gap-2">
+                      {getEquipmentByLocation(loc.id).length > 0 && (
+                        <button onClick={() => setViewingLocationEquipment(loc.id)} className="text-blue-600 hover:text-blue-800">
+                          🖥️ {getEquipmentByLocation(loc.id).length}
+                        </button>
+                      )}
+                      {!isSystemLocation(loc.id) && currentUser.role !== 'observer' && (
+                        <button onClick={() => handleDeleteLocation(loc.id)} className="text-red-600 hover:text-red-800">
+                          🗑️
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -544,22 +806,34 @@ function App() {
           </div>
         )}
 
-        {activeView === 'statuses' && (
+        {/* Statuses View */}
+        {activeView === 'statuses' && currentUser.role !== 'user' && (
           <div>
-            <h2 className="text-xl font-bold mb-4">Статусы</h2>
-            <button onClick={() => setShowStatusForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mb-4">
-              ➕ Добавить статус
-            </button>
+            <h2 className="text-2xl font-bold mb-4">Статусы</h2>
+            {currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                <button onClick={() => setShowStatusForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить статус
+                </button>
+              </div>
+            )}
             <div className="space-y-3">
               {statuses.map(status => (
                 <div key={status.id} className="bg-white rounded-lg p-4 border border-gray-200">
                   <div className="flex justify-between items-center">
                     <h3 className="font-semibold">{status.icon} {status.name}</h3>
-                    {!isSystemStatus(status.id) && (
-                      <button onClick={() => handleDeleteStatus(status.id)} className="text-red-600 hover:text-red-800">
-                        🗑️
-                      </button>
-                    )}
+                    <div className="flex gap-2">
+                      {getEquipmentCountByStatus(status.id) > 0 && (
+                        <button onClick={() => setViewingStatusEquipment(status.id)} className="text-blue-600 hover:text-blue-800">
+                          🖥️ {getEquipmentCountByStatus(status.id)}
+                        </button>
+                      )}
+                      {!isSystemStatus(status.id) && currentUser.role !== 'observer' && (
+                        <button onClick={() => handleDeleteStatus(status.id)} className="text-red-600 hover:text-red-800">
+                          🗑️
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -567,22 +841,34 @@ function App() {
           </div>
         )}
 
-        {activeView === 'categories' && (
+        {/* Categories View */}
+        {activeView === 'categories' && currentUser.role !== 'user' && (
           <div>
-            <h2 className="text-xl font-bold mb-4">Категории</h2>
-            <button onClick={() => setShowCategoryForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mb-4">
-              ➕ Добавить категорию
-            </button>
+            <h2 className="text-2xl font-bold mb-4">Категории</h2>
+            {currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                <button onClick={() => setShowCategoryForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить категорию
+                </button>
+              </div>
+            )}
             <div className="space-y-3">
-              {getCategoryTree().map(cat => (
+              {getCategoryTree().map((cat: any) => (
                 <div key={cat.id} className="bg-white rounded-lg p-4 border border-gray-200">
                   <div className="flex justify-between items-center">
                     <h3 className="font-semibold">{cat.icon} {cat.name}</h3>
-                    {!isSystemCategory(cat.id) && (
-                      <button onClick={() => handleDeleteCategory(cat.id)} className="text-red-600 hover:text-red-800">
-                        🗑️
-                      </button>
-                    )}
+                    <div className="flex gap-2">
+                      {getEquipmentByCategory(cat.id).length > 0 && (
+                        <button onClick={() => setViewingCategoryEquipment(cat.id)} className="text-blue-600 hover:text-blue-800">
+                          🖥️ {getEquipmentByCategory(cat.id).length}
+                        </button>
+                      )}
+                      {!isSystemCategory(cat.id) && currentUser.role !== 'observer' && (
+                        <button onClick={() => handleDeleteCategory(cat.id)} className="text-red-600 hover:text-red-800">
+                          🗑️
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -590,12 +876,19 @@ function App() {
           </div>
         )}
 
-        {activeView === 'logs' && (
+        {/* Logs View */}
+        {activeView === 'logs' && currentUser.role !== 'user' && (
           <LogViewer showToast={showToast} currentUser={currentUser} />
         )}
 
-        {activeView === 'settings' && (
+        {/* Settings View */}
+        {activeView === 'settings' && currentUser.role !== 'user' && (
           <Settings showToast={showToast} />
+        )}
+
+        {/* Users View */}
+        {activeView === 'users' && (currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
+          <UserManagement currentUser={currentUser} showToast={showToast} />
         )}
       </main>
 
