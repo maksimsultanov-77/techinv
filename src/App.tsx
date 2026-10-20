@@ -524,6 +524,20 @@ function App() {
     showToast('Сотрудники очищены', 'success');
   };
 
+  // Apply theme
+  useEffect(() => {
+    if (settings.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [settings.theme]);
+
+  // Apply document title
+  useEffect(() => {
+    document.title = `${settings.organizationName} - Учет техники`;
+  }, [settings.organizationName]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -538,20 +552,6 @@ function App() {
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
-
-  // Apply theme
-  useEffect(() => {
-    if (settings.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [settings.theme]);
-
-  // Apply document title
-  useEffect(() => {
-    document.title = `${settings.organizationName} - Учет техники`;
-  }, [settings.organizationName]);
 
   return (
     <div className={`min-h-screen ${settings.theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
