@@ -147,8 +147,9 @@ function App() {
     }
   }, []);
 
-  // Database is already initialized by SettingsProvider
+  // Initialize database on app load
   useEffect(() => {
+    initDatabase();
     if (isLoaded) {
       setLoading(false);
     }

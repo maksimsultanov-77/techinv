@@ -98,43 +98,52 @@ interface DatabaseSchema {
   nextUserId: number;
 }
 
-let db: DatabaseSchema;
+// Initialize database with default values
+const defaultDb: DatabaseSchema = {
+  categories: [],
+  equipment: [],
+  employees: [],
+  departments: [],
+  locations: [],
+  statuses: [
+    { id: 1, name: 'В работе', color: '#10b981', icon: '✓', description: 'Оборудование работает нормально' },
+    { id: 2, name: 'Неисправно', color: '#ef4444', icon: '✗', description: 'Оборудование неисправно' },
+    { id: 3, name: 'В ремонте', color: '#f59e0b', icon: '⚙', description: 'Оборудование находится в ремонте' },
+  ],
+  users: [
+    {
+      id: 1,
+      username: 'admin',
+      password: 'admin',
+      fullName: 'Суперадминистратор',
+      role: 'superadmin',
+      createdAt: new Date().toISOString(),
+    },
+  ],
+  nextCategoryId: 1,
+  nextEquipmentId: 1,
+  nextEmployeeId: 1,
+  nextDepartmentId: 1,
+  nextLocationId: 1,
+  nextStatusId: 4,
+  nextUserId: 2,
+};
+
+let db: DatabaseSchema = defaultDb;
 
 // Initialize database
 export function initDatabase(): void {
   const savedDb = localStorage.getItem(DB_KEY);
   if (savedDb) {
-    db = JSON.parse(savedDb);
+    try {
+      db = JSON.parse(savedDb);
+    } catch (e) {
+      console.error('Error loading database:', e);
+      db = defaultDb;
+      saveDatabase();
+    }
   } else {
-    db = {
-      categories: [],
-      equipment: [],
-      employees: [],
-      departments: [],
-      locations: [],
-      statuses: [
-        { id: 1, name: 'В работе', color: '#10b981', icon: '✓', description: 'Оборудование работает нормально' },
-        { id: 2, name: 'Неисправно', color: '#ef4444', icon: '✗', description: 'Оборудование неисправно' },
-        { id: 3, name: 'В ремонте', color: '#f59e0b', icon: '⚙', description: 'Оборудование находится в ремонте' },
-      ],
-      users: [
-        {
-          id: 1,
-          username: 'admin',
-          password: 'admin',
-          fullName: 'Суперадминистратор',
-          role: 'superadmin',
-          createdAt: new Date().toISOString(),
-        },
-      ],
-      nextCategoryId: 1,
-      nextEquipmentId: 1,
-      nextEmployeeId: 1,
-      nextDepartmentId: 1,
-      nextLocationId: 1,
-      nextStatusId: 4,
-      nextUserId: 2,
-    };
+    db = defaultDb;
     saveDatabase();
   }
 }
