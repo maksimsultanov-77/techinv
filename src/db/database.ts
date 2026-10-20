@@ -256,13 +256,22 @@ export function clearAllEquipment(): void {
 export function generateTestData(): number {
   const count = Math.floor(Math.random() * 50) + 10;
   for (let i = 0; i < count; i++) {
+    // Случайно привязываем к существующему сотруднику (70% шанс)
+    let responsibleEmployeeId: number | null = null;
+    let responsibleName = '';
+    if (db.employees.length > 0 && Math.random() > 0.3) {
+      const randomEmp = db.employees[Math.floor(Math.random() * db.employees.length)];
+      responsibleEmployeeId = randomEmp.id;
+      responsibleName = randomEmp.full_name;
+    }
+    
     addEquipment({
       name: `Тестовое оборудование ${i + 1}`,
       category_id: db.categories[0]?.id || 1,
       status_id: 1,
       location_id: db.locations[0]?.id || 1,
-      responsible_employee_id: db.employees[0]?.id || null,
-      responsible_person: db.employees[0]?.full_name || '',
+      responsible_employee_id: responsibleEmployeeId,
+      responsible_person: responsibleName,
       serial_number: `SN${Date.now()}${i}`,
       inventory_number: `INV${Date.now()}${i}`,
       manufacturer: 'Test Manufacturer',
