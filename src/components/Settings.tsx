@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { AppSettings } from '../db/database';
+import React, { useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 
 interface SettingsProps {
@@ -8,10 +7,10 @@ interface SettingsProps {
 
 export function Settings({ showToast }: SettingsProps) {
   const { settings, updateSettings } = useSettings();
-  const [draftSettings, setDraftSettings] = useState<AppSettings>(settings);
+  const [draftSettings, setDraftSettings] = useState(settings);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const handleChange = (key: keyof AppSettings, value: any) => {
+  const handleChange = (key: string, value: any) => {
     const newSettings = { ...draftSettings, [key]: value };
     setDraftSettings(newSettings);
     setHasChanges(true);
@@ -28,9 +27,6 @@ export function Settings({ showToast }: SettingsProps) {
     if (key === 'organizationName') {
       document.title = `${value} - Учет техники`;
     }
-    
-    // Menu position is applied immediately through settings context
-    // No additional DOM manipulation needed
   };
 
   const handleSave = () => {
@@ -155,7 +151,7 @@ export function Settings({ showToast }: SettingsProps) {
               </label>
               <select
                 value={draftSettings.language}
-                onChange={(e) => handleChange('language', e.target.value as 'ru' | 'en')}
+                onChange={(e) => handleChange('language', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="ru">🇷🇺 Русский</option>

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
+  initDatabase,
   getCategories,
   getAllEquipment,
   addEquipment,
@@ -21,12 +22,9 @@ import {
   clearAllEmployees,
   getAllDepartments,
   addDepartment,
-  updateDepartment,
   deleteDepartment,
   getDepartmentTree,
   getDepartmentName,
-  getEquipmentByDepartment,
-  getEquipmentByEmployee,
   generateTestDepartments,
   clearAllDepartments,
   isSystemDepartment,
@@ -35,12 +33,8 @@ import {
   deleteLocation,
   generateTestLocations,
   clearAllLocations,
-  getLocationName,
-  getEquipmentCountByLocation,
-  getLocationTree,
   getLocationFullPath,
   isSystemLocation,
-  getCategoryFullPath,
   getAllStatuses,
   addStatus,
   deleteStatus,
@@ -48,15 +42,23 @@ import {
   isSystemStatus,
   getEquipmentCountByStatus,
   getEquipmentByStatus,
-  getEquipmentByCategory,
-  getEquipmentByLocation,
+  generateTestStatuses,
   getAllCategories,
   addCategory,
   deleteCategory,
   clearAllCategories,
   isSystemCategory,
   getEquipmentCountByCategory,
+  generateTestCategories,
+  getEquipmentByCategory,
   getCategoryTree,
+  getCategoryFullPath,
+  getEquipmentByEmployee,
+  getEquipmentByDepartment,
+  getEquipmentByLocation,
+  authenticateUser,
+  addLog,
+  User,
   Category,
   Equipment,
   Employee,
@@ -64,23 +66,19 @@ import {
   Location,
   Status,
 } from './db/database';
-import { EmployeeStats, LocationTreeNode, WorkMode } from './types';
 import EquipmentForm from './components/EquipmentForm';
 import EquipmentList from './components/EquipmentList';
 import EquipmentDetail from './components/EquipmentDetail';
 import { EmployeeForm } from './components/EmployeeForm';
 import EmployeeList from './components/EmployeeList';
 import EmployeeDetail from './components/EmployeeDetail';
-import { Modal } from './components/Modal';
 import { LogViewer } from './components/LogViewer';
-import { BulkEditEquipment } from './components/BulkEditEquipment';
-import { BulkEditEmployee } from './components/BulkEditEmployee';
 import { Settings } from './components/Settings';
-import { Sidebar } from './components/Sidebar';
 import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
+import { Sidebar } from './components/Sidebar';
+import { BulkEditEmployee } from './components/BulkEditEmployee';
 import { useSettings } from './contexts/SettingsContext';
-import { User } from './db/database';
 
 type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings' | 'users';
 
@@ -105,6 +103,7 @@ function App() {
 
   // Employee state
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [empSearchQuery, setEmpSearchQuery] = useState('');
   const [empDepartment, setEmpDepartment] = useState<number | undefined>(undefined);
@@ -115,7 +114,7 @@ function App() {
   const [showEmpForm, setShowEmpForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
-  const [empStats, setEmpStats] = useState<EmployeeStats>({ total: 0, byDepartment: [], byWorkMode: [], byGender: [], byType: [] });
+  const [empStats, setEmpStats] = useState<any>({ total: 0, byDepartment: [], byWorkMode: [], byGender: [], byType: [] });
 
   // Structure state
   const [showDeptForm, setShowDeptForm] = useState(false);
@@ -125,9 +124,6 @@ function App() {
   const [collapsedDepts, setCollapsedDepts] = useState<Set<number>>(new Set());
   const [viewingDeptEquipment, setViewingDeptEquipment] = useState<number | null>(null);
   const [viewingDeptEmployees, setViewingDeptEmployees] = useState<number | null>(null);
-  const [viewingStatusEquipment, setViewingStatusEquipment] = useState<number | null>(null);
-  const [viewingCategoryEquipment, setViewingCategoryEquipment] = useState<number | null>(null);
-  const [viewingLocationEquipment, setViewingLocationEquipment] = useState<number | null>(null);
 
   // Locations state
   const [locations, setLocations] = useState<Location[]>([]);
@@ -137,6 +133,7 @@ function App() {
   const [newLocParent, setNewLocParent] = useState<string>('');
   const [showClearLocConfirm, setShowClearLocConfirm] = useState(false);
   const [collapsedLocations, setCollapsedLocations] = useState<Set<number>>(new Set());
+  const [viewingLocationEquipment, setViewingLocationEquipment] = useState<number | null>(null);
 
   // Statuses state
   const [statuses, setStatuses] = useState<Status[]>([]);
@@ -146,6 +143,7 @@ function App() {
   const [newStatusIcon, setNewStatusIcon] = useState('✓');
   const [newStatusDesc, setNewStatusDesc] = useState('');
   const [showClearStatusConfirm, setShowClearStatusConfirm] = useState(false);
+  const [viewingStatusEquipment, setViewingStatusEquipment] = useState<number | null>(null);
 
   // Categories state
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -155,6 +153,7 @@ function App() {
   const [newCategoryParent, setNewCategoryParent] = useState<string>('');
   const [showClearCategoryConfirm, setShowClearCategoryConfirm] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<number>>(new Set());
+  const [viewingCategoryEquipment, setViewingCategoryEquipment] = useState<number | null>(null);
 
   // Bulk delete confirmations
   const [showBulkDeleteEquipmentConfirm, setShowBulkDeleteEquipmentConfirm] = useState(false);
@@ -167,6 +166,9 @@ function App() {
   const [showEmpClearConfirm, setShowEmpClearConfirm] = useState(false);
   const [showDeptTestConfirm, setShowDeptTestConfirm] = useState(false);
   const [showLocTestConfirm, setShowLocTestConfirm] = useState(false);
+  const [showCatTestConfirm, setShowCatTestConfirm] = useState(false);
+  const [showClearCatConfirm, setShowClearCatConfirm] = useState(false);
+  const [showStatusTestConfirm, setShowStatusTestConfirm] = useState(false);
 
   // Toast notifications
   interface Toast {
@@ -196,8 +198,9 @@ function App() {
     }
   }, []);
 
-  // Database is already initialized by SettingsProvider
+  // Initialize database on app load
   useEffect(() => {
+    initDatabase();
     if (isLoaded) {
       setLoading(false);
     }
@@ -206,9 +209,13 @@ function App() {
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     localStorage.setItem('currentUser', JSON.stringify(user));
+    addLog('login', 'user', user.id, user.fullName, `Пользователь ${user.fullName} вошёл в систему`, user.id, user.fullName);
   };
 
   const handleLogout = () => {
+    if (currentUser) {
+      addLog('logout', 'user', currentUser.id, currentUser.fullName, `Пользователь ${currentUser.fullName} вышел из системы`, currentUser.id, currentUser.fullName);
+    }
     setCurrentUser(null);
     localStorage.removeItem('currentUser');
   };
@@ -217,14 +224,21 @@ function App() {
     try {
       const cats = getCategories();
       setCategories(cats);
-      const items = getAllEquipment(searchQuery || undefined, selectedCategory, selectedStatus, selectedLocation);
+      let items = getAllEquipment(searchQuery || undefined, selectedCategory, selectedStatus, selectedLocation);
+      
+      if (currentUser?.role === 'user' && currentUser.employee_id) {
+        items = items.filter(item => item.responsible_employee_id === currentUser.employee_id);
+      } else if (currentUser?.role === 'user' && !currentUser.employee_id) {
+        items = [];
+      }
+      
       setEquipment(items);
       const s = getStats();
       setStats(s);
     } catch (err) {
       console.error('Error loading equipment:', err);
     }
-  }, [searchQuery, selectedCategory, selectedStatus, selectedLocation]);
+  }, [searchQuery, selectedCategory, selectedStatus, selectedLocation, currentUser]);
 
   const loadEmployees = useCallback(() => {
     try {
@@ -236,6 +250,15 @@ function App() {
       console.error('Error loading employees:', err);
     }
   }, [empSearchQuery, empDepartment, empWorkMode, empType]);
+
+  const loadAllEmployees = useCallback(() => {
+    try {
+      const items = getAllEmployees();
+      setAllEmployees(items);
+    } catch (err) {
+      console.error('Error loading all employees:', err);
+    }
+  }, []);
 
   const loadDepartments = useCallback(() => {
     try {
@@ -275,14 +298,16 @@ function App() {
       loadLocations();
       loadStatuses();
       loadCategories();
+      loadAllEmployees();
     }
-  }, [isLoaded, loadDepartments, loadLocations, loadStatuses, loadCategories]);
+  }, [isLoaded, loadDepartments, loadLocations, loadStatuses, loadCategories, loadAllEmployees]);
 
   useEffect(() => {
     if (isLoaded) {
       loadEquipment();
+      loadAllEmployees();
     }
-  }, [isLoaded, loadEquipment]);
+  }, [isLoaded, loadEquipment, loadAllEmployees]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -292,7 +317,8 @@ function App() {
 
   // Equipment handlers
   const handleAdd = (data: any) => {
-    addEquipment(data);
+    const id = addEquipment(data);
+    addLog('create', 'equipment', id, data.name, 'Оборудование добавлено', currentUser?.id, currentUser?.fullName);
     setShowForm(false);
     loadEquipment();
     showToast('Оборудование добавлено', 'success');
@@ -301,6 +327,7 @@ function App() {
   const handleEdit = (data: any) => {
     if (editingItem) {
       updateEquipment(editingItem.id, data);
+      addLog('update', 'equipment', editingItem.id, data.name, 'Оборудование обновлено', currentUser?.id, currentUser?.fullName);
       setEditingItem(null);
       loadEquipment();
       showToast('Оборудование обновлено', 'success');
@@ -308,76 +335,95 @@ function App() {
   };
 
   const handleDelete = (id: number) => {
+    if (currentUser?.role === 'user') {
+      const item = equipment.find(eq => eq.id === id);
+      if (!item || item.responsible_employee_id !== currentUser.employee_id) {
+        showToast('Вы можете удалять только закреплённое за вами оборудование', 'error');
+        return;
+      }
+    }
+    const item = equipment.find(eq => eq.id === id);
     deleteEquipment(id);
+    addLog('delete', 'equipment', id, item?.name, 'Оборудование удалено', currentUser?.id, currentUser?.fullName);
     loadEquipment();
     showToast('Оборудование удалено', 'success');
   };
 
   // Employee handlers
   const handleAddEmployee = (data: any) => {
-    addEmployee(data);
+    const id = addEmployee(data);
+    addLog('create', 'employee', id, data.full_name, 'Сотрудник добавлен', currentUser?.id, currentUser?.fullName);
     setShowEmpForm(false);
     loadEmployees();
-    loadDepartments();
+    loadAllEmployees();
     showToast('Сотрудник добавлен', 'success');
   };
 
   const handleEditEmployee = (data: any) => {
     if (editingEmployee) {
       updateEmployee(editingEmployee.id, data);
+      addLog('update', 'employee', editingEmployee.id, data.full_name, 'Сотрудник обновлён', currentUser?.id, currentUser?.fullName);
       setEditingEmployee(null);
       loadEmployees();
-      loadDepartments();
-      loadEquipment();
+      loadAllEmployees();
       showToast('Сотрудник обновлён', 'success');
     }
   };
 
   const handleDeleteEmployee = (id: number) => {
+    const employee = employees.find(emp => emp.id === id);
     const result = deleteEmployee(id);
     if (!result.success) {
       showToast(result.message, 'error');
       return;
     }
+    addLog('delete', 'employee', id, employee?.full_name, 'Сотрудник удалён', currentUser?.id, currentUser?.fullName);
     loadEmployees();
-    loadDepartments();
+    loadAllEmployees();
     showToast(result.message, 'success');
   };
 
   // Department handlers
   const handleAddDepartment = () => {
     if (!newDeptName.trim()) return;
-    addDepartment(newDeptName.trim(), newDeptParent ? Number(newDeptParent) : null);
+    const id = addDepartment(newDeptName.trim(), newDeptParent ? Number(newDeptParent) : null);
+    addLog('create', 'department', id, newDeptName.trim(), 'Подразделение добавлено', currentUser?.id, currentUser?.fullName);
     setNewDeptName('');
     setNewDeptParent('');
     setShowDeptForm(false);
     loadDepartments();
     loadEmployees();
+    loadAllEmployees();
     showToast('Подразделение добавлено', 'success');
   };
 
   const handleDeleteDepartment = (id: number) => {
+    const dept = departments.find(d => d.id === id);
     const result = deleteDepartment(id);
     if (!result.success) {
       showToast(result.message, 'error');
       return;
     }
+    addLog('delete', 'department', id, dept?.name, 'Подразделение удалено', currentUser?.id, currentUser?.fullName);
     loadDepartments();
     showToast('Подразделение удалено', 'success');
   };
 
   const handleGenerateTestDepartments = () => {
     const count = generateTestDepartments();
+    addLog('generate', 'department', undefined, undefined, `Создано ${count} тестовых подразделений`, currentUser?.id, currentUser?.fullName);
     setShowDeptTestConfirm(false);
     loadDepartments();
     loadEmployees();
+    loadAllEmployees();
     showToast(`Создано ${count} подразделений`, 'success');
   };
 
   // Location handlers
   const handleAddLocation = () => {
     if (!newLocName.trim()) return;
-    addLocation(newLocName.trim(), newLocDesc.trim(), newLocParent ? Number(newLocParent) : null);
+    const id = addLocation(newLocName.trim(), newLocDesc.trim(), newLocParent ? Number(newLocParent) : null);
+    addLog('create', 'location', id, newLocName.trim(), 'Местоположение добавлено', currentUser?.id, currentUser?.fullName);
     setNewLocName('');
     setNewLocDesc('');
     setNewLocParent('');
@@ -387,26 +433,47 @@ function App() {
   };
 
   const handleDeleteLocation = (id: number) => {
+    const loc = locations.find(l => l.id === id);
     const result = deleteLocation(id);
     if (!result.success) {
       showToast(result.message, 'error');
       return;
     }
+    addLog('delete', 'location', id, loc?.name, 'Местоположение удалено', currentUser?.id, currentUser?.fullName);
     loadLocations();
     showToast('Местоположение удалено', 'success');
   };
 
   const handleGenerateTestLocations = () => {
     const count = generateTestLocations();
+    addLog('generate', 'location', undefined, undefined, `Создано ${count} тестовых местоположений`, currentUser?.id, currentUser?.fullName);
     setShowLocTestConfirm(false);
     loadLocations();
     showToast(`Создано ${count} местоположений`, 'success');
   };
 
+  // Category handlers
+  const handleGenerateTestCategories = () => {
+    const count = generateTestCategories();
+    addLog('generate', 'category', undefined, undefined, `Создано ${count} тестовых категорий`, currentUser?.id, currentUser?.fullName);
+    setShowCatTestConfirm(false);
+    loadCategories();
+    showToast(`Создано ${count} категорий`, 'success');
+  };
+
   // Status handlers
+  const handleGenerateTestStatuses = () => {
+    const count = generateTestStatuses();
+    addLog('generate', 'status', undefined, undefined, `Создано ${count} тестовых статусов`, currentUser?.id, currentUser?.fullName);
+    setShowStatusTestConfirm(false);
+    loadStatuses();
+    showToast(`Создано ${count} статусов`, 'success');
+  };
+
   const handleAddStatus = () => {
     if (!newStatusName.trim()) return;
-    addStatus(newStatusName.trim(), newStatusColor, newStatusIcon, newStatusDesc.trim());
+    const id = addStatus(newStatusName.trim(), newStatusColor, newStatusIcon, newStatusDesc.trim());
+    addLog('create', 'status', id, newStatusName.trim(), 'Статус добавлен', currentUser?.id, currentUser?.fullName);
     setNewStatusName('');
     setNewStatusColor('#10b981');
     setNewStatusIcon('✓');
@@ -417,11 +484,13 @@ function App() {
   };
 
   const handleDeleteStatus = (id: number) => {
+    const status = statuses.find(s => s.id === id);
     const result = deleteStatus(id);
     if (!result.success) {
       showToast(result.message, 'error');
       return;
     }
+    addLog('delete', 'status', id, status?.name, 'Статус удалён', currentUser?.id, currentUser?.fullName);
     loadStatuses();
     showToast('Статус удалён', 'success');
   };
@@ -429,7 +498,8 @@ function App() {
   // Category handlers
   const handleAddCategory = () => {
     if (!newCategoryName.trim()) return;
-    addCategory(newCategoryName.trim(), newCategoryIcon, newCategoryDesc.trim(), newCategoryParent ? Number(newCategoryParent) : null);
+    const id = addCategory(newCategoryName.trim(), newCategoryIcon, newCategoryDesc.trim(), newCategoryParent ? Number(newCategoryParent) : null);
+    addLog('create', 'category', id, newCategoryName.trim(), 'Категория добавлена', currentUser?.id, currentUser?.fullName);
     setNewCategoryName('');
     setNewCategoryIcon('📦');
     setNewCategoryDesc('');
@@ -440,11 +510,13 @@ function App() {
   };
 
   const handleDeleteCategory = (id: number) => {
+    const category = categories.find(c => c.id === id);
     const result = deleteCategory(id);
     if (!result.success) {
       showToast(result.message, 'error');
       return;
     }
+    addLog('delete', 'category', id, category?.name, 'Категория удалена', currentUser?.id, currentUser?.fullName);
     loadCategories();
     showToast('Категория удалена', 'success');
   };
@@ -464,18 +536,22 @@ function App() {
   };
 
   const handleGenerateTest = () => {
-    try {
-      const count = generateTestData();
-      setShowTestConfirm(false);
+    const result = generateTestData();
+    setShowTestConfirm(false);
+    if (result.success) {
+      addLog('generate', 'equipment', undefined, undefined, result.message, currentUser?.id, currentUser?.fullName);
       loadEquipment();
-      showToast(`Создано ${count} единиц оборудования`, 'success');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Ошибка', 'error');
+      loadAllEmployees();
+      showToast(result.message, 'success');
+    } else {
+      showToast(result.message, 'error');
     }
   };
 
   const handleClearAll = () => {
+    const count = equipment.length;
     clearAllEquipment();
+    addLog('clear', 'equipment', undefined, undefined, `Очищено ${count} единиц оборудования`, currentUser?.id, currentUser?.fullName);
     setShowClearConfirm(false);
     loadEquipment();
     showToast('Оборудование очищено', 'success');
@@ -484,8 +560,10 @@ function App() {
   const handleGenerateTestEmployees = () => {
     try {
       const count = generateTestEmployees();
+      addLog('generate', 'employee', undefined, undefined, `Создано ${count} тестовых сотрудников`, currentUser?.id, currentUser?.fullName);
       setShowEmpTestConfirm(false);
       loadEmployees();
+      loadAllEmployees();
       showToast(`Создано ${count} сотрудников`, 'success');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Ошибка', 'error');
@@ -493,781 +571,76 @@ function App() {
   };
 
   const handleClearAllEmployees = () => {
+    const count = employees.length;
     clearAllEmployees();
+    addLog('clear', 'employee', undefined, undefined, `Очищено ${count} сотрудников`, currentUser?.id, currentUser?.fullName);
     setShowEmpClearConfirm(false);
     loadEmployees();
+    loadAllEmployees();
     showToast('Сотрудники очищены', 'success');
   };
+
+  // Apply theme
+  useEffect(() => {
+    if (settings.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [settings.theme]);
+
+  // Apply document title
+  useEffect(() => {
+    document.title = `${settings.organizationName} - Учет техники`;
+  }, [settings.organizationName]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin text-5xl mb-4">⚙️</div>
-          <p className="text-gray-600 text-lg">Загрузка базы данных...</p>
+          <p className="text-gray-600 text-lg">Загрузка...</p>
         </div>
       </div>
     );
   }
 
-  // Проверка авторизации
   if (!currentUser) {
     return <Login onLogin={handleLogin} />;
   }
 
-  const mainContent = (
-    <>
-      {/* ============ ОРГСТРУКТУРА ============ */}
-      {activeView === 'structure' && (
-        <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            <button
-              onClick={() => setShowDeptTestConfirm(true)}
-              className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
-            >
-              🎲 Тестовая структура
-            </button>
-            {currentUser.role === 'superadmin' && departments.some(d => !isSystemDepartment(d.id)) && (
-              <button
-                onClick={() => setShowClearDeptConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                🗑️ Очистить
-              </button>
-            )}
-            <button
-              onClick={() => { setShowDeptForm(true); setNewDeptName(''); setNewDeptParent(''); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить подразделение
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {getDepartmentTree().map(dept => {
-              const isCollapsed = collapsedDepts.has(dept.id);
-              const isSystem = isSystemDepartment(dept.id);
-              const bgColor = isSystem ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100';
-              const deptEquipmentCount = getEquipmentByDepartment(dept.id).length;
-              
-              return (
-                <div key={dept.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <div className={`p-4 flex items-center justify-between border-b ${bgColor}`}>
-                    <div className="flex items-center gap-3 flex-1">
-                      {dept.children.length > 0 && (
-                        <button
-                          onClick={() => {
-                            setCollapsedDepts(prev => {
-                              const newSet = new Set(prev);
-                              if (newSet.has(dept.id)) {
-                                newSet.delete(dept.id);
-                              } else {
-                                newSet.add(dept.id);
-                              }
-                              return newSet;
-                            });
-                          }}
-                          className="p-1 hover:bg-white/50 rounded transition-colors"
-                        >
-                          <span className="text-lg">{isCollapsed ? '▶️' : '▼️'}</span>
-                        </button>
-                      )}
-                      {dept.children.length === 0 && <div className="w-7" />}
-                      <span className="text-2xl">🏢</span>
-                      <div>
-                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                          {dept.name}
-                          {isSystem && (
-                            <span className="text-xs bg-white/70 px-2 py-0.5 rounded-full text-gray-600">
-                              системное
-                            </span>
-                          )}
-                        </h3>
-                        <div className="text-xs text-gray-500 flex gap-3">
-                          <span>👥 {dept.employeeCount} сотр.</span>
-                          {dept.children.length > 0 && <span>📁 {dept.children.length} подразд.</span>}
-                          {deptEquipmentCount > 0 && <span>🖥️ {deptEquipmentCount} оборуд.</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      {dept.employeeCount > 0 && (
-                        <button
-                          onClick={() => setViewingDeptEmployees(dept.id)}
-                          className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Просмотр сотрудников"
-                        >
-                          👥
-                        </button>
-                      )}
-                      {deptEquipmentCount > 0 && (
-                        <button
-                          onClick={() => setViewingDeptEquipment(dept.id)}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Просмотр оборудования"
-                        >
-                          🖥️
-                        </button>
-                      )}
-                      {!isSystem && (
-                        <button
-                          onClick={() => handleDeleteDepartment(dept.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          🗑️
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {dept.children.length > 0 && !isCollapsed && (
-                    <div className="p-2 space-y-1">
-                      {dept.children.map((child: any) => {
-                        const childEquipmentCount = getEquipmentByDepartment(child.id).length;
-                        return (
-                          <div key={child.id} className="flex items-center justify-between p-2 ml-6 rounded-lg hover:bg-gray-50">
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg">📁</span>
-                              <div>
-                                <span className="text-sm font-medium text-gray-700">{child.name}</span>
-                                <span className="text-xs text-gray-400 ml-2">👥 {child.employeeCount}</span>
-                                {childEquipmentCount > 0 && (
-                                  <span className="text-xs text-gray-400 ml-2">🖥️ {childEquipmentCount}</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex gap-1">
-                              {child.employeeCount > 0 && (
-                                <button
-                                  onClick={() => setViewingDeptEmployees(child.id)}
-                                  className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors text-sm"
-                                  title="Просмотр сотрудников"
-                                >
-                                  👥
-                                </button>
-                              )}
-                              {childEquipmentCount > 0 && (
-                                <button
-                                  onClick={() => setViewingDeptEquipment(child.id)}
-                                  className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
-                                  title="Просмотр оборудования"
-                                >
-                                  🖥️
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleDeleteDepartment(child.id)}
-                                className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-                              >
-                                🗑️
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* ============ СОТРУДНИКИ ============ */}
-      {activeView === 'employees' && (
-        <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            <button
-              onClick={() => setShowEmpTestConfirm(true)}
-              className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
-            >
-              🎲 Тестовые данные
-            </button>
-            {currentUser.role === 'superadmin' && empStats.total > 0 && (
-              <button
-                onClick={() => setShowEmpClearConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                🗑️ Очистить
-              </button>
-            )}
-            <button
-              onClick={() => { setShowEmpForm(true); setEditingEmployee(null); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить сотрудника
-            </button>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <input
-                type="text"
-                value={empSearchQuery}
-                onChange={(e) => setEmpSearchQuery(e.target.value)}
-                placeholder="Поиск..."
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <select
-                value={empDepartment || ''}
-                onChange={(e) => setEmpDepartment(e.target.value ? Number(e.target.value) : undefined)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Все подразделения</option>
-                {departments.map(dep => (
-                  <option key={dep.id} value={dep.id}>{dep.name}</option>
-                ))}
-              </select>
-              <select
-                value={empType || ''}
-                onChange={(e) => setEmpType(e.target.value || undefined)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Все типы</option>
-                <option value="staff">Штатный</option>
-                <option value="external">Внешний</option>
-                <option value="contractor">Подрядчик</option>
-              </select>
-              <select
-                value={empWorkMode || ''}
-                onChange={(e) => setEmpWorkMode(e.target.value || undefined)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Все режимы</option>
-                <option value="office">В офисе</option>
-                <option value="remote">Удалённо</option>
-                <option value="hybrid">Гибрид</option>
-              </select>
-            </div>
-          </div>
-
-          {selectedEmployeeIds.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-blue-800">
-                  <strong>Выбрано: {selectedEmployeeIds.length}</strong> сотрудников
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowBulkEditEmployee(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                  >
-                    ✏️ Редактировать
-                  </button>
-                  <button
-                    onClick={() => setShowBulkDeleteEmployeeConfirm(true)}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-                  >
-                    🗑️ Удалить
-                  </button>
-                  <button
-                    onClick={() => setSelectedEmployeeIds([])}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <EmployeeList
-            employees={employees}
-            departments={departments}
-            selectedIds={selectedEmployeeIds}
-            onSelectionChange={setSelectedEmployeeIds}
-            onEdit={(emp) => { setEditingEmployee(emp); setShowEmpForm(false); }}
-            onDelete={handleDeleteEmployee}
-            onView={(emp) => setViewingEmployee(emp)}
-          />
-        </>
-      )}
-
-      {/* ============ ОБОРУДОВАНИЕ ============ */}
-      {activeView === 'equipment' && (
-        <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            <button
-              onClick={() => setShowTestConfirm(true)}
-              disabled={employees.length === 0 || locations.length === 0}
-              className={`px-3 py-2 text-sm rounded-lg transition-colors font-medium shadow-sm ${
-                employees.length === 0 || locations.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'
-              }`}
-            >
-              🎲 Тестовые данные
-            </button>
-            {currentUser.role === 'superadmin' && stats.total > 0 && (
-              <button
-                onClick={() => setShowClearConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                🗑️ Очистить
-              </button>
-            )}
-            <button
-              onClick={() => { setShowForm(true); setEditingItem(null); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить
-            </button>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Поиск..."
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <select
-                value={selectedCategory || ''}
-                onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : undefined)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Все категории</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
-                ))}
-              </select>
-              <select
-                value={selectedStatus || ''}
-                onChange={(e) => setSelectedStatus(e.target.value ? Number(e.target.value) : undefined)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Все статусы</option>
-                {statuses.map(status => (
-                  <option key={status.id} value={status.id}>{status.icon} {status.name}</option>
-                ))}
-              </select>
-              <select
-                value={selectedLocation || ''}
-                onChange={(e) => setSelectedLocation(e.target.value ? Number(e.target.value) : undefined)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Все местоположения</option>
-                {locations.map(loc => (
-                  <option key={loc.id} value={loc.id}>📍 {loc.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {selectedEquipmentIds.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-blue-800">
-                  <strong>Выбрано: {selectedEquipmentIds.length}</strong> единиц оборудования
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowBulkEditEquipment(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                  >
-                    ✏️ Редактировать
-                  </button>
-                  <button
-                    onClick={() => setShowBulkDeleteEquipmentConfirm(true)}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-                  >
-                    🗑️ Удалить
-                  </button>
-                  <button
-                    onClick={() => setSelectedEquipmentIds([])}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <EquipmentList
-            equipment={equipment}
-            statuses={statuses}
-            employees={employees}
-            selectedIds={selectedEquipmentIds}
-            onSelectionChange={setSelectedEquipmentIds}
-            onEdit={(item) => { setEditingItem(item); setShowForm(false); }}
-            onDelete={handleDelete}
-            onView={(item) => setViewingItem(item)}
-            onViewEmployee={(emp) => setViewingEmployee(emp)}
-          />
-        </>
-      )}
-
-      {/* ============ МЕСТОПОЛОЖЕНИЯ ============ */}
-      {activeView === 'locations' && (
-        <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            <button
-              onClick={() => setShowLocTestConfirm(true)}
-              className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium shadow-sm"
-            >
-              🎲 Тестовые данные
-            </button>
-            {currentUser.role === 'superadmin' && locations.some(l => !isSystemLocation(l.id)) && (
-              <button
-                onClick={() => setShowClearLocConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                🗑️ Очистить
-              </button>
-            )}
-            <button
-              onClick={() => { setShowLocForm(true); setNewLocName(''); setNewLocDesc(''); setNewLocParent(''); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить местоположение
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {(getLocationTree() as LocationTreeNode[]).map(loc => {
-              const isCollapsed = collapsedLocations.has(loc.id);
-              const isSystem = isSystemLocation(loc.id);
-              const bgColor = isSystem ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100';
-              
-              return (
-                <div key={loc.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <div className={`p-4 flex items-center justify-between border-b ${bgColor}`}>
-                    <div className="flex items-center gap-3 flex-1">
-                      {loc.children.length > 0 && (
-                        <button
-                          onClick={() => {
-                            setCollapsedLocations(prev => {
-                              const newSet = new Set(prev);
-                              if (newSet.has(loc.id)) {
-                                newSet.delete(loc.id);
-                              } else {
-                                newSet.add(loc.id);
-                              }
-                              return newSet;
-                            });
-                          }}
-                          className="p-1 hover:bg-white/50 rounded transition-colors"
-                        >
-                          <span className="text-lg">{isCollapsed ? '▶️' : '▼️'}</span>
-                        </button>
-                      )}
-                      {loc.children.length === 0 && <div className="w-7" />}
-                      <span className="text-2xl">📍</span>
-                      <div>
-                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                          {loc.name}
-                          {isSystem && (
-                            <span className="text-xs bg-white/70 px-2 py-0.5 rounded-full text-gray-600">
-                              системное
-                            </span>
-                          )}
-                        </h3>
-                        <div className="text-xs text-gray-500 flex gap-3">
-                          <span>🖥️ {loc.equipmentCount} ед. оборудования</span>
-                          {loc.children.length > 0 && <span>📁 {loc.children.length} вложенных</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      {loc.equipmentCount > 0 && (
-                        <button
-                          onClick={() => setViewingLocationEquipment(loc.id)}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Просмотр оборудования"
-                        >
-                          🖥️
-                        </button>
-                      )}
-                      {!isSystem && (
-                        <button
-                          onClick={() => handleDeleteLocation(loc.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          🗑️
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {loc.children.length > 0 && !isCollapsed && (
-                    <div className="p-2 space-y-1">
-                      {loc.children.map((child: any) => (
-                        <div key={child.id} className="flex items-center justify-between p-2 ml-6 rounded-lg hover:bg-gray-50">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">📁</span>
-                            <div>
-                              <span className="text-sm font-medium text-gray-700">{child.name}</span>
-                              <span className="text-xs text-gray-400 ml-2">🖥️ {child.equipmentCount}</span>
-                            </div>
-                          </div>
-                          <div className="flex gap-1">
-                            {child.equipmentCount > 0 && (
-                              <button
-                                onClick={() => setViewingLocationEquipment(child.id)}
-                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
-                                title="Просмотр оборудования"
-                              >
-                                🖥️
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleDeleteLocation(child.id)}
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* ============ СТАТУСЫ ============ */}
-      {activeView === 'statuses' && (
-        <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            {currentUser.role === 'superadmin' && statuses.some(s => !isSystemStatus(s.id)) && (
-              <button
-                onClick={() => setShowClearStatusConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                🗑️ Очистить
-              </button>
-            )}
-            <button
-              onClick={() => { setShowStatusForm(true); setNewStatusName(''); setNewStatusColor('#10b981'); setNewStatusIcon('✓'); setNewStatusDesc(''); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить статус
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {statuses.map(status => {
-              const eqCount = getEquipmentCountByStatus(status.id);
-              const isSystem = isSystemStatus(status.id);
-              
-              return (
-                <div key={status.id} className={`bg-white rounded-xl border p-4 hover:shadow-md transition-shadow ${isSystem ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div 
-                        className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold flex-shrink-0"
-                        style={{ backgroundColor: status.color + '20', color: status.color }}
-                      >
-                        {status.icon}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-lg font-semibold text-gray-800">
-                            {status.name}
-                          </h3>
-                          {isSystem && (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              системный
-                            </span>
-                          )}
-                        </div>
-                        {status.description && (
-                          <p className="text-sm text-gray-500 mt-1">{status.description}</p>
-                        )}
-                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                          <span className="bg-gray-100 px-2 py-0.5 rounded">🖥️ {eqCount} единиц оборудования</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      {eqCount > 0 && (
-                        <button
-                          onClick={() => setViewingStatusEquipment(status.id)}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Просмотр оборудования"
-                        >
-                          🖥️
-                        </button>
-                      )}
-                      {!isSystem && (
-                        <button
-                          onClick={() => handleDeleteStatus(status.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          🗑️
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* ============ КАТЕГОРИИ ============ */}
-      {activeView === 'categories' && (
-        <>
-          <div className="flex justify-end gap-2 mb-4 flex-wrap">
-            {currentUser.role === 'superadmin' && categories.some(c => !isSystemCategory(c.id)) && (
-              <button
-                onClick={() => setShowClearCategoryConfirm(true)}
-                className="px-3 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                🗑️ Очистить
-              </button>
-            )}
-            <button
-              onClick={() => { setShowCategoryForm(true); setNewCategoryName(''); setNewCategoryIcon('📦'); setNewCategoryDesc(''); setNewCategoryParent(''); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-            >
-              ➕ Добавить категорию
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {getCategoryTree().map(cat => {
-              const isCollapsed = collapsedCategories.has(cat.id);
-              const isSystem = isSystemCategory(cat.id);
-              const bgColor = isSystem ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100';
-              
-              return (
-                <div key={cat.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <div className={`p-4 flex items-center justify-between border-b ${bgColor}`}>
-                    <div className="flex items-center gap-3 flex-1">
-                      {cat.children.length > 0 && (
-                        <button
-                          onClick={() => {
-                            setCollapsedCategories(prev => {
-                              const newSet = new Set(prev);
-                              if (newSet.has(cat.id)) {
-                                newSet.delete(cat.id);
-                              } else {
-                                newSet.add(cat.id);
-                              }
-                              return newSet;
-                            });
-                          }}
-                          className="p-1 hover:bg-white/50 rounded transition-colors"
-                        >
-                          <span className="text-lg">{isCollapsed ? '▶️' : '▼️'}</span>
-                        </button>
-                      )}
-                      {cat.children.length === 0 && <div className="w-7" />}
-                      <span className="text-2xl">{cat.icon}</span>
-                      <div>
-                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                          {cat.name}
-                          {isSystem && (
-                            <span className="text-xs bg-white/70 px-2 py-0.5 rounded-full text-gray-600">
-                              системная
-                            </span>
-                          )}
-                        </h3>
-                        <div className="text-xs text-gray-500 flex gap-3">
-                          <span>🖥️ {cat.equipmentCount} ед. оборудования</span>
-                          {cat.children.length > 0 && <span>📁 {cat.children.length} вложенных</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      {cat.equipmentCount > 0 && (
-                        <button
-                          onClick={() => setViewingCategoryEquipment(cat.id)}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Просмотр оборудования"
-                        >
-                          🖥️
-                        </button>
-                      )}
-                      {!isSystem && (
-                        <button
-                          onClick={() => handleDeleteCategory(cat.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          🗑️
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {cat.children.length > 0 && !isCollapsed && (
-                    <div className="p-2 space-y-1">
-                      {cat.children.map((child: any) => (
-                        <div key={child.id} className="flex items-center justify-between p-2 ml-6 rounded-lg hover:bg-gray-50">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">{child.icon}</span>
-                            <div>
-                              <span className="text-sm font-medium text-gray-700">{child.name}</span>
-                              <span className="text-xs text-gray-400 ml-2">🖥️ {child.equipmentCount}</span>
-                            </div>
-                          </div>
-                          <div className="flex gap-1">
-                            {child.equipmentCount > 0 && (
-                              <button
-                                onClick={() => setViewingCategoryEquipment(child.id)}
-                                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
-                                title="Просмотр оборудования"
-                              >
-                                🖥️
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleDeleteCategory(child.id)}
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* ============ ЛОГИ ============ */}
-      {activeView === 'logs' && (
-        <LogViewer showToast={showToast} currentUser={currentUser} />
-      )}
-
-      {/* ============ НАСТРОЙКИ ============ */}
-      {activeView === 'settings' && (
-        <Settings showToast={showToast} />
-      )}
-
-      {/* ============ ПОЛЬЗОВАТЕЛИ ============ */}
-      {activeView === 'users' && (currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
-        <UserManagement currentUser={currentUser} showToast={showToast} />
-      )}
-    </>
-  );
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {settings.menuPosition === 'top' ? (
-        <>
-          {/* Header */}
-          <header className="bg-white shadow-sm border-b border-gray-200">
+    <div className={`min-h-screen ${settings.theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      {settings.menuPosition === 'left' && (
+        <Sidebar
+          activeView={activeView}
+          setActiveView={setActiveView}
+          stats={stats}
+          empStats={empStats}
+          departments={departments}
+          locations={locations}
+          statuses={statuses}
+          categories={categories}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
+      )}
+      
+      <div className={settings.menuPosition === 'left' ? 'sidebar-content' : ''}>
+        {settings.menuPosition === 'top' && (
+          <header className={`${settings.theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} shadow-sm border-b`}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                   <span className="text-3xl">🖥️</span>
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-800">{settings.organizationName}</h1>
-                    <p className="text-sm text-gray-500">Система управления оборудованием, сотрудниками и оргструктурой</p>
+                    <h1 className={`text-2xl font-bold ${settings.theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{settings.organizationName}</h1>
+                    <p className={`text-sm ${settings.theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Система управления оборудованием, сотрудниками и оргструктурой</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-                    <span className="text-lg">{currentUser.role === 'superadmin' ? '👑' : currentUser.role === 'admin' ? '🔑' : '👤'}</span>
+                    <span className="text-lg">{currentUser.role === 'superadmin' ? '👑' : currentUser.role === 'admin' ? '🔑' : currentUser.role === 'observer' ? '👁️' : '👤'}</span>
                     <span className="text-sm font-medium text-gray-700">{currentUser.fullName}</span>
                   </div>
                   <button onClick={handleExport} className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700">
@@ -1281,6 +654,8 @@ function App() {
 
               {/* Navigation Tabs */}
               <div className="flex gap-2 mt-4 border-b border-gray-200 -mb-4 overflow-x-auto">
+            {currentUser.role !== 'user' && (
+              <>
                 <button
                   onClick={() => setActiveView('structure')}
                   className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
@@ -1297,14 +672,18 @@ function App() {
                 >
                   👥 Сотрудники <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{empStats.total}</span>
                 </button>
-                <button
-                  onClick={() => setActiveView('equipment')}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    activeView === 'equipment' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  🖥️ Оборудование <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{stats.total}</span>
-                </button>
+              </>
+            )}
+            <button
+              onClick={() => setActiveView('equipment')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                activeView === 'equipment' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              🖥️ Оборудование <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{currentUser.role === 'user' ? (currentUser.employee_id ? getEquipmentByEmployee(currentUser.employee_id).length : 0) : stats.total}</span>
+            </button>
+            {currentUser.role !== 'user' && (
+              <>
                 <button
                   onClick={() => setActiveView('locations')}
                   className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
@@ -1329,82 +708,499 @@ function App() {
                 >
                   📁 Категории <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{categories.length}</span>
                 </button>
-                <button
-                  onClick={() => setActiveView('logs')}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    activeView === 'logs' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  📋 Логи
-                </button>
-                <button
-                  onClick={() => setActiveView('settings')}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    activeView === 'settings' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  ⚙️ Настройки
-                </button>
-                {(currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
-                  <button
-                    onClick={() => setActiveView('users')}
-                    className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                      activeView === 'users' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    👥 Пользователи
-                  </button>
-                )}
+              </>
+            )}
+            {currentUser.role === 'superadmin' && (
+              <button
+                onClick={() => setActiveView('logs')}
+                className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                  activeView === 'logs' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                📋 Логи
+              </button>
+            )}
+            {currentUser.role !== 'user' && (
+              <button
+                onClick={() => setActiveView('settings')}
+                className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                  activeView === 'settings' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                ⚙️ Настройки
+              </button>
+            )}
+            {(currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
+              <button
+                onClick={() => setActiveView('users')}
+                className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                  activeView === 'users' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                👥 Пользователи
+              </button>
+            )}
               </div>
             </div>
           </header>
+        )}
 
-          {/* Main Content */}
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            {mainContent}
-          </main>
-        </>
-      ) : (
-        <div className="sidebar-layout">
-          <Sidebar
-            activeView={activeView}
-            setActiveView={setActiveView}
-            stats={stats}
-            empStats={empStats}
-            departments={departments}
-            locations={locations}
-            statuses={statuses}
-            categories={categories}
-            currentUser={currentUser}
-            onLogout={handleLogout}
-          />
-          <div className="sidebar-content">
-            <main className="p-6">
-              {mainContent}
-            </main>
-          </div>
-        </div>
-      )}
-
-      {/* Toast Notifications */}
-      {toasts.length > 0 && (
-        <div className="fixed top-4 right-4 z-[100] space-y-2">
-          {toasts.map(toast => (
-            <div
-              key={toast.id}
-              className={`px-4 py-3 rounded-lg shadow-lg text-white font-medium ${
-                toast.type === 'success' ? 'bg-green-600' :
-                toast.type === 'error' ? 'bg-red-600' :
-                'bg-blue-600'
-              }`}
-            >
-              {toast.message}
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Structure View */}
+        {activeView === 'structure' && currentUser.role !== 'user' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Оргструктура</h2>
+            {currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                {currentUser.role === 'superadmin' && (
+                  <>
+                    <button onClick={() => setShowDeptTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                      🎲 Тестовая структура
+                    </button>
+                    {departments.some(d => !isSystemDepartment(d.id)) && (
+                      <button onClick={() => setShowClearDeptConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        🗑️ Очистить
+                      </button>
+                    )}
+                  </>
+                )}
+                <button onClick={() => setShowDeptForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить подразделение
+                </button>
+              </div>
+            )}
+            <div className="space-y-3">
+              {getDepartmentTree().map((dept: any) => {
+                const DepartmentItem = ({ department, level = 0 }: { department: any; level?: number }) => {
+                  const [isExpanded, setIsExpanded] = useState(true);
+                  const hasChildren = department.children && department.children.length > 0;
+                  
+                  return (
+                    <div>
+                      <div 
+                        key={department.id} 
+                        className="bg-white rounded-lg p-4 border border-gray-200"
+                        style={{ marginLeft: `${level * 20}px` }}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            {hasChildren && (
+                              <button 
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                {isExpanded ? '▼' : '▶'}
+                              </button>
+                            )}
+                            {!hasChildren && <div className="w-4" />}
+                            <h3 className="font-semibold">{department.name}</h3>
+                          </div>
+                          <div className="flex gap-2">
+                            {department.employeeCount > 0 && (
+                              <button onClick={() => setViewingDeptEmployees(department.id)} className="text-green-600 hover:text-green-800">
+                                👥 {department.employeeCount}
+                              </button>
+                            )}
+                            {getEquipmentByDepartment(department.id).length > 0 && (
+                              <button onClick={() => setViewingDeptEquipment(department.id)} className="text-blue-600 hover:text-blue-800">
+                                🖥️ {getEquipmentByDepartment(department.id).length}
+                              </button>
+                            )}
+                            {!isSystemDepartment(department.id) && currentUser.role !== 'observer' && (
+                              <button onClick={() => handleDeleteDepartment(department.id)} className="text-red-600 hover:text-red-800">
+                                🗑️
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {hasChildren && isExpanded && (
+                        <div className="mt-2 space-y-2">
+                          {department.children.map((child: any) => (
+                            <DepartmentItem key={child.id} department={child} level={level + 1} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                };
+                
+                return <DepartmentItem key={dept.id} department={dept} />;
+              })}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Модальные окна для сотрудников */}
+        {/* Employees View */}
+        {activeView === 'employees' && currentUser.role !== 'user' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Сотрудники</h2>
+            {currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                {currentUser.role === 'superadmin' && (
+                  <>
+                    <button onClick={() => setShowEmpTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                      🎲 Тестовые данные
+                    </button>
+                    {employees.length > 0 && (
+                      <button onClick={() => setShowEmpClearConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        🗑️ Очистить
+                      </button>
+                    )}
+                  </>
+                )}
+                <button onClick={() => setShowEmpForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить сотрудника
+                </button>
+              </div>
+            )}
+            {selectedEmployeeIds.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-blue-800">
+                    <strong>Выбрано: {selectedEmployeeIds.length}</strong> сотрудников
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowBulkEditEmployee(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      ✏️ Редактировать
+                    </button>
+                    <button
+                      onClick={() => setShowBulkDeleteEmployeeConfirm(true)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                    >
+                      🗑️ Удалить
+                    </button>
+                    <button
+                      onClick={() => setSelectedEmployeeIds([])}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <EmployeeList
+              employees={employees}
+              departments={departments}
+              currentUserRole={currentUser.role}
+              selectedIds={selectedEmployeeIds}
+              onSelectionChange={currentUser.role !== 'observer' ? setSelectedEmployeeIds : undefined}
+              onEdit={(emp) => { setEditingEmployee(emp); setShowEmpForm(false); }}
+              onDelete={handleDeleteEmployee}
+              onView={(emp) => setViewingEmployee(emp)}
+            />
+          </div>
+        )}
+
+        {/* Equipment View */}
+        {activeView === 'equipment' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Оборудование</h2>
+            {currentUser.role !== 'user' && currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                {currentUser.role === 'superadmin' && (
+                  <>
+                    {employees.length > 0 ? (
+                      <button onClick={() => setShowTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                        🎲 Тестовые данные
+                      </button>
+                    ) : (
+                      <div className="px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm">
+                        ⚠️ Сначала добавьте сотрудников
+                      </div>
+                    )}
+                    {equipment.length > 0 && (
+                      <button onClick={() => setShowClearConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        🗑️ Очистить
+                      </button>
+                    )}
+                  </>
+                )}
+                <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить
+                </button>
+              </div>
+            )}
+            <EquipmentList
+              equipment={equipment}
+              statuses={statuses}
+              employees={allEmployees}
+              currentUserRole={currentUser.role}
+              selectedIds={selectedEquipmentIds}
+              onSelectionChange={currentUser.role !== 'user' && currentUser.role !== 'observer' ? setSelectedEquipmentIds : undefined}
+              onEdit={(item) => { setEditingItem(item); setShowForm(false); }}
+              onDelete={handleDelete}
+              onView={(item) => setViewingItem(item)}
+              onViewEmployee={(emp) => setViewingEmployee(emp)}
+            />
+          </div>
+        )}
+
+        {/* Locations View */}
+        {activeView === 'locations' && currentUser.role !== 'user' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Местоположения</h2>
+            {currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                {currentUser.role === 'superadmin' && (
+                  <>
+                    <button onClick={() => setShowLocTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                      🎲 Тестовые данные
+                    </button>
+                    {locations.some(l => !isSystemLocation(l.id)) && (
+                      <button onClick={() => setShowClearLocConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        🗑️ Очистить
+                      </button>
+                    )}
+                  </>
+                )}
+                <button onClick={() => setShowLocForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить местоположение
+                </button>
+              </div>
+            )}
+            <div className="space-y-3">
+              {locations.filter(loc => loc.parent_id === null).map(loc => {
+                const LocationItem = ({ location, level = 0 }: { location: any; level?: number }) => {
+                  const [isExpanded, setIsExpanded] = useState(true);
+                  const children = locations.filter(l => l.parent_id === location.id);
+                  const hasChildren = children.length > 0;
+                  
+                  return (
+                    <div>
+                      <div 
+                        key={location.id} 
+                        className="bg-white rounded-lg p-4 border border-gray-200"
+                        style={{ marginLeft: `${level * 20}px` }}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            {hasChildren && (
+                              <button 
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                {isExpanded ? '▼' : '▶'}
+                              </button>
+                            )}
+                            {!hasChildren && <div className="w-4" />}
+                            <h3 className="font-semibold">{location.name}</h3>
+                          </div>
+                          <div className="flex gap-2">
+                            {getEquipmentByLocation(location.id, false).length > 0 && (
+                              <button onClick={() => setViewingLocationEquipment(location.id)} className="text-blue-600 hover:text-blue-800">
+                                🖥️ {getEquipmentByLocation(location.id, false).length}
+                              </button>
+                            )}
+                            {!isSystemLocation(location.id) && currentUser.role !== 'observer' && (
+                              <button onClick={() => handleDeleteLocation(location.id)} className="text-red-600 hover:text-red-800">
+                                🗑️
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {hasChildren && isExpanded && (
+                        <div className="mt-2 space-y-2">
+                          {children.map((child: any) => (
+                            <LocationItem key={child.id} location={child} level={level + 1} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                };
+                
+                return <LocationItem key={loc.id} location={loc} />;
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Statuses View */}
+        {activeView === 'statuses' && currentUser.role !== 'user' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Статусы</h2>
+            {currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                {currentUser.role === 'superadmin' && (
+                  <>
+                    <button onClick={() => setShowStatusTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                      🎲 Тестовые данные
+                    </button>
+                    {statuses.some(s => !isSystemStatus(s.id)) && (
+                      <button onClick={() => setShowClearStatusConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        🗑️ Очистить
+                      </button>
+                    )}
+                  </>
+                )}
+                <button onClick={() => setShowStatusForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить статус
+                </button>
+              </div>
+            )}
+            <div className="space-y-3">
+              {statuses.map(status => (
+                <div key={status.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold">{status.icon} {status.name}</h3>
+                    <div className="flex gap-2">
+                      {getEquipmentCountByStatus(status.id) > 0 && (
+                        <button onClick={() => setViewingStatusEquipment(status.id)} className="text-blue-600 hover:text-blue-800">
+                          🖥️ {getEquipmentCountByStatus(status.id)}
+                        </button>
+                      )}
+                      {!isSystemStatus(status.id) && currentUser.role !== 'observer' && (
+                        <button onClick={() => handleDeleteStatus(status.id)} className="text-red-600 hover:text-red-800">
+                          🗑️
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Categories View */}
+        {activeView === 'categories' && currentUser.role !== 'user' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Категории</h2>
+            {currentUser.role !== 'observer' && (
+              <div className="flex justify-end gap-2 mb-4">
+                {currentUser.role === 'superadmin' && (
+                  <>
+                    <button onClick={() => setShowCatTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                      🎲 Тестовые данные
+                    </button>
+                    {categories.some(c => !isSystemCategory(c.id)) && (
+                      <button onClick={() => setShowClearCatConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        🗑️ Очистить
+                      </button>
+                    )}
+                  </>
+                )}
+                <button onClick={() => setShowCategoryForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  ➕ Добавить категорию
+                </button>
+              </div>
+            )}
+            <div className="space-y-3">
+              {getCategoryTree().map((cat: any) => {
+                const CategoryItem = ({ category, level = 0 }: { category: any; level?: number }) => {
+                  const [isExpanded, setIsExpanded] = useState(true);
+                  const hasChildren = category.children && category.children.length > 0;
+                  
+                  return (
+                    <div>
+                      <div 
+                        key={category.id} 
+                        className="bg-white rounded-lg p-4 border border-gray-200"
+                        style={{ marginLeft: `${level * 20}px` }}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            {hasChildren && (
+                              <button 
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                {isExpanded ? '▼' : '▶'}
+                              </button>
+                            )}
+                            {!hasChildren && <div className="w-4" />}
+                            <h3 className="font-semibold">{category.icon} {category.name}</h3>
+                          </div>
+                          <div className="flex gap-2">
+                            {getEquipmentByCategory(category.id).length > 0 && (
+                              <button onClick={() => setViewingCategoryEquipment(category.id)} className="text-blue-600 hover:text-blue-800">
+                                🖥️ {getEquipmentByCategory(category.id).length}
+                              </button>
+                            )}
+                            {!isSystemCategory(category.id) && currentUser.role !== 'observer' && (
+                              <button onClick={() => handleDeleteCategory(category.id)} className="text-red-600 hover:text-red-800">
+                                🗑️
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {hasChildren && isExpanded && (
+                        <div className="mt-2 space-y-2">
+                          {category.children.map((child: any) => (
+                            <CategoryItem key={child.id} category={child} level={level + 1} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                };
+                
+                return <CategoryItem key={cat.id} category={cat} />;
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Logs View */}
+        {activeView === 'logs' && currentUser.role === 'superadmin' && (
+          <LogViewer showToast={showToast} currentUser={currentUser} />
+        )}
+
+        {/* Settings View */}
+        {activeView === 'settings' && currentUser.role !== 'user' && (
+          <Settings showToast={showToast} />
+        )}
+
+        {/* Users View */}
+        {activeView === 'users' && (currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
+          <UserManagement currentUser={currentUser} showToast={showToast} />
+        )}
+      </main>
+
+      {/* Modals */}
+      {showForm && (
+        <EquipmentForm
+          categories={categories}
+          employees={allEmployees}
+          locations={locations}
+          statuses={statuses}
+          onSave={handleAdd}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+      {editingItem && (
+        <EquipmentForm
+          categories={categories}
+          employees={allEmployees}
+          locations={locations}
+          statuses={statuses}
+          equipment={editingItem}
+          onSave={handleEdit}
+          onCancel={() => setEditingItem(null)}
+        />
+      )}
+      {viewingItem && (
+        <EquipmentDetail
+          equipment={viewingItem}
+          employees={allEmployees}
+          statuses={statuses}
+          currentUserRole={currentUser.role}
+          onClose={() => setViewingItem(null)}
+          onEdit={() => { setEditingItem(viewingItem); setViewingItem(null); }}
+          onViewEmployee={(emp) => {
+            setViewingItem(null);
+            setViewingEmployee(emp);
+          }}
+        />
+      )}
       {showEmpForm && (
         <EmployeeForm
           departments={departments}
@@ -1424,10 +1220,544 @@ function App() {
         <EmployeeDetail
           employee={viewingEmployee}
           departments={departments}
+          currentUserRole={currentUser.role}
           onClose={() => setViewingEmployee(null)}
           onEdit={() => { setEditingEmployee(viewingEmployee); setViewingEmployee(null); }}
         />
       )}
+
+      {/* Test Data Confirmation Modals */}
+      {showLocTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Создать тестовые местоположения?</h3>
+            <p className="text-gray-600 mb-6">Будут созданы тестовые местоположения: Филиал Север, Филиал Юг, Склад №1, Склад №2</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowLocTestConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleGenerateTestLocations} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearLocConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Очистить местоположения?</h3>
+            <p className="text-gray-600 mb-6">Все пользовательские местоположения будут удалены. Системные местоположения (Главный офис, Вне офиса) будут сохранены.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowClearLocConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  const count = locations.filter(l => !isSystemLocation(l.id)).length;
+                  const result = clearAllLocations();
+                  if (!result.success) {
+                    showToast(result.message, 'error');
+                  } else {
+                    addLog('clear', 'location', undefined, undefined, `Очищено ${count} местоположений`, currentUser?.id, currentUser?.fullName);
+                    loadLocations();
+                    loadEquipment();
+                    showToast(result.message, 'success');
+                  }
+                  setShowClearLocConfirm(false);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Очистить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLocForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Добавить местоположение</h3>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                <input
+                  type="text"
+                  value={newLocName}
+                  onChange={(e) => setNewLocName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите название местоположения"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
+                <textarea
+                  value={newLocDesc}
+                  onChange={(e) => setNewLocDesc(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите описание (необязательно)"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Родительское местоположение</label>
+                <select
+                  value={newLocParent}
+                  onChange={(e) => setNewLocParent(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Нет (корневое местоположение)</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowLocForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleAddLocation} disabled={!newLocName.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCatTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Создать тестовые категории?</h3>
+            <p className="text-gray-600 mb-6">Будут созданы тестовые категории: Ноутбуки, Настольные ПК, Серверы, Принтеры, Сканеры, Мониторы</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowCatTestConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleGenerateTestCategories} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCategoryForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Добавить категорию</h3>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите название категории"
+                  autoFocus
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Иконка *</label>
+                  <input
+                    type="text"
+                    value={newCategoryIcon}
+                    onChange={(e) => setNewCategoryIcon(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="📦"
+                    maxLength={2}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Родительская категория</label>
+                  <select
+                    value={newCategoryParent}
+                    onChange={(e) => setNewCategoryParent(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Нет (корневая категория)</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
+                <textarea
+                  value={newCategoryDesc}
+                  onChange={(e) => setNewCategoryDesc(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите описание (необязательно)"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowCategoryForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleAddCategory} disabled={!newCategoryName.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearCatConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Очистить категории?</h3>
+            <p className="text-gray-600 mb-6">Все пользовательские категории будут удалены. Системные категории (Компьютеры, Периферия) будут сохранены.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowClearCatConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  const count = categories.filter(c => !isSystemCategory(c.id)).length;
+                  const result = clearAllCategories();
+                  if (!result.success) {
+                    showToast(result.message, 'error');
+                  } else {
+                    addLog('clear', 'category', undefined, undefined, `Очищено ${count} категорий`, currentUser?.id, currentUser?.fullName);
+                    loadCategories();
+                    loadEquipment();
+                    showToast(result.message, 'success');
+                  }
+                  setShowClearCatConfirm(false);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Очистить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEmpTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Создать тестовых сотрудников?</h3>
+            <p className="text-gray-600 mb-6">Будут созданы тестовые сотрудники (от 5 до 25 человек) со случайными данными</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowEmpTestConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleGenerateTestEmployees} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEmpClearConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Удалить всех сотрудников?</h3>
+            <p className="text-gray-600 mb-6">Будут удалены все сотрудники. Это действие нельзя отменить.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowEmpClearConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleClearAllEmployees} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                Удалить всех
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Создать тестовое оборудование?</h3>
+            <p className="text-gray-600 mb-6">Будет создано от 10 до 60 единиц тестового оборудования со случайными данными.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowTestConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleGenerateTest} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Удалить всё оборудование?</h3>
+            <p className="text-gray-600 mb-6">Будет удалено всё оборудование. Это действие нельзя отменить.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowClearConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleClearAll} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                Удалить всё
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeptForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Добавить подразделение</h3>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                <input
+                  type="text"
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите название подразделения"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Родительское подразделение</label>
+                <select
+                  value={newDeptParent}
+                  onChange={(e) => setNewDeptParent(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Нет (корневое подразделение)</option>
+                  {departments.map(dept => (
+                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowDeptForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleAddDepartment} disabled={!newDeptName.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeptForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Добавить подразделение</h3>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                <input
+                  type="text"
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите название подразделения"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Родительское подразделение</label>
+                <select
+                  value={newDeptParent}
+                  onChange={(e) => setNewDeptParent(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Нет (корневое подразделение)</option>
+                  {departments.map(dept => (
+                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowDeptForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleAddDepartment} disabled={!newDeptName.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeptForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Добавить подразделение</h3>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                <input
+                  type="text"
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите название подразделения"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Родительское подразделение</label>
+                <select
+                  value={newDeptParent}
+                  onChange={(e) => setNewDeptParent(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Нет (корневое подразделение)</option>
+                  {departments.map(dept => (
+                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowDeptForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleAddDepartment} disabled={!newDeptName.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeptForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Добавить подразделение</h3>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                <input
+                  type="text"
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите название подразделения"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Родительское подразделение</label>
+                <select
+                  value={newDeptParent}
+                  onChange={(e) => setNewDeptParent(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Нет (корневое подразделение)</option>
+                  {departments.map(dept => (
+                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowDeptForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleAddDepartment} disabled={!newDeptName.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeptTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Создать тестовую структуру?</h3>
+            <p className="text-gray-600 mb-6">Будут созданы тестовые подразделения: ИТ-отдел, Бухгалтерия, Отдел кадров, Отдел продаж, Маркетинг</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowDeptTestConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleGenerateTestDepartments} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearDeptConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Очистить оргструктуру?</h3>
+            <p className="text-gray-600 mb-6">Все пользовательские подразделения будут удалены. Системные подразделения (Руководство, Все сотрудники, Вне штата) будут сохранены.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowClearDeptConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  const result = clearAllDepartments();
+                  if (!result.success) {
+                    showToast(result.message, 'error');
+                  } else {
+                    addLog('clear', 'department', undefined, undefined, result.message, currentUser?.id, currentUser?.fullName);
+                    loadDepartments();
+                    loadEmployees();
+                    loadAllEmployees();
+                    showToast(result.message, 'success');
+                  }
+                  setShowClearDeptConfirm(false);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Очистить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkDeleteEmployeeConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Удалить выбранных сотрудников?</h3>
+            <p className="text-gray-600 mb-6">Будут удалены {selectedEmployeeIds.length} сотрудников. Это действие нельзя отменить.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowBulkDeleteEmployeeConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  const result = bulkDeleteEmployee(selectedEmployeeIds);
+                  if (!result.success) {
+                    showToast(result.message, 'error');
+                  } else {
+                    setSelectedEmployeeIds([]);
+                    setShowBulkDeleteEmployeeConfirm(false);
+                    loadEmployees();
+                    loadAllEmployees();
+                    showToast(result.message, 'success');
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showBulkEditEmployee && (
         <BulkEditEmployee
           selectedIds={selectedEmployeeIds}
@@ -1436,208 +1766,75 @@ function App() {
             setShowBulkEditEmployee(false);
             setSelectedEmployeeIds([]);
             loadEmployees();
-            loadDepartments();
-            loadEquipment();
+            loadAllEmployees();
             showToast('Сотрудники обновлены', 'success');
           }}
           onCancel={() => setShowBulkEditEmployee(false)}
         />
       )}
-      {showBulkDeleteEmployeeConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">⚠️</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Удалить сотрудников?</h3>
-            <p className="text-gray-600 text-center mb-4">
-              Будет удалено <strong>{selectedEmployeeIds.length}</strong> сотрудников.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowBulkDeleteEmployeeConfirm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
+
+      {showStatusTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Создать тестовые статусы?</h3>
+            <p className="text-gray-600 mb-6">Будут созданы тестовые статусы: Списано, На складе, В пути, Зарезервировано</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowStatusTestConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleGenerateTestStatuses} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearStatusConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Очистить статусы?</h3>
+            <p className="text-gray-600 mb-6">Все пользовательские статусы будут удалены. Системные статусы (В работе, Неисправно, В ремонте) будут сохранены.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowClearStatusConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
                 Отмена
               </button>
               <button
                 onClick={() => {
-                  const result = bulkDeleteEmployee(selectedEmployeeIds);
+                  const count = statuses.filter(s => !isSystemStatus(s.id)).length;
+                  const result = clearAllStatuses();
                   if (!result.success) {
                     showToast(result.message, 'error');
-                    setShowBulkDeleteEmployeeConfirm(false);
-                    return;
+                  } else {
+                    addLog('clear', 'status', undefined, undefined, `Очищено ${count} статусов`, currentUser?.id, currentUser?.fullName);
+                    loadStatuses();
+                    loadEquipment();
+                    showToast(result.message, 'success');
                   }
-                  setSelectedEmployeeIds([]);
-                  setShowBulkDeleteEmployeeConfirm(false);
-                  loadEmployees();
-                  loadDepartments();
-                  showToast(result.message, 'success');
+                  setShowClearStatusConfirm(false);
                 }}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
               >
-                Удалить
+                Очистить
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Модальные окна для оборудования */}
-      {showForm && (
-        <EquipmentForm
-          categories={categories}
-          employees={employees}
-          locations={locations}
-          statuses={statuses}
-          onSave={handleAdd}
-          onCancel={() => setShowForm(false)}
-        />
-      )}
-      {editingItem && (
-        <EquipmentForm
-          categories={categories}
-          employees={employees}
-          locations={locations}
-          statuses={statuses}
-          equipment={editingItem}
-          onSave={handleEdit}
-          onCancel={() => setEditingItem(null)}
-        />
-      )}
-      {viewingItem && (
-        <EquipmentDetail
-          equipment={viewingItem}
-          employees={employees}
-          statuses={statuses}
-          onClose={() => setViewingItem(null)}
-          onEdit={() => { setEditingItem(viewingItem); setViewingItem(null); }}
-          onViewEmployee={(emp) => {
-            setViewingItem(null);
-            setViewingEmployee(emp);
-          }}
-        />
-      )}
-      {showBulkEditEquipment && (
-        <BulkEditEquipment
-          selectedIds={selectedEquipmentIds}
-          categories={categories}
-          employees={employees}
-          locations={locations}
-          statuses={statuses}
-          onSave={() => {
-            setShowBulkEditEquipment(false);
-            setSelectedEquipmentIds([]);
-            loadEquipment();
-            showToast('Оборудование обновлено', 'success');
-          }}
-          onCancel={() => setShowBulkEditEquipment(false)}
-        />
-      )}
-      {showBulkDeleteEquipmentConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">⚠️</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Удалить оборудование?</h3>
-            <p className="text-gray-600 text-center mb-4">
-              Будет удалено <strong>{selectedEquipmentIds.length}</strong> единиц оборудования.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowBulkDeleteEquipmentConfirm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={() => {
-                  bulkDeleteEquipment(selectedEquipmentIds);
-                  setSelectedEquipmentIds([]);
-                  setShowBulkDeleteEquipmentConfirm(false);
-                  loadEquipment();
-                  showToast('Оборудование удалено', 'success');
-                }}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                Удалить
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Модальные окна для местоположений */}
-      {showLocForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-800">➕ Новое местоположение</h2>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
-                <input
-                  type="text"
-                  value={newLocName}
-                  onChange={(e) => setNewLocName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Например: Кабинет 301"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Родительское местоположение</label>
-                <select
-                  value={newLocParent}
-                  onChange={(e) => setNewLocParent(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">— Корневое местоположение —</option>
-                  {locations.map(l => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
-                <textarea
-                  value={newLocDesc}
-                  onChange={(e) => setNewLocDesc(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button onClick={() => setShowLocForm(false)} className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                  Отмена
-                </button>
-                <button
-                  onClick={handleAddLocation}
-                  disabled={!newLocName.trim()}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  Создать
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Модальные окна для статусов */}
       {showStatusForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-800">➕ Новый статус</h2>
-            </div>
-            <div className="p-6 space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Добавить статус</h3>
+            <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
                 <input
                   type="text"
                   value={newStatusName}
                   onChange={(e) => setNewStatusName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Например: На утилизации"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите название статуса"
                   autoFocus
                 />
               </div>
@@ -1657,7 +1854,7 @@ function App() {
                     type="text"
                     value={newStatusIcon}
                     onChange={(e) => setNewStatusIcon(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="✓"
                     maxLength={2}
                   />
@@ -1668,725 +1865,42 @@ function App() {
                 <textarea
                   value={newStatusDesc}
                   onChange={(e) => setNewStatusDesc(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите описание (необязательно)"
                   rows={3}
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button onClick={() => setShowStatusForm(false)} className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                  Отмена
-                </button>
-                <button
-                  onClick={handleAddStatus}
-                  disabled={!newStatusName.trim()}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  Создать
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Модальные окна для категорий */}
-      {showCategoryForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-800">➕ Новая категория</h2>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
-                <input
-                  type="text"
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Например: Ноутбуки"
-                  autoFocus
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Иконка *</label>
-                  <input
-                    type="text"
-                    value={newCategoryIcon}
-                    onChange={(e) => setNewCategoryIcon(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="📦"
-                    maxLength={2}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Родительская категория</label>
-                  <select
-                    value={newCategoryParent}
-                    onChange={(e) => setNewCategoryParent(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">— Корневая категория —</option>
-                    {categories.map(c => (
-                      <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
-                <textarea
-                  value={newCategoryDesc}
-                  onChange={(e) => setNewCategoryDesc(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button onClick={() => setShowCategoryForm(false)} className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                  Отмена
-                </button>
-                <button
-                  onClick={handleAddCategory}
-                  disabled={!newCategoryName.trim()}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  Создать
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Подтверждения тестовых данных */}
-      {showTestConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">🎲</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Создать тестовые данные?</h3>
-            <p className="text-gray-600 text-center mb-4">Будет сгенерировано оборудование для каждой категории.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
-              <button onClick={handleGenerateTest} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Создать</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showClearConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">⚠️</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Удалить все записи?</h3>
-            <p className="text-gray-600 text-center mb-4">Будет удалено <strong>{stats.total}</strong> единиц оборудования.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowClearConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
-              <button onClick={handleClearAll} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Удалить всё</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showEmpTestConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">🎲</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Создать тестовых сотрудников?</h3>
-            <p className="text-gray-600 text-center mb-4">Будет сгенерировано от 10 до 50 сотрудников.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowEmpTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
-              <button onClick={handleGenerateTestEmployees} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Создать</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showEmpClearConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">⚠️</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Удалить всех сотрудников?</h3>
-            <p className="text-gray-600 text-center mb-4">Будет удалено <strong>{empStats.total}</strong> сотрудников.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowEmpClearConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
-              <button onClick={handleClearAllEmployees} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Удалить всех</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDeptTestConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">🎲</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Создать тестовую оргструктуру?</h3>
-            <p className="text-gray-600 text-center mb-4">Будет создано 5–10 корневых подразделений с дочерними отделами.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowDeptTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
-              <button onClick={handleGenerateTestDepartments} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Создать</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showClearDeptConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">⚠️</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Очистить оргструктуру?</h3>
-            <p className="text-gray-600 text-center mb-4">
-              Удалить все пользовательские подразделения? Системные подразделения будут сохранены.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowClearDeptConfirm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowStatusForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
                 Отмена
               </button>
-              <button
-                onClick={() => {
-                  const result = clearAllDepartments();
-                  if (!result.success) {
-                    showToast(result.message, 'error');
-                  } else {
-                    loadDepartments();
-                    loadEmployees();
-                    showToast(result.message, 'success');
-                  }
-                  setShowClearDeptConfirm(false);
-                }}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                Очистить
+              <button onClick={handleAddStatus} disabled={!newStatusName.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                Создать
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {showDeptForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-800">➕ Новое подразделение</h2>
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+          {toasts.map(toast => (
+            <div
+              key={toast.id}
+              className={`px-4 py-3 rounded-lg shadow-lg text-white ${
+                toast.type === 'success' ? 'bg-green-600' :
+                toast.type === 'error' ? 'bg-red-600' :
+                'bg-blue-600'
+              }`}
+            >
+              {toast.message}
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
-                <input
-                  type="text"
-                  value={newDeptName}
-                  onChange={(e) => setNewDeptName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Например: ИТ-отдел"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Родительское подразделение</label>
-                <select
-                  value={newDeptParent}
-                  onChange={(e) => setNewDeptParent(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">— Корневое подразделение —</option>
-                  {departments.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button onClick={() => setShowDeptForm(false)} className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                  Отмена
-                </button>
-                <button
-                  onClick={handleAddDepartment}
-                  disabled={!newDeptName.trim()}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  Создать
-                </button>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
       )}
-
-      {showLocTestConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">🎲</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Создать тестовые местоположения?</h3>
-            <p className="text-gray-600 text-center mb-4">Будет создано 15 типичных местоположений.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowLocTestConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Отмена</button>
-              <button onClick={handleGenerateTestLocations} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">Создать</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showClearLocConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">⚠️</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Очистить местоположения?</h3>
-            <p className="text-gray-600 text-center mb-4">
-              Удалить все пользовательские местоположения? Системные местоположения будут сохранены.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowClearLocConfirm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={() => {
-                  const result = clearAllLocations();
-                  if (!result.success) {
-                    showToast(result.message, 'error');
-                  } else {
-                    loadLocations();
-                    loadEquipment();
-                    showToast(result.message, 'success');
-                  }
-                  setShowClearLocConfirm(false);
-                }}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                Очистить
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showClearStatusConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">⚠️</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Очистить статусы?</h3>
-            <p className="text-gray-600 text-center mb-4">
-              Удалить все пользовательские статусы? Системные статусы будут сохранены.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowClearStatusConfirm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={() => {
-                  const result = clearAllStatuses();
-                  if (!result.success) {
-                    showToast(result.message, 'error');
-                  } else {
-                    loadStatuses();
-                    loadEquipment();
-                    showToast(result.message, 'success');
-                  }
-                  setShowClearStatusConfirm(false);
-                }}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                Очистить
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showClearCategoryConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-5xl text-center mb-4">⚠️</div>
-            <h3 className="text-xl font-bold text-gray-800 text-center mb-2">Очистить категории?</h3>
-            <p className="text-gray-600 text-center mb-4">
-              Удалить все пользовательские категории? Системные категории будут сохранены.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowClearCategoryConfirm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={() => {
-                  const result = clearAllCategories();
-                  if (!result.success) {
-                    showToast(result.message, 'error');
-                  } else {
-                    loadCategories();
-                    loadEquipment();
-                    showToast(result.message, 'success');
-                  }
-                  setShowClearCategoryConfirm(false);
-                }}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                Очистить
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Просмотр оборудования подразделения */}
-      {viewingDeptEquipment !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-800">
-                🖥️ Оборудование подразделения "{getDepartmentName(viewingDeptEquipment)}"
-              </h2>
-              <button 
-                onClick={() => setViewingDeptEquipment(null)} 
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="p-6">
-              {(() => {
-                const deptEquipment = getEquipmentByDepartment(viewingDeptEquipment);
-                if (deptEquipment.length === 0) {
-                  return (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="text-5xl mb-4">📦</div>
-                      <p>Нет закреплённого оборудования</p>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="space-y-3">
-                    {deptEquipment.map(eq => (
-                      <div key={eq.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-start gap-3">
-                          <span className="text-3xl">{eq.category_icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-gray-800">{eq.name}</div>
-                            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                              <span className="bg-gray-100 px-2 py-0.5 rounded">{eq.category_name}</span>
-                              {eq.manufacturer && <span>🏭 {eq.manufacturer}</span>}
-                              {eq.model && <span>📋 {eq.model}</span>}
-                              {eq.inventory_number && <span>📝 {eq.inventory_number}</span>}
-                              {eq.serial_number && <span>🔢 {eq.serial_number}</span>}
-                            </div>
-                            {eq.responsible_employee_id && (
-                              <div className="mt-2 text-xs text-gray-400">
-                                👤 {employees.find(e => e.id === eq.responsible_employee_id)?.full_name || 'Неизвестно'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setViewingDeptEquipment(null)}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Просмотр сотрудников подразделения */}
-      {viewingDeptEmployees !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-800">
-                👥 Сотрудники подразделения "{getDepartmentName(viewingDeptEmployees)}"
-              </h2>
-              <button 
-                onClick={() => setViewingDeptEmployees(null)} 
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="p-6">
-              {(() => {
-                const deptEmployees = employees.filter(emp => emp.department_id === viewingDeptEmployees);
-                if (deptEmployees.length === 0) {
-                  return (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="text-5xl mb-4">👥</div>
-                      <p>Нет сотрудников в подразделении</p>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="space-y-3">
-                    {deptEmployees.map(emp => {
-                      const genderIcon = emp.gender === 'female' ? '👩' : '👨';
-                      const empEquipmentCount = getEquipmentByEmployee(emp.id).length;
-                      return (
-                        <div key={emp.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                          <div className="flex items-start gap-3">
-                            <span className="text-3xl flex-shrink-0">{genderIcon}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <div className="font-semibold text-gray-800">{emp.full_name}</div>
-                                {emp.employee_type !== 'staff' && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                    {emp.employee_type === 'external' ? '🌐 Внешний' : '📝 Подрядчик'}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                                {emp.position && <span>💼 {emp.position}</span>}
-                                {emp.phone && <span>📞 {emp.phone}</span>}
-                                {emp.email && <span>✉️ {emp.email}</span>}
-                                {emp.city && <span>📍 {emp.city}</span>}
-                                {empEquipmentCount > 0 && (
-                                  <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                                    🖥️ {empEquipmentCount} {empEquipmentCount === 1 ? 'устройство' : empEquipmentCount < 5 ? 'устройства' : 'устройств'}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => {
-                                setViewingDeptEmployees(null);
-                                setViewingEmployee(emp);
-                              }}
-                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Просмотр карточки"
-                            >
-                              👁️
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setViewingDeptEmployees(null)}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Просмотр оборудования по статусу */}
-      {viewingStatusEquipment !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-800">
-                🖥️ Оборудование со статусом "{statuses.find(s => s.id === viewingStatusEquipment)?.name}"
-              </h2>
-              <button 
-                onClick={() => setViewingStatusEquipment(null)} 
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="p-6">
-              {(() => {
-                const statusEquipment = getEquipmentByStatus(viewingStatusEquipment);
-                if (statusEquipment.length === 0) {
-                  return (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="text-5xl mb-4">📦</div>
-                      <p>Нет оборудования с этим статусом</p>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="space-y-3">
-                    {statusEquipment.map(eq => (
-                      <div key={eq.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-start gap-3">
-                          <span className="text-3xl">{eq.category_icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-gray-800">{eq.name}</div>
-                            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                              <span className="bg-gray-100 px-2 py-0.5 rounded">{eq.category_name}</span>
-                              {eq.manufacturer && <span>🏭 {eq.manufacturer}</span>}
-                              {eq.model && <span>📋 {eq.model}</span>}
-                              {eq.inventory_number && <span>📝 {eq.inventory_number}</span>}
-                              {eq.serial_number && <span>🔢 {eq.serial_number}</span>}
-                            </div>
-                            {eq.responsible_employee_id && (
-                              <div className="mt-2 text-xs text-gray-400">
-                                👤 {employees.find(e => e.id === eq.responsible_employee_id)?.full_name || 'Неизвестно'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setViewingStatusEquipment(null)}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Просмотр оборудования по категории */}
-      {viewingCategoryEquipment !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-800">
-                🖥️ Оборудование в категории "{getCategoryFullPath(viewingCategoryEquipment)}"
-              </h2>
-              <button 
-                onClick={() => setViewingCategoryEquipment(null)} 
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="p-6">
-              {(() => {
-                const categoryEquipment = getEquipmentByCategory(viewingCategoryEquipment, true);
-                if (categoryEquipment.length === 0) {
-                  return (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="text-5xl mb-4">📦</div>
-                      <p>Нет оборудования в этой категории</p>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="space-y-3">
-                    {categoryEquipment.map(eq => (
-                      <div key={eq.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-start gap-3">
-                          <span className="text-3xl">{eq.category_icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-gray-800">{eq.name}</div>
-                            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                              <span className="bg-gray-100 px-2 py-0.5 rounded">{getCategoryFullPath(eq.category_id)}</span>
-                              {eq.manufacturer && <span>🏭 {eq.manufacturer}</span>}
-                              {eq.model && <span>📋 {eq.model}</span>}
-                              {eq.inventory_number && <span>📝 {eq.inventory_number}</span>}
-                              {eq.serial_number && <span>🔢 {eq.serial_number}</span>}
-                            </div>
-                            {eq.responsible_employee_id && (
-                              <div className="mt-2 text-xs text-gray-400">
-                                👤 {employees.find(e => e.id === eq.responsible_employee_id)?.full_name || 'Неизвестно'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setViewingCategoryEquipment(null)}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Просмотр оборудования по местоположению */}
-      {viewingLocationEquipment !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-800">
-                🖥️ Оборудование в местоположении "{getLocationFullPath(viewingLocationEquipment)}"
-              </h2>
-              <button 
-                onClick={() => setViewingLocationEquipment(null)} 
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="p-6">
-              {(() => {
-                const locationEquipment = getEquipmentByLocation(viewingLocationEquipment, true);
-                if (locationEquipment.length === 0) {
-                  return (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="text-5xl mb-4">📦</div>
-                      <p>Нет оборудования в этом местоположении</p>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="space-y-3">
-                    {locationEquipment.map(eq => (
-                      <div key={eq.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-start gap-3">
-                          <span className="text-3xl">{eq.category_icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-gray-800">{eq.name}</div>
-                            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                              <span className="bg-gray-100 px-2 py-0.5 rounded">{eq.category_name}</span>
-                              <span>📍 {getLocationFullPath(eq.location_id)}</span>
-                              {eq.manufacturer && <span>🏭 {eq.manufacturer}</span>}
-                              {eq.model && <span>📋 {eq.model}</span>}
-                              {eq.inventory_number && <span>📝 {eq.inventory_number}</span>}
-                              {eq.serial_number && <span>🔢 {eq.serial_number}</span>}
-                            </div>
-                            {eq.responsible_employee_id && (
-                              <div className="mt-2 text-xs text-gray-400">
-                                👤 {employees.find(e => e.id === eq.responsible_employee_id)?.full_name || 'Неизвестно'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="p-6 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setViewingLocationEquipment(null)}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

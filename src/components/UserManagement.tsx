@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { User, getAllUsers, addUser, updateUser, deleteUser, changePassword } from '../db/database';
+import React, { useState, useEffect } from 'react';
+import { User, getAllUsers, addUser, updateUser, deleteUser, changePassword, getAllEmployees, Employee, addLog } from '../db/database';
 
 interface UserManagementProps {
   currentUser: User;
@@ -8,23 +8,32 @@ interface UserManagementProps {
 
 export function UserManagement({ currentUser, showToast }: UserManagementProps) {
   const [users, setUsers] = useState<User[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordUserId, setPasswordUserId] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   
   // Form state
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'superadmin' | 'admin' | 'user'>('user');
+  const [role, setRole] = useState<'superadmin' | 'admin' | 'user' | 'observer'>('user');
+  const [employeeId, setEmployeeId] = useState<number | null>(null);
 
   useEffect(() => {
     loadUsers();
+    loadEmployees();
   }, []);
 
   const loadUsers = () => {
     setUsers(getAllUsers());
+  };
+
+  const loadEmployees = () => {
+    setEmployees(getAllEmployees());
   };
 
   const handleAdd = () => {
@@ -33,6 +42,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
     setPassword('');
     setFullName('');
     setRole('user');
+    setEmployeeId(null);
     setShowForm(true);
   };
 
@@ -42,6 +52,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
     setPassword('');
     setFullName(user.fullName);
     setRole(user.role);
+    setEmployeeId(user.employee_id || null);
     setShowForm(true);
   };
 
@@ -62,6 +73,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
         username: username.trim(),
         fullName: fullName.trim(),
         role,
+        employee_id: employeeId,
       };
       
       if (password) {
@@ -70,6 +82,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
 
       const result = updateUser(editingUser.id, updates);
       if (result.success) {
+        addLog('update', 'user', editingUser.id, username.trim(), 'Пользователь обновлён', currentUser.id, currentUser.fullName);
         showToast(result.message, 'success');
         setShowForm(false);
         loadUsers();
@@ -82,8 +95,9 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
         return;
       }
 
-      const result = addUser(username.trim(), password, fullName.trim(), role);
+      const result = addUser(username.trim(), password, fullName.trim(), role, employeeId);
       if (result.success) {
+        addLog('create', 'user', result.userId, username.trim(), 'Пользователь создан', currentUser.id, currentUser.fullName);
         showToast(result.message, 'success');
         setShowForm(false);
         loadUsers();
@@ -101,6 +115,8 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
 
     const result = changePassword(passwordUserId, password);
     if (result.success) {
+      const user = users.find(u => u.id === passwordUserId);
+      addLog('update', 'user', passwordUserId, user?.username, 'Пароль изменён', currentUser.id, currentUser.fullName);
       showToast(result.message, 'success');
       setShowPasswordForm(false);
     } else {
@@ -119,17 +135,24 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
       return;
     }
 
-    if (!confirm(`Удалить пользователя "${user.fullName}"?`)) {
-      return;
-    }
+    setUserToDelete(user);
+    setShowDeleteConfirm(true);
+  };
 
-    const result = deleteUser(user.id);
+  const confirmDelete = () => {
+    if (!userToDelete) return;
+
+    const result = deleteUser(userToDelete.id);
     if (result.success) {
+      addLog('delete', 'user', userToDelete.id, userToDelete.username, 'Пользователь удалён', currentUser.id, currentUser.fullName);
       showToast(result.message, 'success');
       loadUsers();
     } else {
       showToast(result.message, 'error');
     }
+
+    setShowDeleteConfirm(false);
+    setUserToDelete(null);
   };
 
   return (
@@ -167,7 +190,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 flex-1">
                       <div className="text-3xl">
-                        {user.role === 'superadmin' ? '👑' : user.role === 'admin' ? '🔑' : '👤'}
+                        {user.role === 'superadmin' ? '👑' : user.role === 'admin' ? '🔑' : user.role === 'observer' ? '👁️' : '👤'}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -177,9 +200,11 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
                               ? 'bg-yellow-100 text-yellow-800' 
                               : user.role === 'admin'
                               ? 'bg-purple-100 text-purple-800' 
+                              : user.role === 'observer'
+                              ? 'bg-gray-100 text-gray-800'
                               : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {user.role === 'superadmin' ? 'Суперадмин' : user.role === 'admin' ? 'Администратор базы' : 'Пользователь'}
+                            {user.role === 'superadmin' ? 'Суперадмин' : user.role === 'admin' ? 'Администратор базы' : user.role === 'observer' ? 'Наблюдатель' : 'Пользователь'}
                           </span>
                           {user.id === currentUser.id && (
                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -191,6 +216,12 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
                           <span>🔑 {user.username}</span>
                           <span className="mx-2">•</span>
                           <span>📅 {new Date(user.createdAt).toLocaleDateString('ru-RU')}</span>
+                          {user.employee_id && (
+                            <>
+                              <span className="mx-2">•</span>
+                              <span>👤 {employees.find(e => e.id === user.employee_id)?.full_name || 'Сотрудник не найден'}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -274,14 +305,39 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
                 <label className="block text-sm font-medium text-gray-700 mb-1">Роль</label>
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value as 'superadmin' | 'admin' | 'user')}
+                  onChange={(e) => setRole(e.target.value as 'superadmin' | 'admin' | 'user' | 'observer')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="user">👤 Пользователь</option>
+                  <option value="observer">👁️ Наблюдатель</option>
                   <option value="admin">🔑 Администратор базы</option>
                   <option value="superadmin">👑 Суперадминистратор</option>
                 </select>
               </div>
+              {(role === 'user' || role === 'observer') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Привязка к сотруднику {role === 'user' ? '*' : '(опционально)'}
+                  </label>
+                  <select
+                    value={employeeId || ''}
+                    onChange={(e) => setEmployeeId(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">— Не привязан —</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.full_name}
+                      </option>
+                    ))}
+                  </select>
+                  {role === 'user' && !employeeId && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      ⚠️ Для роли "Пользователь" необходимо выбрать сотрудника
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <button
                   onClick={() => setShowForm(false)}
@@ -332,6 +388,42 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                 >
                   Изменить пароль
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно подтверждения удаления */}
+      {showDeleteConfirm && userToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-800">⚠️ Подтверждение удаления</h2>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 mb-4">
+                Вы уверены, что хотите удалить пользователя <strong>"{userToDelete.fullName}"</strong>?
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                Это действие нельзя отменить.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setUserToDelete(null);
+                  }}
+                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                >
+                  Удалить
                 </button>
               </div>
             </div>

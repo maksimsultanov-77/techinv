@@ -1,47 +1,17 @@
 import React from 'react';
-import { Employee, Department, TIMEZONES, EMPLOYEE_TYPES, getDepartmentName, getEquipmentByEmployee } from '../db/database';
+import { Employee, Department, getDepartmentName, getEquipmentByEmployee } from '../db/database';
 
 interface EmployeeDetailProps {
   employee: Employee;
   departments: Department[];
+  currentUserRole?: string;
   onClose: () => void;
   onEdit: () => void;
 }
 
-const workModeLabels: Record<string, { label: string; icon: string; color: string }> = {
-  office: { label: 'В офисе', icon: '🏢', color: 'bg-blue-100 text-blue-800' },
-  remote: { label: 'Удалённо', icon: '🏠', color: 'bg-green-100 text-green-800' },
-  hybrid: { label: 'Гибрид', icon: '🔄', color: 'bg-purple-100 text-purple-800' },
-};
-
-const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, departments, onClose, onEdit }) => {
-  const modeInfo = workModeLabels[employee.work_mode] || workModeLabels.office;
-  const genderIcon = employee.gender === 'female' ? '👩' : '👨';
-  const genderLabel = employee.gender === 'female' ? 'Женский' : 'Мужской';
-  const typeInfo = EMPLOYEE_TYPES.find(t => t.value === employee.employee_type) || EMPLOYEE_TYPES[0];
+export default function EmployeeDetail({ employee, departments, currentUserRole, onClose, onEdit }: EmployeeDetailProps) {
   const deptName = getDepartmentName(employee.department_id);
   const employeeEquipment = getEquipmentByEmployee(employee.id);
-
-  const getTzLabel = (tz: string): string => {
-    const found = TIMEZONES.find(t => t.value === tz);
-    return found ? found.label : tz;
-  };
-
-  const fields = [
-    { label: 'ID', value: String(employee.id) },
-    { label: 'ФИО', value: employee.full_name },
-    { label: 'Пол', value: `${genderIcon} ${genderLabel}` },
-    { label: 'Тип сотрудника', value: `${typeInfo.icon} ${typeInfo.label}` },
-    { label: 'Подразделение', value: deptName },
-    { label: 'Должность', value: employee.position },
-    { label: 'Телефон', value: employee.phone },
-    { label: 'Email', value: employee.email },
-    { label: 'Режим работы', value: `${modeInfo.icon} ${modeInfo.label}` },
-    { label: 'Город', value: employee.city },
-    { label: 'Часовой пояс', value: getTzLabel(employee.timezone) },
-    { label: 'Создано', value: employee.created_at },
-    { label: 'Обновлено', value: employee.updated_at },
-  ];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -50,50 +20,65 @@ const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, departments, 
           <h2 className="text-2xl font-bold text-gray-800">📋 Информация о сотруднике</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
         </div>
-
         <div className="p-6">
           <div className="flex items-center gap-3 mb-6">
-            <span className="text-4xl">{genderIcon}</span>
+            <span className="text-4xl">{employee.gender === 'female' ? '👩' : '👨'}</span>
             <div>
               <h3 className="text-xl font-bold text-gray-800">{employee.full_name}</h3>
-              <div className="flex gap-2 mt-1">
-                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${modeInfo.color}`}>
-                  {modeInfo.icon} {modeInfo.label}
-                </span>
-                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                  {typeInfo.icon} {typeInfo.label}
-                </span>
-              </div>
+              <p className="text-sm text-gray-500">{deptName}</p>
             </div>
           </div>
-
           <div className="space-y-3">
-            {fields.filter(f => f.value).map((field, idx) => (
-              <div key={idx} className="flex items-start border-b border-gray-100 pb-2">
-                <span className="text-sm font-medium text-gray-500 w-40 flex-shrink-0">{field.label}:</span>
-                <span className="text-sm text-gray-800">{field.value}</span>
-              </div>
-            ))}
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Должность:</span>
+              <span className="text-sm text-gray-800">{employee.position || 'Не указана'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Тип сотрудника:</span>
+              <span className="text-sm text-gray-800">
+                {employee.employee_type === 'staff' ? '👤 Штатный' : 
+                 employee.employee_type === 'external' ? '🌐 Внешний' : 
+                 employee.employee_type === 'contractor' ? '📝 Подрядчик' : 'Не указан'}
+              </span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Режим работы:</span>
+              <span className="text-sm text-gray-800">
+                {employee.work_mode === 'office' ? '🏢 В офисе' : 
+                 employee.work_mode === 'remote' ? '🏠 Удалённо' : 
+                 employee.work_mode === 'hybrid' ? '🔄 Гибрид' : 'Не указан'}
+              </span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Город:</span>
+              <span className="text-sm text-gray-800">{employee.city || 'Не указан'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Часовой пояс:</span>
+              <span className="text-sm text-gray-800">{employee.timezone || 'Не указан'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Телефон:</span>
+              <span className="text-sm text-gray-800">{employee.phone || 'Не указан'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Email:</span>
+              <span className="text-sm text-gray-800">{employee.email || 'Не указан'}</span>
+            </div>
           </div>
-
           {employeeEquipment.length > 0 && (
             <div className="mt-6">
-              <h4 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                🖥️ Закреплённое оборудование
-                <span className="text-sm font-normal text-gray-500">({employeeEquipment.length})</span>
-              </h4>
+              <h4 className="text-lg font-semibold text-gray-800 mb-3">🖥️ Закреплённое оборудование ({employeeEquipment.length})</h4>
               <div className="space-y-2">
                 {employeeEquipment.map(eq => (
                   <div key={eq.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                     <div className="flex items-start gap-2">
                       <span className="text-2xl">{eq.category_icon}</span>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1">
                         <div className="font-medium text-gray-800">{eq.name}</div>
                         <div className="text-sm text-gray-500 mt-1">
                           <span className="bg-gray-100 px-2 py-0.5 rounded text-xs">{eq.category_name}</span>
-                          {eq.inventory_number && (
-                            <span className="ml-2 text-xs">Инв. №: {eq.inventory_number}</span>
-                          )}
+                          {eq.inventory_number && <span className="ml-2 text-xs">Инв. №: {eq.inventory_number}</span>}
                         </div>
                       </div>
                     </div>
@@ -102,25 +87,18 @@ const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employee, departments, 
               </div>
             </div>
           )}
-
           <div className="mt-6 flex justify-end gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-            >
+            <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
               Закрыть
             </button>
-            <button
-              onClick={onEdit}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              ✏️ Редактировать
-            </button>
+            {currentUserRole !== 'user' && currentUserRole !== 'observer' && (
+              <button onClick={onEdit} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                ✏️ Редактировать
+              </button>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
-};
-
-export default EmployeeDetail;
+}

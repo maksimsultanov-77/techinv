@@ -1,43 +1,10 @@
-// Простая база данных на основе localStorage
-// Имитирует SQL-подобный интерфейс для работы с данными
-
-const DB_KEY = 'equipment_inventory_db';
-
-export interface Status {
+// Database types
+export interface Category {
   id: number;
   name: string;
-  color: string;
   icon: string;
   description: string;
-}
-
-export interface LogEntry {
-  id: number;
-  timestamp: string;
-  action: 'create' | 'update' | 'delete' | 'clear' | 'generate';
-  entityType: string;
-  entityId?: number;
-  entityName?: string;
-  details: string;
-}
-
-export interface User {
-  id: number;
-  username: string;
-  password: string;
-  fullName: string;
-  role: 'superadmin' | 'admin' | 'user';
-  createdAt: string;
-}
-
-export interface AppSettings {
-  organizationName: string;
-  menuPosition: 'top' | 'left';
-  theme: 'light' | 'dark';
-  language: 'ru' | 'en';
-  itemsPerPage: number;
-  showDescriptions: boolean;
-  autoSaveLogs: boolean;
+  parent_id: number | null;
 }
 
 export interface Equipment {
@@ -59,22 +26,6 @@ export interface Equipment {
   notes: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface Location {
-  id: number;
-  name: string;
-  description: string;
-  parent_id: number | null;
-  created_at: string;
-}
-
-export interface Category {
-  id: number;
-  name: string;
-  icon: string;
-  description: string;
-  parent_id: number | null;
 }
 
 export interface Employee {
@@ -101,29 +52,46 @@ export interface Department {
   created_at: string;
 }
 
-export const TIMEZONES = [
-  { value: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
-  { value: 'Europe/Moscow', label: 'Москва (UTC+3)' },
-  { value: 'Europe/Samara', label: 'Самара (UTC+4)' },
-  { value: 'Asia/Yekaterinburg', label: 'Екатеринбург (UTC+5)' },
-  { value: 'Asia/Omsk', label: 'Омск (UTC+6)' },
-  { value: 'Asia/Krasnoyarsk', label: 'Красноярск (UTC+7)' },
-  { value: 'Asia/Irkutsk', label: 'Иркутск (UTC+8)' },
-  { value: 'Asia/Yakutsk', label: 'Якутск (UTC+9)' },
-  { value: 'Asia/Vladivostok', label: 'Владивосток (UTC+10)' },
-  { value: 'Asia/Magadan', label: 'Магадан (UTC+11)' },
-  { value: 'Asia/Kamchatka', label: 'Камчатка (UTC+12)' },
-  { value: 'Europe/Kiev', label: 'Киев (UTC+2)' },
-  { value: 'Europe/Minsk', label: 'Минск (UTC+3)' },
-  { value: 'Asia/Almaty', label: 'Алматы (UTC+6)' },
-  { value: 'Asia/Tashkent', label: 'Ташкент (UTC+5)' },
-  { value: 'Asia/Baku', label: 'Баку (UTC+4)' },
-  { value: 'Asia/Dubai', label: 'Дубай (UTC+4)' },
-  { value: 'Europe/Berlin', label: 'Берлин (UTC+1)' },
-  { value: 'Europe/Warsaw', label: 'Варшава (UTC+1)' },
-  { value: 'America/New_York', label: 'Нью-Йорк (UTC-5)' },
-  { value: 'America/Los_Angeles', label: 'Лос-Анджелес (UTC-8)' },
-];
+export interface Location {
+  id: number;
+  name: string;
+  description: string;
+  parent_id: number | null;
+  created_at: string;
+}
+
+export interface Status {
+  id: number;
+  name: string;
+  color: string;
+  icon: string;
+  description: string;
+}
+
+export interface User {
+  id: number;
+  username: string;
+  password: string;
+  fullName: string;
+  role: 'superadmin' | 'admin' | 'user' | 'observer';
+  employee_id?: number | null;
+  createdAt: string;
+}
+
+export interface LogEntry {
+  id: number;
+  timestamp: string;
+  action: string;
+  entityType: string;
+  entityId?: number;
+  entityName?: string;
+  details?: string;
+  userId?: number;
+  userName?: string;
+}
+
+// Database instance
+const DB_KEY = 'equipment_inventory_db';
 
 interface DatabaseSchema {
   categories: Category[];
@@ -132,804 +100,608 @@ interface DatabaseSchema {
   departments: Department[];
   locations: Location[];
   statuses: Status[];
-  logs: LogEntry[];
-  settings: AppSettings;
   users: User[];
+  logs: LogEntry[];
   nextCategoryId: number;
   nextEquipmentId: number;
   nextEmployeeId: number;
   nextDepartmentId: number;
   nextLocationId: number;
   nextStatusId: number;
-  nextLogId: number;
   nextUserId: number;
+  nextLogId: number;
 }
 
-export function isSystemCategory(id: number): boolean {
-  return id === 1 || id === 2; // Компьютеры и Периферия
-}
-
-export const EMPLOYEE_TYPES = [
-  { value: 'staff', label: 'Штатный сотрудник', icon: '👤' },
-  { value: 'external', label: 'Внешний сотрудник', icon: '🌐' },
-  { value: 'contractor', label: 'Подрядчик', icon: '📝' },
-];
-
-let db: DatabaseSchema;
-
-const defaultCategories: Category[] = [
-  // Системные категории (ID 1-2)
-  { id: 1, name: 'Компьютеры', icon: '🖥️', description: 'Компьютерная техника', parent_id: null },
-  { id: 2, name: 'Периферия', icon: '🖱️', description: 'Периферийное оборудование', parent_id: null },
-  
-  // Дочерние категории для "Компьютеры"
-  { id: 3, name: 'Моноблоки', icon: '🖥️', description: 'Компьютеры моноблок', parent_id: 1 },
-  { id: 4, name: 'Ноутбуки', icon: '💻', description: 'Ноутбуки', parent_id: 1 },
-  { id: 5, name: 'Планшеты', icon: '📱', description: 'Планшетные компьютеры', parent_id: 1 },
-  { id: 6, name: 'Телефоны', icon: '📞', description: 'Мобильные телефоны и смартфоны', parent_id: 1 },
-  { id: 7, name: 'Серверы', icon: '🗄️', description: 'Серверное оборудование', parent_id: 1 },
-  { id: 8, name: 'ИБП', icon: '🔋', description: 'Источники бесперебойного питания', parent_id: 1 },
-  { id: 9, name: 'Сетевое оборудование', icon: '🌐', description: 'Роутеры, коммутаторы, точки доступа', parent_id: 1 },
-  
-  // Дочерние категории для "Периферия"
-  { id: 10, name: 'Мониторы', icon: '🖥️', description: 'Мониторы и дисплеи', parent_id: 2 },
-  { id: 11, name: 'Камеры', icon: '📷', description: 'Веб-камеры и камеры видеонаблюдения', parent_id: 2 },
-  { id: 12, name: 'МФУ/Принтеры', icon: '🖨️', description: 'Многофункциональные устройства и принтеры', parent_id: 2 },
-  { id: 13, name: 'Прочее', icon: '📦', description: 'Другое оборудование', parent_id: 2 },
-];
-
-export function initDatabase(): Promise<void> {
-  return new Promise((resolve) => {
-    const savedDb = localStorage.getItem(DB_KEY);
-    if (savedDb) {
-      try {
-        db = JSON.parse(savedDb);
-        // Миграция: добавляем поля сотрудников если их нет
-        if (!db.employees) db.employees = [];
-        if (!db.nextEmployeeId) db.nextEmployeeId = 1;
-        if (!db.departments) db.departments = [];
-        if (!db.nextDepartmentId) db.nextDepartmentId = 4;
-        
-        // Миграция: добавляем обязательные виртуальные подразделения если их нет
-        if (!db.departments.find(d => d.id === 1)) {
-          db.departments.unshift({
-            id: 1,
-            name: 'Штат',
-            parent_id: null,
-            head_employee_id: null,
-            created_at: new Date().toISOString(),
-          });
-        }
-        if (!db.departments.find(d => d.id === 2)) {
-          // Вставляем после "Штат"
-          const idx = db.departments.findIndex(d => d.id === 1);
-          db.departments.splice(idx + 1, 0, {
-            id: 2,
-            name: 'Подрядчики',
-            parent_id: null,
-            head_employee_id: null,
-            created_at: new Date().toISOString(),
-          });
-        }
-        if (!db.departments.find(d => d.id === 3)) {
-          // Вставляем после "Подрядчики"
-          const idx = db.departments.findIndex(d => d.id === 2);
-          db.departments.splice(idx + 1, 0, {
-            id: 3,
-            name: 'Вне штата',
-            parent_id: null,
-            head_employee_id: null,
-            created_at: new Date().toISOString(),
-          });
-        }
-        // Миграция: добавляем city и timezone для существующих сотрудников
-        db.employees = db.employees.map(emp => ({
-          ...emp,
-          city: emp.city || '',
-          timezone: emp.timezone || 'Europe/Moscow',
-          department_id: emp.department_id ?? null,
-          position: emp.position || '',
-          employee_type: emp.employee_type || 'staff',
-        }));
-        
-        // Миграция: добавляем parent_id к существующим категориям
-        db.categories = db.categories.map(cat => ({
-          ...cat,
-          parent_id: cat.parent_id ?? null,
-        }));
-        
-        // Миграция: добавляем системные категории если их нет
-        if (!db.categories.find(c => c.id === 1)) {
-          db.categories.unshift({
-            id: 1,
-            name: 'Компьютеры',
-            icon: '🖥️',
-            description: 'Компьютерная техника',
-            parent_id: null,
-          });
-        }
-        if (!db.categories.find(c => c.id === 2)) {
-          const idx = db.categories.findIndex(c => c.id === 1);
-          db.categories.splice(idx + 1, 0, {
-            id: 2,
-            name: 'Периферия',
-            icon: '🖱️',
-            description: 'Периферийное оборудование',
-            parent_id: null,
-          });
-        }
-        
-        // Миграция: добавляем responsible_employee_id для существующего оборудования
-        db.equipment = db.equipment.map(eq => ({
-          ...eq,
-          responsible_employee_id: eq.responsible_employee_id || null,
-        }));
-        // Миграция: добавляем locations
-        if (!db.locations) db.locations = [];
-        if (!db.nextLocationId) db.nextLocationId = 3;
-        
-        // Миграция: добавляем parent_id к существующим местоположениям
-        db.locations = db.locations.map(loc => ({
-          ...loc,
-          parent_id: loc.parent_id ?? null,
-        }));
-        
-        // Миграция: добавляем системные местоположения если их нет
-        if (!db.locations.find(l => l.id === 1)) {
-          db.locations.unshift({
-            id: 1,
-            name: 'Главный офис',
-            description: 'Системное местоположение',
-            parent_id: null,
-            created_at: new Date().toISOString(),
-          });
-        }
-        if (!db.locations.find(l => l.id === 2)) {
-          const idx = db.locations.findIndex(l => l.id === 1);
-          db.locations.splice(idx + 1, 0, {
-            id: 2,
-            name: 'Вне офиса',
-            description: 'Системное местоположение',
-            parent_id: null,
-            created_at: new Date().toISOString(),
-          });
-        }
-        // Миграция: преобразуем location (string) в location_id (number)
-        db.equipment = db.equipment.map((eq: any) => {
-          if ('location' in eq && typeof eq.location === 'string') {
-            // Ищем или создаём location по имени
-            const existing = db.locations.find(l => l.name === eq.location);
-            let locationId: number;
-            if (existing) {
-              locationId = existing.id;
-            } else if (eq.location) {
-              // Создаём новое местоположение
-              const newLoc: Location = {
-                id: db.nextLocationId++,
-                name: eq.location,
-                description: '',
-                parent_id: null,
-                created_at: new Date().toISOString(),
-              };
-              db.locations.push(newLoc);
-              locationId = newLoc.id;
-            } else {
-              locationId = 0;
-            }
-            const { location, ...rest } = eq;
-            return { ...rest, location_id: locationId };
-          }
-          return eq;
-        });
-        
-        // Миграция: добавляем statuses
-        if (!db.statuses) db.statuses = [];
-        if (!db.nextStatusId) db.nextStatusId = 4;
-        
-        // Миграция: добавляем системные статусы если их нет
-        if (!db.statuses.find(s => s.id === 1)) {
-          db.statuses.push({
-            id: 1,
-            name: 'В работе',
-            color: '#10b981',
-            icon: '✓',
-            description: 'Оборудование работает нормально',
-          });
-        }
-        if (!db.statuses.find(s => s.id === 2)) {
-          db.statuses.push({
-            id: 2,
-            name: 'Неисправно',
-            color: '#ef4444',
-            icon: '✗',
-            description: 'Оборудование неисправно',
-          });
-        }
-        if (!db.statuses.find(s => s.id === 3)) {
-          db.statuses.push({
-            id: 3,
-            name: 'В ремонте',
-            color: '#f59e0b',
-            icon: '⚙',
-            description: 'Оборудование находится в ремонте',
-          });
-        }
-        
-        // Миграция: преобразуем status (string) в status_id (number)
-        db.equipment = db.equipment.map((eq: any) => {
-          if ('status' in eq && typeof eq.status === 'string') {
-            const statusMap: Record<string, number> = {
-              'active': 1,
-              'В работе': 1,
-              'broken': 2,
-              'Неисправно': 2,
-              'repair': 3,
-              'В ремонте': 3,
-            };
-            const statusId = statusMap[eq.status] || 1;
-            const { status, ...rest } = eq;
-            return { ...rest, status_id: statusId };
-          }
-          if ('status_id' in eq) {
-            return eq;
-          }
-          return { ...eq, status_id: 1 };
-        });
-        
-        // Миграция: добавляем logs
-        if (!db.logs) db.logs = [];
-        if (!db.nextLogId) db.nextLogId = 1;
-        
-        // Миграция: добавляем settings
-        if (!db.settings) {
-          db.settings = {
-            organizationName: 'Моя Организация',
-            menuPosition: 'top',
-            theme: 'light',
-            language: 'ru',
-            itemsPerPage: 50,
-            showDescriptions: true,
-            autoSaveLogs: true,
-          };
-        }
-        
-        // Миграция: добавляем users
-        if (!db.users) {
-          db.users = [
-            {
-              id: 1,
-              username: 'admin',
-              password: 'admin',
-              fullName: 'Суперадминистратор',
-              role: 'superadmin',
-              createdAt: new Date().toISOString(),
-            },
-          ];
-        } else {
-          // Миграция: обновляем существующего admin до superadmin
-          const adminUser = db.users.find(u => u.username === 'admin' && u.id === 1);
-          if (adminUser && adminUser.role === 'admin') {
-            adminUser.role = 'superadmin';
-            adminUser.fullName = 'Суперадминистратор';
-          }
-        }
-        if (!db.nextUserId) {
-          db.nextUserId = db.users.length > 0 ? Math.max(...db.users.map(u => u.id)) + 1 : 1;
-        }
-      } catch (e) {
-        console.error('Error loading database:', e);
-        db = createDefaultDatabase();
-      }
-    } else {
-      db = createDefaultDatabase();
-    }
-    saveDatabase();
-    resolve();
-  });
-}
-
-function createDefaultDatabase(): DatabaseSchema {
-  const db: DatabaseSchema = {
-    categories: [...defaultCategories],
-    equipment: [],
-    employees: [],
-    departments: [],
-    locations: [],
-    statuses: [],
-    logs: [],
-    settings: {
-      organizationName: 'Моя Организация',
-      menuPosition: 'top',
-      theme: 'light',
-      language: 'ru',
-      itemsPerPage: 50,
-      showDescriptions: true,
-      autoSaveLogs: true,
+// Initialize database with default values
+const defaultDb: DatabaseSchema = {
+  categories: [
+    { id: 1, name: 'Компьютеры', icon: '💻', description: 'Компьютерная техника', parent_id: null },
+    { id: 2, name: 'Периферия', icon: '🖨️', description: 'Периферийное оборудование', parent_id: null },
+  ],
+  equipment: [],
+  employees: [],
+  departments: [
+    { id: 1, name: 'Руководство', parent_id: null, head_employee_id: null, created_at: new Date().toISOString() },
+    { id: 2, name: 'Все сотрудники', parent_id: null, head_employee_id: null, created_at: new Date().toISOString() },
+    { id: 3, name: 'Вне штата', parent_id: null, head_employee_id: null, created_at: new Date().toISOString() },
+  ],
+  locations: [
+    { id: 1, name: 'Главный офис', description: 'Центральный офис компании', parent_id: null, created_at: new Date().toISOString() },
+    { id: 2, name: 'Вне офиса', description: 'Оборудование вне офиса', parent_id: null, created_at: new Date().toISOString() },
+  ],
+  statuses: [
+    { id: 1, name: 'В работе', color: '#10b981', icon: '✓', description: 'Оборудование работает нормально' },
+    { id: 2, name: 'Неисправно', color: '#ef4444', icon: '✗', description: 'Оборудование неисправно' },
+    { id: 3, name: 'В ремонте', color: '#f59e0b', icon: '⚙', description: 'Оборудование находится в ремонте' },
+  ],
+  users: [
+    {
+      id: 1,
+      username: 'admin',
+      password: 'admin',
+      fullName: 'Суперадминистратор',
+      role: 'superadmin',
+      createdAt: new Date().toISOString(),
     },
-    users: [
-      {
-        id: 1,
-        username: 'admin',
-        password: 'admin',
-        fullName: 'Суперадминистратор',
-        role: 'superadmin',
-        createdAt: new Date().toISOString(),
-      },
-    ],
-    nextCategoryId: 14,
-    nextEquipmentId: 1,
-    nextEmployeeId: 1,
-    nextDepartmentId: 4, // Начинаем с 4, т.к. 1, 2 и 3 зарезервированы
-    nextLocationId: 3, // Начинаем с 3, т.к. 1 и 2 зарезервированы
-    nextStatusId: 4, // Начинаем с 4, т.к. 1, 2 и 3 зарезервированы
-    nextLogId: 1,
-    nextUserId: 2, // Начинаем с 2, т.к. 1 зарезервирован для admin
-  };
-  
-  // Создаём обязательные виртуальные подразделения
-  db.departments.push({
-    id: 1,
-    name: 'Штат',
-    parent_id: null,
-    head_employee_id: null,
-    created_at: new Date().toISOString(),
-  });
-  db.departments.push({
-    id: 2,
-    name: 'Подрядчики',
-    parent_id: null,
-    head_employee_id: null,
-    created_at: new Date().toISOString(),
-  });
-  db.departments.push({
-    id: 3,
-    name: 'Вне штата',
-    parent_id: null,
-    head_employee_id: null,
-    created_at: new Date().toISOString(),
-  });
-  
-  // Создаём системные местоположения
-  db.locations.push({
-    id: 1,
-    name: 'Главный офис',
-    description: 'Системное местоположение',
-    parent_id: null,
-    created_at: new Date().toISOString(),
-  });
-  db.locations.push({
-    id: 2,
-    name: 'Вне офиса',
-    description: 'Системное местоположение',
-    parent_id: null,
-    created_at: new Date().toISOString(),
-  });
-  
-  // Создаём системные статусы
-  db.statuses.push({
-    id: 1,
-    name: 'В работе',
-    color: '#10b981',
-    icon: '✓',
-    description: 'Оборудование работает нормально',
-  });
-  db.statuses.push({
-    id: 2,
-    name: 'Неисправно',
-    color: '#ef4444',
-    icon: '✗',
-    description: 'Оборудование неисправно',
-  });
-  db.statuses.push({
-    id: 3,
-    name: 'В ремонте',
-    color: '#f59e0b',
-    icon: '⚙',
-    description: 'Оборудование находится в ремонте',
-  });
-  
-  return db;
+  ],
+  logs: [],
+  nextCategoryId: 3,
+  nextEquipmentId: 1,
+  nextEmployeeId: 1,
+  nextDepartmentId: 4,
+  nextLocationId: 3,
+  nextStatusId: 4,
+  nextUserId: 2,
+  nextLogId: 1,
+};
+
+let db: DatabaseSchema = defaultDb;
+
+// Initialize database
+export function initDatabase(): void {
+  const savedDb = localStorage.getItem(DB_KEY);
+  if (savedDb) {
+    try {
+      db = JSON.parse(savedDb);
+      
+      // Миграция: добавляем системные категории если их нет
+      if (!db.categories.find(c => c.id === 1)) {
+        db.categories.unshift({
+          id: 1,
+          name: 'Компьютеры',
+          icon: '💻',
+          description: 'Компьютерная техника',
+          parent_id: null,
+        });
+      }
+      if (!db.categories.find(c => c.id === 2)) {
+        const idx = db.categories.findIndex(c => c.id === 1);
+        db.categories.splice(idx + 1, 0, {
+          id: 2,
+          name: 'Периферия',
+          icon: '🖨️',
+          description: 'Периферийное оборудование',
+          parent_id: null,
+        });
+      }
+      
+      // Миграция: обновляем nextCategoryId если нужно
+      if (db.nextCategoryId < 3) {
+        db.nextCategoryId = 3;
+      }
+      
+      // Миграция: добавляем системные подразделения если их нет
+      if (!db.departments.find(d => d.id === 1)) {
+        db.departments.unshift({
+          id: 1,
+          name: 'Руководство',
+          parent_id: null,
+          head_employee_id: null,
+          created_at: new Date().toISOString(),
+        });
+      }
+      if (!db.departments.find(d => d.id === 2)) {
+        const idx = db.departments.findIndex(d => d.id === 1);
+        db.departments.splice(idx + 1, 0, {
+          id: 2,
+          name: 'Все сотрудники',
+          parent_id: null,
+          head_employee_id: null,
+          created_at: new Date().toISOString(),
+        });
+      }
+      if (!db.departments.find(d => d.id === 3)) {
+        const idx = db.departments.findIndex(d => d.id === 2);
+        db.departments.splice(idx + 1, 0, {
+          id: 3,
+          name: 'Вне штата',
+          parent_id: null,
+          head_employee_id: null,
+          created_at: new Date().toISOString(),
+        });
+      }
+      
+      // Миграция: обновляем nextDepartmentId если нужно
+      if (db.nextDepartmentId < 4) {
+        db.nextDepartmentId = 4;
+      }
+      
+      // Миграция: добавляем системные местоположения если их нет
+      if (!db.locations.find(l => l.id === 1)) {
+        db.locations.unshift({
+          id: 1,
+          name: 'Главный офис',
+          description: 'Центральный офис компании',
+          parent_id: null,
+          created_at: new Date().toISOString(),
+        });
+      }
+      if (!db.locations.find(l => l.id === 2)) {
+        const idx = db.locations.findIndex(l => l.id === 1);
+        db.locations.splice(idx + 1, 0, {
+          id: 2,
+          name: 'Вне офиса',
+          description: 'Оборудование вне офиса',
+          parent_id: null,
+          created_at: new Date().toISOString(),
+        });
+      }
+      
+      // Миграция: обновляем nextLocationId если нужно
+      if (db.nextLocationId < 3) {
+        db.nextLocationId = 3;
+      }
+      
+      // Миграция: добавляем logs если их нет
+      if (!db.logs) {
+        db.logs = [];
+      }
+      if (!db.nextLogId) {
+        db.nextLogId = 1;
+      }
+    } catch (e) {
+      console.error('Error loading database:', e);
+      db = defaultDb;
+      saveDatabase();
+    }
+  } else {
+    db = defaultDb;
+    saveDatabase();
+  }
 }
 
 function saveDatabase(): void {
   localStorage.setItem(DB_KEY, JSON.stringify(db));
 }
 
+// Categories
 export function getCategories(): Category[] {
-  return [...db.categories];
+  return db.categories;
 }
 
+export function getAllCategories(): Category[] {
+  return db.categories;
+}
+
+export function getCategoryTree(): any[] {
+  const buildTree = (parentId: number | null): any[] => {
+    return db.categories
+      .filter(c => c.parent_id === parentId)
+      .map(cat => ({
+        ...cat,
+        children: buildTree(cat.id),
+        equipmentCount: db.equipment.filter(eq => eq.category_id === cat.id).length,
+      }));
+  };
+  
+  return buildTree(null);
+}
+
+export function addCategory(name: string, icon: string, description: string, parentId: number | null): number {
+  const newCategory: Category = {
+    id: db.nextCategoryId++,
+    name,
+    icon,
+    description,
+    parent_id: parentId,
+  };
+  db.categories.push(newCategory);
+  saveDatabase();
+  return newCategory.id;
+}
+
+export function deleteCategory(id: number): { success: boolean; message: string } {
+  if (isSystemCategory(id)) {
+    return { success: false, message: 'Нельзя удалить системную категорию' };
+  }
+  const equipment = db.equipment.filter(eq => eq.category_id === id);
+  if (equipment.length > 0) {
+    return { success: false, message: `Нельзя удалить: к категории привязано ${equipment.length} единиц оборудования` };
+  }
+  db.categories = db.categories.filter(c => c.id !== id);
+  saveDatabase();
+  return { success: true, message: 'Категория удалена' };
+}
+
+export function isSystemCategory(id: number): boolean {
+  return id === 1 || id === 2;
+}
+
+// Equipment
 export function getAllEquipment(searchQuery?: string, categoryId?: number, statusId?: number, locationId?: number): Equipment[] {
   let result = [...db.equipment];
-
-  if (categoryId) {
-    result = result.filter(eq => eq.category_id === categoryId);
-  }
-
-  if (statusId) {
-    result = result.filter(eq => eq.status_id === statusId);
-  }
-
-  if (locationId) {
-    result = result.filter(eq => eq.location_id === locationId);
-  }
-
+  if (categoryId) result = result.filter(eq => eq.category_id === categoryId);
+  if (statusId) result = result.filter(eq => eq.status_id === statusId);
+  if (locationId) result = result.filter(eq => eq.location_id === locationId);
   if (searchQuery) {
     const query = searchQuery.toLowerCase();
-    result = result.filter(eq => {
-      const loc = db.locations.find(l => l.id === eq.location_id);
-      const locName = loc ? loc.name.toLowerCase() : '';
-      return eq.name.toLowerCase().includes(query) ||
-        eq.serial_number.toLowerCase().includes(query) ||
-        eq.inventory_number.toLowerCase().includes(query) ||
-        eq.manufacturer.toLowerCase().includes(query) ||
-        eq.model.toLowerCase().includes(query) ||
-        locName.includes(query) ||
-        eq.responsible_person.toLowerCase().includes(query) ||
-        eq.notes.toLowerCase().includes(query);
-    });
-  }
-
-  return result.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-}
-
-export function getEquipmentById(id: number): Equipment | null {
-  return db.equipment.find(eq => eq.id === id) || null;
-}
-
-function generateInventoryNumber(): string {
-  // Находим максимальный номер в базе
-  let maxNum = 0;
-  db.equipment.forEach(eq => {
-    const match = eq.inventory_number.match(/^INV-(\d+)$/);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      if (num > maxNum) maxNum = num;
-    }
-  });
-  // Генерируем следующий номер с 4 цифрами
-  const nextNum = maxNum + 1;
-  return `INV-${String(nextNum).padStart(4, '0')}`;
-}
-
-export function addEquipment(data: Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'inventory_number' | 'created_at' | 'updated_at'>): number {
-  const category = db.categories.find(c => c.id === data.category_id);
-  const now = new Date().toISOString();
-  const inventoryNumber = generateInventoryNumber();
-  
-  const newEquipment: Equipment = {
-    id: db.nextEquipmentId++,
-    category_id: data.category_id,
-    category_name: category?.name || '',
-    category_icon: category?.icon || '',
-    name: data.name,
-    serial_number: data.serial_number || '',
-    inventory_number: inventoryNumber,
-    manufacturer: data.manufacturer || '',
-    model: data.model || '',
-    location_id: data.location_id,
-    responsible_person: data.responsible_person || '',
-    responsible_employee_id: data.responsible_employee_id || null,
-    status_id: data.status_id || 1,
-    purchase_date: data.purchase_date || '',
-    purchase_price: data.purchase_price || 0,
-    notes: data.notes || '',
-    created_at: now,
-    updated_at: now,
-  };
-
-  db.equipment.push(newEquipment);
-  saveDatabase();
-  addLog('create', 'equipment', newEquipment.id, newEquipment.name, `Категория: ${category?.name || 'не указана'}`);
-  return newEquipment.id;
-}
-
-export function updateEquipment(id: number, data: Omit<Equipment, 'id' | 'category_name' | 'category_icon' | 'created_at' | 'updated_at'>): void {
-  const index = db.equipment.findIndex(eq => eq.id === id);
-  if (index === -1) return;
-
-  const category = db.categories.find(c => c.id === data.category_id);
-  const existing = db.equipment[index];
-
-  db.equipment[index] = {
-    ...existing,
-    category_id: data.category_id,
-    category_name: category?.name || '',
-    category_icon: category?.icon || '',
-    name: data.name,
-    serial_number: data.serial_number || '',
-    inventory_number: data.inventory_number || '',
-    manufacturer: data.manufacturer || '',
-    model: data.model || '',
-    location_id: data.location_id,
-    responsible_person: data.responsible_person || '',
-    responsible_employee_id: data.responsible_employee_id || null,
-    status_id: data.status_id || 1,
-    purchase_date: data.purchase_date || '',
-    purchase_price: data.purchase_price || 0,
-    notes: data.notes || '',
-    updated_at: new Date().toISOString(),
-  };
-
-  saveDatabase();
-  addLog('update', 'equipment', id, data.name, 'Оборудование обновлено');
-}
-
-export function deleteEquipment(id: number): void {
-  const equipment = db.equipment.find(eq => eq.id === id);
-  const name = equipment?.name || 'Неизвестно';
-  db.equipment = db.equipment.filter(eq => eq.id !== id);
-  saveDatabase();
-  addLog('delete', 'equipment', id, name, 'Оборудование удалено');
-}
-
-export function bulkUpdateEquipment(ids: number[], updates: Partial<Omit<Equipment, 'id' | 'created_at' | 'updated_at'>>): number {
-  let updatedCount = 0;
-  const now = new Date().toISOString();
-  
-  ids.forEach(id => {
-    const index = db.equipment.findIndex(eq => eq.id === id);
-    if (index !== -1) {
-      const category = updates.category_id ? db.categories.find(c => c.id === updates.category_id) : null;
-      db.equipment[index] = {
-        ...db.equipment[index],
-        ...updates,
-        category_name: category?.name || db.equipment[index].category_name,
-        category_icon: category?.icon || db.equipment[index].category_icon,
-        updated_at: now,
-      };
-      updatedCount++;
-    }
-  });
-  
-  if (updatedCount > 0) {
-    saveDatabase();
-    addLog('update', 'equipment', undefined, undefined, `Групповое обновление: ${updatedCount} единиц оборудования`);
-  }
-  
-  return updatedCount;
-}
-
-export function bulkDeleteEquipment(ids: number[]): number {
-  const deletedCount = ids.length;
-  db.equipment = db.equipment.filter(eq => !ids.includes(eq.id));
-  saveDatabase();
-  addLog('delete', 'equipment', undefined, undefined, `Групповое удаление: ${deletedCount} единиц оборудования`);
-  return deletedCount;
-}
-
-// Генерация тестовых данных
-const manufacturersByCategory: Record<number, string[]> = {
-  1: ['HP', 'Dell', 'Lenovo', 'ASUS', 'Acer', 'MSI'], // ПК
-  2: ['HP', 'Lenovo', 'ASUS', 'Dell', 'Apple'], // Моноблоки
-  3: ['Lenovo', 'HP', 'Dell', 'ASUS', 'Acer', 'Apple', 'MSI', 'Huawei'], // Ноутбуки
-  4: ['Apple', 'Samsung', 'Lenovo', 'Huawei', 'Xiaomi'], // Планшеты
-  5: ['Apple', 'Samsung', 'Xiaomi', 'Huawei', 'Google', 'OnePlus'], // Телефоны
-  6: ['Logitech', 'Microsoft', 'Hikvision', 'Dahua', 'Axis'], // Камеры
-  7: ['HP', 'Canon', 'Epson', 'Brother', 'Xerox', 'Kyocera', 'Samsung'], // МФУ/Принтеры
-  8: ['Cisco', 'MikroTik', 'TP-Link', 'Ubiquiti', 'D-Link', 'Huawei', 'Zyxel'], // Сетевое
-  9: ['Dell', 'Samsung', 'LG', 'ASUS', 'AOC', 'BenQ', 'HP', 'Lenovo'], // Мониторы
-  10: ['Dell', 'HP', 'Lenovo', 'Supermicro', 'Cisco'], // Серверы
-  11: ['APC', 'Eaton', 'Powercom', 'IPPON', 'CyberPower'], // ИБП
-  12: ['Razer', 'SteelSeries', 'Logitech', 'JBL', 'Sony'], // Прочее
-};
-
-const locations = [
-  'Кабинет 101', 'Кабинет 102', 'Кабинет 201', 'Кабинет 202', 'Кабинет 203',
-  'Кабинет 301', 'Кабинет 302', 'Кабинет 303', 'Кабинет 304', 'Кабинет 305',
-  'Серверная', 'Бухгалтерия', 'Отдел кадров', 'Приёмная', 'Склад',
-  'Переговорная 1', 'Переговорная 2', 'Зал совещаний', 'Опен-спейс А', 'Опен-спейс Б',
-];
-
-const firstNames = ['Иван', 'Пётр', 'Сергей', 'Алексей', 'Дмитрий', 'Андрей', 'Михаил', 'Николай', 'Владимир', 'Олег', 'Анна', 'Мария', 'Елена', 'Ольга', 'Татьяна', 'Наталья'];
-const lastNames = ['Иванов', 'Петров', 'Сидоров', 'Смирнов', 'Кузнецов', 'Попов', 'Васильев', 'Соколов', 'Михайлов', 'Новиков', 'Фёдоров', 'Морозов', 'Волков', 'Алексеев', 'Лебедев'];
-
-const statusIds = [1, 1, 1, 1, 2, 3, 1]; // В работе, В работе, В работе, В работе, Неисправно, В ремонте, В работе
-
-const modelNames: Record<number, string[]> = {
-  1: ['OptiPlex 7090', 'ProDesk 400', 'ThinkCentre M70q', 'ROG Strix', 'Veriton'],
-  2: ['ProOne 440', 'ThinkCentre AIO', 'Zen AiO', 'OptiPlex AIO'],
-  3: ['ThinkPad T14', 'ProBook 450', 'Latitude 5520', 'VivoBook 15', 'Aspire 3', 'MacBook Pro 14', 'MateBook D15'],
-  4: ['iPad Air', 'Galaxy Tab S8', 'Tab M10', 'MatePad 11', 'Redmi Pad'],
-  5: ['iPhone 14', 'Galaxy S23', 'Redmi Note 12', 'P50 Pro', 'Pixel 7'],
-  6: ['C920', 'LifeCam HD-3000', 'DS-2CD2143G2', 'DH-IPC-HDW2431T', 'M3064-V'],
-  7: ['LaserJet Pro M404', 'imageCLASS MF269dw', 'EcoTank L3250', 'HL-L2350DW', 'WorkCentre 3345'],
-  8: ['Catalyst 9200', 'hEX S', 'Archer AX73', 'UniFi AP', 'DIR-878', 'AX3 Pro'],
-  9: ['P2422H', 'S24D300', '27MK430H', 'VG249Q', '24B1XH', 'GW2480', 'E24 G5', 'ThinkVision T24i'],
-  10: ['PowerEdge R740', 'ProLiant DL380', 'ThinkSystem SR650', 'X11DPH-T'],
-  11: ['Smart-UPS 1500', '5PX 3000', 'AP755', 'Ups 1000VA', 'CP1500EPFCLCD'],
-  12: ['BlackShark V2', 'Arctis 7', 'G Pro X', 'Flip 6', 'WH-1000XM5'],
-};
-
-function randomFrom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function randomSerial(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < 12; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result = result.filter(eq => eq.name.toLowerCase().includes(query));
   }
   return result;
 }
 
-function randomDate(startYear: number, endYear: number): string {
-  const start = new Date(startYear, 0, 1).getTime();
-  const end = new Date(endYear, 11, 31).getTime();
-  const date = new Date(start + Math.random() * (end - start));
-  return date.toISOString().slice(0, 10);
+export function addEquipment(data: any): number {
+  const newEquipment: Equipment = {
+    id: db.nextEquipmentId++,
+    ...data,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  db.equipment.push(newEquipment);
+  saveDatabase();
+  return newEquipment.id;
 }
 
-export function generateTestData(): number {
-  // Проверка: нельзя генерировать без сотрудников
-  if (db.employees.length === 0) {
-    throw new Error('Невозможно создать тестовые данные: сначала добавьте сотрудников');
+export function updateEquipment(id: number, data: any): void {
+  const index = db.equipment.findIndex(eq => eq.id === id);
+  if (index !== -1) {
+    db.equipment[index] = { ...db.equipment[index], ...data, updated_at: new Date().toISOString() };
+    saveDatabase();
   }
-  
-  // Проверка: нельзя генерировать без местоположений
-  if (db.locations.length === 0) {
-    throw new Error('Невозможно создать тестовые данные: сначала создайте местоположения');
-  }
-  
-  let count = 0;
-  const now = new Date().toISOString();
-  
-  for (const category of db.categories) {
-    const countForCategory = Math.floor(Math.random() * 91) + 10; // 10..100
-    const manufacturers = manufacturersByCategory[category.id] || ['Generic'];
-    const models = modelNames[category.id] || ['Model X'];
-    
-    for (let i = 0; i < countForCategory; i++) {
-      const manufacturer = randomFrom(manufacturers);
-      const model = randomFrom(models);
-      const currentId = db.nextEquipmentId++;
-      const inventoryNumber = `INV-${String(currentId).padStart(4, '0')}`;
-      const fullName = `${randomFrom(lastNames)} ${randomFrom(firstNames)} ${randomFrom(firstNames).charAt(0)}.`;
-      
-      // Случайно привязываем к существующему сотруднику (70% шанс)
-      let responsibleEmployeeId: number | null = null;
-      let responsibleName = fullName;
-      if (db.employees.length > 0 && Math.random() > 0.3) {
-        const randomEmp = randomFrom(db.employees);
-        responsibleEmployeeId = randomEmp.id;
-        responsibleName = randomEmp.full_name;
-      }
-      
-      // Выбираем случайное местоположение из существующих
-      const locationId = db.locations.length > 0 
-        ? randomFrom(db.locations).id 
-        : 0;
-      
-      const newEquipment: Equipment = {
-        id: currentId,
-        category_id: category.id,
-        category_name: category.name,
-        category_icon: category.icon,
-        name: `${category.name} ${manufacturer} ${model} #${i + 1}`,
-        serial_number: randomSerial(),
-        inventory_number: inventoryNumber,
-        manufacturer: manufacturer,
-        model: model,
-        location_id: locationId,
-        responsible_person: responsibleName,
-        responsible_employee_id: responsibleEmployeeId,
-        status_id: randomFrom(statusIds),
-        purchase_date: randomDate(2018, 2025),
-        purchase_price: Math.floor(Math.random() * 300000) + 5000,
-        notes: '',
-        created_at: now,
-        updated_at: now,
-      };
-      
-      db.equipment.push(newEquipment);
-      count++;
-    }
-  }
-  
+}
+
+export function deleteEquipment(id: number): void {
+  db.equipment = db.equipment.filter(eq => eq.id !== id);
   saveDatabase();
-  addLog('generate', 'equipment', undefined, undefined, `Сгенерировано ${count} единиц оборудования`);
-  return count;
+}
+
+export function bulkUpdateEquipment(ids: number[], updates: Partial<Equipment>): void {
+  ids.forEach(id => {
+    const index = db.equipment.findIndex(eq => eq.id === id);
+    if (index !== -1) {
+      db.equipment[index] = { ...db.equipment[index], ...updates, updated_at: new Date().toISOString() };
+    }
+  });
+  saveDatabase();
+}
+
+export function bulkDeleteEquipment(ids: number[]): void {
+  db.equipment = db.equipment.filter(eq => !ids.includes(eq.id));
+  saveDatabase();
 }
 
 export function clearAllEquipment(): void {
-  const count = db.equipment.length;
   db.equipment = [];
-  db.nextEquipmentId = 1;
   saveDatabase();
-  addLog('clear', 'equipment', undefined, undefined, `Удалено ${count} единиц оборудования`);
 }
 
-export function getStats(): { total: number; byCategory: { name: string; icon: string; count: number }[] } {
-  const total = db.equipment.length;
+export function generateTestData(): { success: boolean; message: string; count?: number } {
+  // Проверка на наличие сотрудников
+  if (db.employees.length === 0) {
+    return { 
+      success: false, 
+      message: 'Невозможно создать тестовое оборудование: сначала добавьте сотрудников' 
+    };
+  }
   
-  const byCategory = db.categories.map(cat => ({
-    name: cat.name,
-    icon: cat.icon,
-    count: db.equipment.filter(eq => eq.category_id === cat.id).length,
-  })).sort((a, b) => b.count - a.count);
-
-  return { total, byCategory };
+  const count = Math.floor(Math.random() * 50) + 10;
+  for (let i = 0; i < count; i++) {
+    // Случайно привязываем к существующему сотруднику (70% шанс)
+    let responsibleEmployeeId: number | null = null;
+    let responsibleName = '';
+    if (db.employees.length > 0 && Math.random() > 0.3) {
+      const randomEmp = db.employees[Math.floor(Math.random() * db.employees.length)];
+      responsibleEmployeeId = randomEmp.id;
+      responsibleName = randomEmp.full_name;
+    }
+    
+    addEquipment({
+      name: `Тестовое оборудование ${i + 1}`,
+      category_id: db.categories[0]?.id || 1,
+      status_id: 1,
+      location_id: db.locations[0]?.id || 1,
+      responsible_employee_id: responsibleEmployeeId,
+      responsible_person: responsibleName,
+      serial_number: `SN${Date.now()}${i}`,
+      inventory_number: `INV${Date.now()}${i}`,
+      manufacturer: 'Test Manufacturer',
+      model: 'Test Model',
+      purchase_date: new Date().toISOString().split('T')[0],
+      purchase_price: Math.floor(Math.random() * 100000) + 10000,
+      notes: 'Тестовая запись',
+    });
+  }
+  return { success: true, message: `Создано ${count} единиц тестового оборудования`, count };
 }
 
-// ============ МЕСТОПОЛОЖЕНИЯ ============
+export function getStats(): any {
+  return {
+    total: db.equipment.length,
+    byCategory: db.categories.map(cat => ({
+      name: cat.name,
+      icon: cat.icon,
+      count: db.equipment.filter(eq => eq.category_id === cat.id).length,
+    })),
+  };
+}
 
+// Employees
+export function getAllEmployees(searchQuery?: string, departmentId?: number, workMode?: string, employeeType?: string): Employee[] {
+  let result = [...db.employees];
+  if (departmentId) result = result.filter(emp => emp.department_id === departmentId);
+  if (workMode) result = result.filter(emp => emp.work_mode === workMode);
+  if (employeeType) result = result.filter(emp => emp.employee_type === employeeType);
+  if (searchQuery) {
+    const query = searchQuery.toLowerCase();
+    result = result.filter(emp => emp.full_name.toLowerCase().includes(query));
+  }
+  return result;
+}
+
+export function addEmployee(data: any): number {
+  const newEmployee: Employee = {
+    id: db.nextEmployeeId++,
+    ...data,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  db.employees.push(newEmployee);
+  saveDatabase();
+  return newEmployee.id;
+}
+
+export function updateEmployee(id: number, data: any): void {
+  const index = db.employees.findIndex(emp => emp.id === id);
+  if (index !== -1) {
+    db.employees[index] = { ...db.employees[index], ...data, updated_at: new Date().toISOString() };
+    saveDatabase();
+  }
+}
+
+export function deleteEmployee(id: number): { success: boolean; message: string } {
+  const equipment = db.equipment.filter(eq => eq.responsible_employee_id === id);
+  if (equipment.length > 0) {
+    return { success: false, message: `Нельзя удалить: за сотрудником закреплено ${equipment.length} единиц оборудования` };
+  }
+  db.employees = db.employees.filter(emp => emp.id !== id);
+  saveDatabase();
+  return { success: true, message: 'Сотрудник удалён' };
+}
+
+export function bulkUpdateEmployee(ids: number[], updates: Partial<Employee>): void {
+  ids.forEach(id => {
+    const index = db.employees.findIndex(emp => emp.id === id);
+    if (index !== -1) {
+      db.employees[index] = { ...db.employees[index], ...updates, updated_at: new Date().toISOString() };
+    }
+  });
+  saveDatabase();
+}
+
+export function bulkDeleteEmployee(ids: number[]): { success: boolean; message: string; deletedCount: number } {
+  // Проверяем, есть ли оборудование, привязанное к удаляемым сотрудникам
+  const linkedEquipment = db.equipment.filter(eq => 
+    eq.responsible_employee_id && ids.includes(eq.responsible_employee_id)
+  );
+  
+  if (linkedEquipment.length > 0) {
+    return { 
+      success: false, 
+      message: `Нельзя удалить: за выбранными сотрудниками закреплено ${linkedEquipment.length} единиц оборудования`,
+      deletedCount: 0
+    };
+  }
+  
+  const deletedCount = ids.length;
+  db.employees = db.employees.filter(emp => !ids.includes(emp.id));
+  saveDatabase();
+  return { success: true, message: `Удалено ${deletedCount} сотрудников`, deletedCount };
+}
+
+export function clearAllEmployees(): void {
+  db.employees = [];
+  saveDatabase();
+}
+
+export function generateTestEmployees(): number {
+  const count = Math.floor(Math.random() * 20) + 5;
+  const firstNames = ['Иван', 'Пётр', 'Сергей', 'Анна', 'Мария', 'Елена'];
+  const lastNames = ['Иванов', 'Петров', 'Сидоров', 'Кузнецов', 'Попов'];
+  
+  for (let i = 0; i < count; i++) {
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    addEmployee({
+      full_name: `${lastName} ${firstName} ${firstName}ович`,
+      gender: firstName === 'Анна' || firstName === 'Мария' || firstName === 'Елена' ? 'female' : 'male',
+      department_id: db.departments[0]?.id || null,
+      position: 'Специалист',
+      employee_type: 'staff',
+      phone: `+7 (9${Math.floor(Math.random() * 99)}) ${Math.floor(Math.random() * 999)}-${Math.floor(Math.random() * 99)}-${Math.floor(Math.random() * 99)}`,
+      email: `${lastName.toLowerCase()}.${firstName.toLowerCase()}@company.ru`,
+      work_mode: 'office',
+      city: 'Москва',
+      timezone: 'Europe/Moscow',
+    });
+  }
+  return count;
+}
+
+export function getEmployeeStats(): any {
+  return {
+    total: db.employees.length,
+    byDepartment: [],
+    byWorkMode: [],
+    byGender: [],
+    byType: [],
+  };
+}
+
+export function getEquipmentByEmployee(employeeId: number): Equipment[] {
+  return db.equipment.filter(eq => eq.responsible_employee_id === employeeId);
+}
+
+// Departments
+export function getAllDepartments(): Department[] {
+  return db.departments;
+}
+
+export function getDepartmentTree(): any[] {
+  const buildTree = (parentId: number | null): any[] => {
+    return db.departments
+      .filter(d => d.parent_id === parentId)
+      .map(dept => ({
+        ...dept,
+        children: buildTree(dept.id),
+        employeeCount: db.employees.filter(emp => emp.department_id === dept.id).length,
+      }));
+  };
+  
+  return buildTree(null);
+}
+
+export function addDepartment(name: string, parentId: number | null): number {
+  const newDept: Department = {
+    id: db.nextDepartmentId++,
+    name,
+    parent_id: parentId,
+    head_employee_id: null,
+    created_at: new Date().toISOString(),
+  };
+  db.departments.push(newDept);
+  saveDatabase();
+  return newDept.id;
+}
+
+export function deleteDepartment(id: number): { success: boolean; message: string } {
+  if (isSystemDepartment(id)) {
+    return { success: false, message: 'Нельзя удалить системное подразделение' };
+  }
+  db.departments = db.departments.filter(d => d.id !== id);
+  saveDatabase();
+  return { success: true, message: 'Подразделение удалено' };
+}
+
+export function clearAllDepartments(): { success: boolean; message: string } {
+  const userDepartments = db.departments.filter(d => !isSystemDepartment(d.id));
+  if (userDepartments.length === 0) {
+    return { success: false, message: 'Нет пользовательских подразделений для очистки' };
+  }
+  
+  db.departments = db.departments.filter(d => isSystemDepartment(d.id));
+  saveDatabase();
+  return { success: true, message: `Очищено ${userDepartments.length} подразделений (системные сохранены)` };
+}
+
+export function generateTestDepartments(): number {
+  const deptNames = ['ИТ-отдел', 'Бухгалтерия', 'Отдел кадров', 'Отдел продаж', 'Маркетинг', 'Юридический отдел', 'Отдел логистики', 'Финансовый отдел'];
+  let count = 0;
+  deptNames.forEach(name => {
+    // Проверяем, не существует ли уже такое подразделение
+    if (!db.departments.find(d => d.name === name)) {
+      addDepartment(name, null);
+      count++;
+    }
+  });
+  return count;
+}
+
+export function isSystemDepartment(id: number): boolean {
+  return id === 1 || id === 2 || id === 3;
+}
+
+export function getDepartmentName(id: number | null): string {
+  if (!id) return 'Не указано';
+  const dept = db.departments.find(d => d.id === id);
+  return dept?.name || 'Неизвестно';
+}
+
+export function getEquipmentByDepartment(deptId: number): Equipment[] {
+  const employees = db.employees.filter(emp => emp.department_id === deptId);
+  const empIds = employees.map(e => e.id);
+  return db.equipment.filter(eq => eq.responsible_employee_id && empIds.includes(eq.responsible_employee_id));
+}
+
+// Locations
 export function getAllLocations(): Location[] {
-  return [...db.locations].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  return db.locations;
 }
 
-export function getLocationById(id: number): Location | null {
-  return db.locations.find(l => l.id === id) || null;
-}
-
-export function getLocationName(id: number): string {
-  const loc = db.locations.find(l => l.id === id);
-  return loc ? loc.name : 'Не указано';
-}
-
-export function addLocation(name: string, description: string = '', parentId: number | null = null): number {
-  const newLocation: Location = {
+export function addLocation(name: string, description: string, parentId: number | null): number {
+  const newLoc: Location = {
     id: db.nextLocationId++,
     name,
     description,
     parent_id: parentId,
     created_at: new Date().toISOString(),
   };
-  db.locations.push(newLocation);
+  db.locations.push(newLoc);
   saveDatabase();
-  addLog('create', 'location', newLocation.id, newLocation.name, 'Местоположение создано');
-  return newLocation.id;
-}
-
-export function updateLocation(id: number, name: string, description: string, parentId: number | null): void {
-  const index = db.locations.findIndex(l => l.id === id);
-  if (index === -1) return;
-  db.locations[index] = {
-    ...db.locations[index],
-    name,
-    description,
-    parent_id: parentId,
-  };
-  saveDatabase();
-}
-
-export function isSystemLocation(id: number): boolean {
-  return id === 1 || id === 2; // Главный офис и Вне офиса
+  return newLoc.id;
 }
 
 export function deleteLocation(id: number): { success: boolean; message: string } {
-  // Проверяем, является ли местоположение системным
   if (isSystemLocation(id)) {
     return { success: false, message: 'Нельзя удалить системное местоположение' };
   }
-  
-  // Проверяем, есть ли оборудование с этим местоположением
-  const equipment = db.equipment.filter(eq => eq.location_id === id);
-  if (equipment.length > 0) {
-    return { success: false, message: `Нельзя удалить: к местоположению привязано ${equipment.length} единиц оборудования` };
-  }
-  
-  // Проверяем, есть ли дочерние местоположения
-  const children = db.locations.filter(l => l.parent_id === id);
-  if (children.length > 0) {
-    return { success: false, message: `Нельзя удалить: есть ${children.length} вложенных местоположений` };
-  }
-  
-  const location = db.locations.find(l => l.id === id);
-  const name = location?.name || 'Неизвестно';
   db.locations = db.locations.filter(l => l.id !== id);
   saveDatabase();
-  addLog('delete', 'location', id, name, 'Местоположение удалено');
   return { success: true, message: 'Местоположение удалено' };
 }
 
-export function getEquipmentCountByLocation(locationId: number): number {
-  return db.equipment.filter(eq => eq.location_id === locationId).length;
+export function clearAllLocations(): { success: boolean; message: string } {
+  const userLocations = db.locations.filter(l => !isSystemLocation(l.id));
+  if (userLocations.length === 0) {
+    return { success: false, message: 'Нет пользовательских местоположений для очистки' };
+  }
+  
+  db.locations = db.locations.filter(l => isSystemLocation(l.id));
+  saveDatabase();
+  return { success: true, message: `Очищено ${userLocations.length} местоположений (системные сохранены)` };
 }
 
-export function getEquipmentByLocation(locationId: number, includeChildren: boolean = true): Equipment[] {
+export function generateTestLocations(): number {
+  const locNames = ['Филиал Север', 'Филиал Юг', 'Склад №1', 'Склад №2'];
+  let count = 0;
+  locNames.forEach(name => {
+    // Проверяем, не существует ли уже такое местоположение
+    if (!db.locations.find(l => l.name === name)) {
+      addLocation(name, '', null);
+      count++;
+    }
+  });
+  return count;
+}
+
+export function isSystemLocation(id: number): boolean {
+  return id === 1 || id === 2;
+}
+
+export function getLocationFullPath(id: number): string {
+  const loc = db.locations.find(l => l.id === id);
+  if (!loc) return 'Не указано';
+  
+  if (loc.parent_id) {
+    const parentPath = getLocationFullPath(loc.parent_id);
+    return `${parentPath} - ${loc.name}`;
+  }
+  
+  return loc.name;
+}
+
+export function getEquipmentByLocation(locId: number, includeChildren: boolean = true): Equipment[] {
   if (!includeChildren) {
-    return db.equipment.filter(eq => eq.location_id === locationId);
+    return db.equipment.filter(eq => eq.location_id === locId);
   }
   
   // Получаем все дочерние местоположения
@@ -946,145 +718,32 @@ export function getEquipmentByLocation(locationId: number, includeChildren: bool
     return allChildIds;
   };
   
-  const allLocationIds = [locationId, ...getChildLocationIds(locationId)];
+  const allLocationIds = [locId, ...getChildLocationIds(locId)];
   return db.equipment.filter(eq => allLocationIds.includes(eq.location_id));
 }
 
-export function getLocationTree(): (Location & { children: Location[]; equipmentCount: number })[] {
-  const rootLocations = db.locations.filter(l => l.parent_id === null);
-  
-  return rootLocations.map(loc => {
-    const children = db.locations
-      .filter(l => l.parent_id === loc.id)
-      .map(child => ({
-        ...child,
-        children: [],
-        equipmentCount: getEquipmentCountByLocation(child.id),
-      }));
-    
-    return {
-      ...loc,
-      children,
-      equipmentCount: getEquipmentCountByLocation(loc.id),
-    };
-  }).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+export function getEquipmentCountByLocation(locId: number): number {
+  return getEquipmentByLocation(locId, true).length;
 }
 
-export function getLocationFullPath(locationId: number): string {
-  const location = db.locations.find(l => l.id === locationId);
-  if (!location) return 'Не указано';
-  
-  if (location.parent_id) {
-    const parent = db.locations.find(l => l.id === location.parent_id);
-    if (parent) {
-      return `${parent.name} - ${location.name}`;
-    }
-  }
-  
-  return location.name;
-}
-
-export function generateTestLocations(): number {
-  // Создаём корневые местоположения (не создаём "Главный офис", т.к. он уже системный)
-  const rootLocations = [
-    { name: 'Филиал Север', description: 'Северный филиал' },
-    { name: 'Филиал Юг', description: 'Южный филиал' },
-    { name: 'Склад №1', description: 'Основной склад' },
-    { name: 'Склад №2', description: 'Дополнительный склад' },
-  ];
-  
-  let count = 0;
-  const createdIds: Record<string, number> = {};
-  
-  // Создаём корневые местоположения
-  for (const loc of rootLocations) {
-    if (!db.locations.find(l => l.name === loc.name && l.parent_id === null)) {
-      const id = addLocation(loc.name, loc.description, null);
-      createdIds[loc.name] = id;
-      count++;
-    } else {
-      const existing = db.locations.find(l => l.name === loc.name && l.parent_id === null);
-      if (existing) createdIds[loc.name] = existing.id;
-    }
-  }
-  
-  // Создаём вложенные местоположения (дочерние элементы системного "Главный офис" ID=1)
-  const childLocations = [
-    { name: 'Кабинет 101', description: 'Первый этаж', parent: 'Главный офис' },
-    { name: 'Кабинет 102', description: 'Первый этаж', parent: 'Главный офис' },
-    { name: 'Кабинет 201', description: 'Второй этаж', parent: 'Главный офис' },
-    { name: 'Кабинет 202', description: 'Второй этаж', parent: 'Главный офис' },
-    { name: 'Кабинет 301', description: 'Третий этаж', parent: 'Главный офис' },
-    { name: 'Кабинет 302', description: 'Третий этаж', parent: 'Главный офис' },
-    { name: 'Переговорная', description: 'Комната для совещаний', parent: 'Главный офис' },
-    { name: 'Серверная', description: 'Помещение для серверного оборудования', parent: 'Главный офис' },
-    { name: 'Бухгалтерия', description: 'Отдел бухгалтерии', parent: 'Главный офис' },
-    { name: 'Отдел кадров', description: 'HR отдел', parent: 'Главный офис' },
-  ];
-  
-  // Получаем ID системного "Главный офис"
-  const mainOfficeId = 1;
-  
-  for (const loc of childLocations) {
-    if (!db.locations.find(l => l.name === loc.name && l.parent_id === mainOfficeId)) {
-      addLocation(loc.name, loc.description, mainOfficeId);
-      count++;
-    }
-  }
-  
-  addLog('generate', 'location', undefined, undefined, `Сгенерировано ${count} местоположений`);
-  return count;
-}
-
-export function clearAllLocations(): { success: boolean; message: string } {
-  // Перемещаем всё оборудование в "Главный офис" (id=1)
-  db.equipment = db.equipment.map(eq => ({
-    ...eq,
-    location_id: 1
+export function getLocationTree(): any[] {
+  return db.locations.filter(l => l.parent_id === null).map(loc => ({
+    ...loc,
+    children: db.locations.filter(l => l.parent_id === loc.id),
+    equipmentCount: getEquipmentCountByLocation(loc.id),
   }));
-  
-  // Полностью удаляем все местоположения
-  db.locations = [];
-  
-  // Пересоздаём только 2 системных местоположения
-  db.locations.push({
-    id: 1,
-    name: 'Главный офис',
-    description: 'Системное местоположение',
-    parent_id: null,
-    created_at: new Date().toISOString(),
-  });
-  db.locations.push({
-    id: 2,
-    name: 'Вне офиса',
-    description: 'Системное местоположение',
-    parent_id: null,
-    created_at: new Date().toISOString(),
-  });
-  
-  db.nextLocationId = 3;
-  
-  saveDatabase();
-  addLog('clear', 'location', undefined, undefined, 'Местоположения очищены (системные сохранены)');
-  return { success: true, message: 'Местоположения очищены (остались только Главный офис и Вне офиса)' };
 }
 
-// ============ СТАТУСЫ ============
-
+// Statuses
 export function getAllStatuses(): Status[] {
-  return [...db.statuses].sort((a, b) => a.id - b.id);
+  return db.statuses;
 }
 
-export function getStatusById(id: number): Status | null {
-  return db.statuses.find(s => s.id === id) || null;
+export function getStatusById(id: number): Status | undefined {
+  return db.statuses.find(s => s.id === id);
 }
 
-export function getStatusName(id: number): string {
-  const status = db.statuses.find(s => s.id === id);
-  return status ? status.name : 'Неизвестно';
-}
-
-export function addStatus(name: string, color: string, icon: string, description: string = ''): number {
+export function addStatus(name: string, color: string, icon: string, description: string): number {
   const newStatus: Status = {
     id: db.nextStatusId++,
     name,
@@ -1094,832 +753,122 @@ export function addStatus(name: string, color: string, icon: string, description
   };
   db.statuses.push(newStatus);
   saveDatabase();
-  addLog('create', 'status', newStatus.id, newStatus.name, `Цвет: ${color}, иконка: ${icon}`);
   return newStatus.id;
 }
 
-export function updateStatus(id: number, name: string, color: string, icon: string, description: string): void {
-  const index = db.statuses.findIndex(s => s.id === id);
-  if (index === -1) return;
-  db.statuses[index] = {
-    ...db.statuses[index],
-    name,
-    color,
-    icon,
-    description,
-  };
-  saveDatabase();
-}
-
-export function isSystemStatus(id: number): boolean {
-  return id >= 1 && id <= 3; // Системные статусы: В работе (1), Неисправно (2), В ремонте (3)
-}
-
 export function deleteStatus(id: number): { success: boolean; message: string } {
-  // Проверяем, является ли статус системным
   if (isSystemStatus(id)) {
     return { success: false, message: 'Нельзя удалить системный статус' };
   }
-  
-  // Проверяем, есть ли оборудование с этим статусом
-  const equipment = db.equipment.filter(eq => eq.status_id === id);
-  if (equipment.length > 0) {
-    return { success: false, message: `Нельзя удалить: к статусу привязано ${equipment.length} единиц оборудования` };
-  }
-  
-  const status = db.statuses.find(s => s.id === id);
-  const name = status?.name || 'Неизвестно';
   db.statuses = db.statuses.filter(s => s.id !== id);
   saveDatabase();
-  addLog('delete', 'status', id, name, 'Статус удалён');
   return { success: true, message: 'Статус удалён' };
 }
 
-export function getEquipmentCountByStatus(statusId: number): number {
-  return db.equipment.filter(eq => eq.status_id === statusId).length;
+export function clearAllStatuses(): { success: boolean; message: string } {
+  const userStatuses = db.statuses.filter(s => !isSystemStatus(s.id));
+  if (userStatuses.length === 0) {
+    return { success: false, message: 'Нет пользовательских статусов для очистки' };
+  }
+  
+  db.statuses = db.statuses.filter(s => isSystemStatus(s.id));
+  saveDatabase();
+  return { success: true, message: `Очищено ${userStatuses.length} статусов (системные сохранены)` };
+}
+
+export function isSystemStatus(id: number): boolean {
+  return id <= 3;
 }
 
 export function getEquipmentByStatus(statusId: number): Equipment[] {
   return db.equipment.filter(eq => eq.status_id === statusId);
 }
 
-export function clearAllStatuses(): { success: boolean; message: string } {
-  // Перемещаем всё оборудование со статусами, отличными от системных, в "В работе" (id=1)
-  db.equipment = db.equipment.map(eq => {
-    if (eq.status_id && !isSystemStatus(eq.status_id)) {
-      return { ...eq, status_id: 1 };
-    }
-    return eq;
-  });
-  
-  // Полностью удаляем все статусы
-  db.statuses = [];
-  
-  // Пересоздаём только 3 системных статуса
-  db.statuses.push({
-    id: 1,
-    name: 'В работе',
-    color: '#10b981',
-    icon: '✓',
-    description: 'Оборудование работает нормально',
-  });
-  db.statuses.push({
-    id: 2,
-    name: 'Неисправно',
-    color: '#ef4444',
-    icon: '✗',
-    description: 'Оборудование неисправно',
-  });
-  db.statuses.push({
-    id: 3,
-    name: 'В ремонте',
-    color: '#f59e0b',
-    icon: '⚙',
-    description: 'Оборудование находится в ремонте',
-  });
-  
-  db.nextStatusId = 4;
-  
-  saveDatabase();
-  addLog('clear', 'status', undefined, undefined, 'Статусы очищены (системные сохранены)');
-  return { success: true, message: 'Статусы очищены (остались только системные)' };
+export function getEquipmentCountByStatus(statusId: number): number {
+  return db.equipment.filter(eq => eq.status_id === statusId).length;
 }
 
-// ============ КАТЕГОРИИ ============
-
-export function getAllCategories(): Category[] {
-  return [...db.categories].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-}
-
-export function getCategoryById(id: number): Category | null {
-  return db.categories.find(c => c.id === id) || null;
-}
-
-export function getCategoryName(id: number): string {
-  const category = db.categories.find(c => c.id === id);
-  return category ? category.name : 'Неизвестно';
-}
-
-export function addCategory(name: string, icon: string, description: string = '', parentId: number | null = null): number {
-  const newCategory: Category = {
-    id: db.nextCategoryId++,
-    name,
-    icon,
-    description,
-    parent_id: parentId,
-  };
-  db.categories.push(newCategory);
-  saveDatabase();
-  addLog('create', 'category', newCategory.id, newCategory.name, `Иконка: ${icon}, родитель: ${parentId || 'нет'}`);
-  return newCategory.id;
-}
-
-export function updateCategory(id: number, name: string, icon: string, description: string, parentId: number | null): void {
-  const index = db.categories.findIndex(c => c.id === id);
-  if (index === -1) return;
-  db.categories[index] = {
-    ...db.categories[index],
-    name,
-    icon,
-    description,
-    parent_id: parentId,
-  };
-  saveDatabase();
-}
-
-export function deleteCategory(id: number): { success: boolean; message: string } {
-  // Проверяем, является ли категория системной
-  if (isSystemCategory(id)) {
-    return { success: false, message: 'Нельзя удалить системную категорию' };
-  }
-  
-  // Проверяем, есть ли оборудование с этой категорией
-  const equipment = db.equipment.filter(eq => eq.category_id === id);
-  if (equipment.length > 0) {
-    return { success: false, message: `Нельзя удалить: к категории привязано ${equipment.length} единиц оборудования` };
-  }
-  
-  // Проверяем, есть ли дочерние категории
-  const children = db.categories.filter(c => c.parent_id === id);
-  if (children.length > 0) {
-    return { success: false, message: `Нельзя удалить: есть ${children.length} вложенных категорий` };
-  }
-  
-  const category = db.categories.find(c => c.id === id);
-  const name = category?.name || 'Неизвестно';
-  db.categories = db.categories.filter(c => c.id !== id);
-  saveDatabase();
-  addLog('delete', 'category', id, name, 'Категория удалена');
-  return { success: true, message: 'Категория удалена' };
-}
-
-export function getEquipmentCountByCategory(categoryId: number): number {
-  return db.equipment.filter(eq => eq.category_id === categoryId).length;
-}
-
-export function getEquipmentByCategory(categoryId: number, includeChildren: boolean = true): Equipment[] {
-  if (!includeChildren) {
-    return db.equipment.filter(eq => eq.category_id === categoryId);
-  }
-  
-  // Получаем все дочерние категории
-  const getChildCategoryIds = (parentId: number): number[] => {
-    const children = db.categories.filter(c => c.parent_id === parentId);
-    const childIds = children.map(c => c.id);
-    const allChildIds = [...childIds];
-    
-    // Рекурсивно получаем всех потомков
-    for (const childId of childIds) {
-      allChildIds.push(...getChildCategoryIds(childId));
-    }
-    
-    return allChildIds;
-  };
-  
-  const allCategoryIds = [categoryId, ...getChildCategoryIds(categoryId)];
-  return db.equipment.filter(eq => allCategoryIds.includes(eq.category_id));
-}
-
-export function getCategoryTree(): (Category & { children: Category[]; equipmentCount: number })[] {
-  const rootCategories = db.categories.filter(c => c.parent_id === null);
-  
-  return rootCategories.map(cat => {
-    const children = db.categories
-      .filter(c => c.parent_id === cat.id)
-      .map(child => ({
-        ...child,
-        children: [],
-        equipmentCount: getEquipmentCountByCategory(child.id),
-      }));
-    
-    return {
-      ...cat,
-      children,
-      equipmentCount: getEquipmentCountByCategory(cat.id),
-    };
-  }).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-}
-
-export function getCategoryFullPath(categoryId: number): string {
-  const category = db.categories.find(c => c.id === categoryId);
-  if (!category) return 'Не указано';
-  
-  if (category.parent_id) {
-    const parent = db.categories.find(c => c.id === category.parent_id);
-    if (parent) {
-      return `${parent.name} - ${category.name}`;
-    }
-  }
-  
-  return category.name;
-}
-
-export function clearAllCategories(): { success: boolean; message: string } {
-  // Перемещаем всё оборудование из несистемных категорий в "Компьютеры" (id=1)
-  db.equipment = db.equipment.map(eq => {
-    if (eq.category_id && !isSystemCategory(eq.category_id)) {
-      return { ...eq, category_id: 1 };
-    }
-    return eq;
-  });
-  
-  // Полностью удаляем все категории
-  db.categories = [];
-  
-  // Пересоздаём только 2 системных категории
-  db.categories.push({
-    id: 1,
-    name: 'Компьютеры',
-    icon: '🖥️',
-    description: 'Компьютерная техника',
-    parent_id: null,
-  });
-  db.categories.push({
-    id: 2,
-    name: 'Периферия',
-    icon: '🖱️',
-    description: 'Периферийное оборудование',
-    parent_id: null,
-  });
-  
-  db.nextCategoryId = 3;
-  
-  saveDatabase();
-  addLog('clear', 'category', undefined, undefined, 'Категории очищены (системные сохранены)');
-  return { success: true, message: 'Категории очищены (остались только системные)' };
-}
-
-// ============ СОТРУДНИКИ ============
-
-export function getAllEmployees(searchQuery?: string, departmentId?: number, workMode?: string, employeeType?: string): Employee[] {
-  let result = [...db.employees];
-
-  if (departmentId !== undefined) {
-    result = result.filter(emp => emp.department_id === departmentId);
-  }
-
-  if (workMode) {
-    result = result.filter(emp => emp.work_mode === workMode);
-  }
-
-  if (employeeType) {
-    result = result.filter(emp => emp.employee_type === employeeType);
-  }
-
-  if (searchQuery) {
-    const query = searchQuery.toLowerCase();
-    result = result.filter(emp => {
-      const dept = emp.department_id ? db.departments.find(d => d.id === emp.department_id) : null;
-      const deptName = dept ? dept.name.toLowerCase() : '';
-      return emp.full_name.toLowerCase().includes(query) ||
-        emp.phone.toLowerCase().includes(query) ||
-        emp.email.toLowerCase().includes(query) ||
-        deptName.includes(query) ||
-        emp.position.toLowerCase().includes(query) ||
-        emp.city.toLowerCase().includes(query);
-    });
-  }
-
-  return result.sort((a, b) => a.full_name.localeCompare(b.full_name, 'ru'));
-}
-
-export function getEmployeeById(id: number): Employee | null {
-  return db.employees.find(emp => emp.id === id) || null;
-}
-
-export function addEmployee(data: Omit<Employee, 'id' | 'created_at' | 'updated_at'>): number {
-  const now = new Date().toISOString();
-  const newEmployee: Employee = {
-    id: db.nextEmployeeId++,
-    full_name: data.full_name,
-    gender: data.gender,
-    department_id: data.department_id || null,
-    position: data.position || '',
-    employee_type: data.employee_type || 'staff',
-    phone: data.phone || '',
-    email: data.email || '',
-    work_mode: data.work_mode || 'office',
-    city: data.city || '',
-    timezone: data.timezone || 'Europe/Moscow',
-    created_at: now,
-    updated_at: now,
-  };
-  db.employees.push(newEmployee);
-  saveDatabase();
-  addLog('create', 'employee', newEmployee.id, newEmployee.full_name, `Подразделение: ${newEmployee.department_id || 'не указано'}`);
-  return newEmployee.id;
-}
-
-export function updateEmployee(id: number, data: Omit<Employee, 'id' | 'created_at' | 'updated_at'>): void {
-  const index = db.employees.findIndex(emp => emp.id === id);
-  if (index === -1) return;
-  const existing = db.employees[index];
-  db.employees[index] = {
-    ...existing,
-    full_name: data.full_name,
-    gender: data.gender,
-    department_id: data.department_id || null,
-    position: data.position || '',
-    employee_type: data.employee_type || 'staff',
-    phone: data.phone || '',
-    email: data.email || '',
-    work_mode: data.work_mode || 'office',
-    city: data.city || '',
-    timezone: data.timezone || 'Europe/Moscow',
-    updated_at: new Date().toISOString(),
-  };
-  saveDatabase();
-  addLog('update', 'employee', id, data.full_name, 'Сотрудник обновлён');
-}
-
-export function deleteEmployee(id: number): { success: boolean; message: string } {
-  // Проверяем, есть ли оборудование, привязанное к этому сотруднику
-  const linkedEquipment = db.equipment.filter(eq => eq.responsible_employee_id === id);
-  if (linkedEquipment.length > 0) {
-    return { 
-      success: false, 
-      message: `Нельзя удалить: за сотрудником закреплено ${linkedEquipment.length} единиц оборудования` 
-    };
-  }
-  
-  const employee = db.employees.find(emp => emp.id === id);
-  const name = employee?.full_name || 'Неизвестно';
-  db.employees = db.employees.filter(emp => emp.id !== id);
-  saveDatabase();
-  addLog('delete', 'employee', id, name, 'Сотрудник удалён');
-  return { success: true, message: 'Сотрудник удалён' };
-}
-
-export function bulkUpdateEmployee(ids: number[], updates: Partial<Omit<Employee, 'id' | 'created_at' | 'updated_at'>>): number {
-  let updatedCount = 0;
-  const now = new Date().toISOString();
-  
-  ids.forEach(id => {
-    const index = db.employees.findIndex(emp => emp.id === id);
-    if (index !== -1) {
-      db.employees[index] = {
-        ...db.employees[index],
-        ...updates,
-        updated_at: now,
-      };
-      updatedCount++;
-    }
-  });
-  
-  if (updatedCount > 0) {
-    saveDatabase();
-    addLog('update', 'employee', undefined, undefined, `Групповое обновление: ${updatedCount} сотрудников`);
-  }
-  
-  return updatedCount;
-}
-
-export function bulkDeleteEmployee(ids: number[]): { success: boolean; message: string; deletedCount: number } {
-  // Проверяем, есть ли оборудование, привязанное к любому из удаляемых сотрудников
-  const linkedEquipment = db.equipment.filter(eq => 
-    eq.responsible_employee_id && ids.includes(eq.responsible_employee_id)
-  );
-  
-  if (linkedEquipment.length > 0) {
-    return { 
-      success: false, 
-      message: `Нельзя удалить: за выбранными сотрудниками закреплено ${linkedEquipment.length} единиц оборудования`,
-      deletedCount: 0
-    };
-  }
-  
-  const deletedCount = ids.length;
-  db.employees = db.employees.filter(emp => !ids.includes(emp.id));
-  saveDatabase();
-  addLog('delete', 'employee', undefined, undefined, `Групповое удаление: ${deletedCount} сотрудников`);
-  return { success: true, message: `Удалено ${deletedCount} сотрудников`, deletedCount };
-}
-
-export function getEquipmentByEmployee(employeeId: number): Equipment[] {
-  return db.equipment.filter(eq => eq.responsible_employee_id === employeeId);
-}
-
-export function getEquipmentByDepartment(departmentId: number): Equipment[] {
-  // Получаем всех сотрудников подразделения
-  const departmentEmployees = db.employees.filter(emp => emp.department_id === departmentId);
-  const employeeIds = departmentEmployees.map(emp => emp.id);
-  
-  // Возвращаем оборудование, закреплённое за этими сотрудниками
-  return db.equipment.filter(eq => 
-    eq.responsible_employee_id && employeeIds.includes(eq.responsible_employee_id)
-  );
-}
-
-export function getEmployeeStats(): {
-  total: number;
-  byDepartment: { id: number; name: string; count: number }[];
-  byWorkMode: { mode: string; label: string; icon: string; count: number }[];
-  byGender: { gender: string; count: number }[];
-  byType: { type: string; label: string; icon: string; count: number }[];
-} {
-  const total = db.employees.length;
-
-  const byDepartment = db.departments.map(dep => ({
-    id: dep.id,
-    name: dep.name,
-    count: db.employees.filter(e => e.department_id === dep.id).length,
-  })).filter(d => d.count > 0).sort((a, b) => b.count - a.count);
-
-  const modeLabels: Record<string, { label: string; icon: string }> = {
-    office: { label: 'В офисе', icon: '🏢' },
-    remote: { label: 'Удалённо', icon: '🏠' },
-    hybrid: { label: 'Гибрид', icon: '🔄' },
-  };
-  const byWorkMode = (['office', 'remote', 'hybrid'] as const).map(mode => ({
-    mode,
-    label: modeLabels[mode].label,
-    icon: modeLabels[mode].icon,
-    count: db.employees.filter(e => e.work_mode === mode).length,
-  }));
-
-  const byGender = [
-    { gender: 'male', count: db.employees.filter(e => e.gender === 'male').length },
-    { gender: 'female', count: db.employees.filter(e => e.gender === 'female').length },
+export function generateTestStatuses(): number {
+  const testStatuses = [
+    { name: 'Списано', color: '#6b7280', icon: '🗑️', description: 'Оборудование списано и выведено из эксплуатации' },
+    { name: 'На складе', color: '#3b82f6', icon: '📦', description: 'Оборудование находится на складе' },
+    { name: 'В пути', color: '#f59e0b', icon: '🚚', description: 'Оборудование в процессе доставки' },
+    { name: 'Зарезервировано', color: '#8b5cf6', icon: '🔒', description: 'Оборудование зарезервировано для сотрудника' },
   ];
-
-  const typeLabels: Record<string, { label: string; icon: string }> = {
-    staff: { label: 'Штатный', icon: '👤' },
-    external: { label: 'Внешний', icon: '🌐' },
-    contractor: { label: 'Подрядчик', icon: '📝' },
-  };
-  const byType = (['staff', 'external', 'contractor'] as const).map(type => ({
-    type,
-    label: typeLabels[type].label,
-    icon: typeLabels[type].icon,
-    count: db.employees.filter(e => e.employee_type === type).length,
-  }));
-
-  return { total, byDepartment, byWorkMode, byGender, byType };
-}
-
-// Генерация тестовых сотрудников
-export function generateTestEmployees(): number {
-  const count = Math.floor(Math.random() * 41) + 10; // 10..50
-  const now = new Date().toISOString();
   
-  // Получаем только пользовательские подразделения (не системные)
-  const userDepartments = db.departments.filter(d => d.id !== 1 && d.id !== 2);
-
-  const maleFirstNames = ['Иван', 'Пётр', 'Сергей', 'Алексей', 'Дмитрий', 'Андрей', 'Михаил', 'Николай', 'Владимир', 'Олег', 'Артём', 'Максим', 'Евгений', 'Александр', 'Константин'];
-  const femaleFirstNames = ['Анна', 'Мария', 'Елена', 'Ольга', 'Татьяна', 'Наталья', 'Ирина', 'Светлана', 'Екатерина', 'Юлия', 'Оксана', 'Виктория', 'Дарья', 'Анастасия', 'Полина'];
-  const maleLastNames = ['Иванов', 'Петров', 'Сидоров', 'Смирнов', 'Кузнецов', 'Попов', 'Васильев', 'Соколов', 'Михайлов', 'Новиков', 'Фёдоров', 'Морозов', 'Волков', 'Алексеев', 'Лебедев', 'Козлов', 'Степанов', 'Николаев', 'Орлов', 'Андреев'];
-  const femaleLastNames = ['Иванова', 'Петрова', 'Сидорова', 'Смирнова', 'Кузнецова', 'Попова', 'Васильева', 'Соколова', 'Михайлова', 'Новикова', 'Фёдорова', 'Морозова', 'Волкова', 'Алексеева', 'Лебедева', 'Козлова', 'Степанова', 'Николаева', 'Орлова', 'Андреева'];
-  const middleNames = ['Иванович', 'Петрович', 'Сергеевич', 'Александрович', 'Михайлович', 'Николаевич', 'Владимирович', 'Андреевич', 'Дмитриевич', 'Евгеньевич'];
-  const femaleMiddleNames = ['Ивановна', 'Петровна', 'Сергеевна', 'Александровна', 'Михайловна', 'Николаевна', 'Владимировна', 'Андреевна', 'Дмитриевна', 'Евгеньевна'];
-  
-  const positions = ['Директор', 'Заместитель директора', 'Начальник отдела', 'Руководитель группы', 'Ведущий специалист', 'Старший специалист', 'Специалист', 'Младший специалист', 'Стажёр', 'Менеджер', 'Инженер', 'Аналитик', 'Бухгалтер', 'Юрист', 'HR-менеджер'];
-  const employeeTypes: ('staff' | 'external' | 'contractor')[] = ['staff', 'staff', 'staff', 'staff', 'external', 'contractor'];
-  const cities = ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань', 'Нижний Новгород', 'Челябинск', 'Самара', 'Омск', 'Ростов-на-Дону', 'Уфа', 'Красноярск', 'Воронеж', 'Пермь', 'Волгоград', 'Краснодар', 'Саратов', 'Тюмень', 'Тольятти', 'Ижевск'];
-  const workModes: ('office' | 'remote' | 'hybrid')[] = ['office', 'office', 'office', 'remote', 'remote', 'hybrid'];
-
-  for (let i = 0; i < count; i++) {
-    const gender: 'male' | 'female' = Math.random() > 0.5 ? 'female' : 'male';
-    const firstName = gender === 'male' 
-      ? maleFirstNames[Math.floor(Math.random() * maleFirstNames.length)]
-      : femaleFirstNames[Math.floor(Math.random() * femaleFirstNames.length)];
-    const lastName = gender === 'male'
-      ? maleLastNames[Math.floor(Math.random() * maleLastNames.length)]
-      : femaleLastNames[Math.floor(Math.random() * femaleLastNames.length)];
-    const middleName = gender === 'male'
-      ? middleNames[Math.floor(Math.random() * middleNames.length)]
-      : femaleMiddleNames[Math.floor(Math.random() * femaleMiddleNames.length)];
-    
-    const fullName = `${lastName} ${firstName} ${middleName}`;
-    // Выбираем подразделение: если есть пользовательские, используем их, иначе "Штат"
-    const department = userDepartments.length > 0 
-      ? userDepartments[Math.floor(Math.random() * userDepartments.length)]
-      : db.departments.find(d => d.id === 1)!; // Штат
-    const position = positions[Math.floor(Math.random() * positions.length)];
-    // Тип сотрудника зависит от подразделения
-    const employeeType = department.id === 2 ? 'contractor' : (employeeTypes[Math.floor(Math.random() * employeeTypes.length)]);
-    const city = cities[Math.floor(Math.random() * cities.length)];
-    const timezone = TIMEZONES[Math.floor(Math.random() * TIMEZONES.length)].value;
-    const workMode = workModes[Math.floor(Math.random() * workModes.length)];
-    
-    // Генерация телефона
-    const phoneCode = ['903', '905', '906', '909', '910', '915', '916', '917', '919', '920', '921', '925', '926', '927', '929', '930', '936', '937', '938', '939'][Math.floor(Math.random() * 20)];
-    const phoneNum = String(Math.floor(Math.random() * 10000000)).padStart(7, '0');
-    const phone = `+7 (${phoneCode}) ${phoneNum.slice(0, 3)}-${phoneNum.slice(3, 5)}-${phoneNum.slice(5)}`;
-    
-    // Генерация email
-    const translit: Record<string, string> = { 'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya' };
-    const toTranslit = (s: string) => s.toLowerCase().split('').map(c => translit[c] || c).join('');
-    const emailName = toTranslit(lastName) + '.' + toTranslit(firstName).charAt(0);
-    const domains = ['company.ru', 'corp.ru', 'office.ru', 'firm.ru', 'work.ru'];
-    const email = `${emailName}@${domains[Math.floor(Math.random() * domains.length)]}`;
-
-    const newEmployee: Employee = {
-      id: db.nextEmployeeId++,
-      full_name: fullName,
-      gender,
-      department_id: department.id,
-      position,
-      employee_type: employeeType,
-      phone,
-      email,
-      work_mode: workMode,
-      city,
-      timezone,
-      created_at: now,
-      updated_at: now,
-    };
-
-    db.employees.push(newEmployee);
-  }
-
-  saveDatabase();
-  addLog('generate', 'employee', undefined, undefined, `Сгенерировано ${count} сотрудников`);
+  let count = 0;
+  testStatuses.forEach(status => {
+    // Проверяем, не существует ли уже такой статус
+    if (!db.statuses.find(s => s.name === status.name)) {
+      addStatus(status.name, status.color, status.icon, status.description);
+      count++;
+    }
+  });
   return count;
 }
 
-export function clearAllEmployees(): void {
-  const count = db.employees.length;
-  db.employees = [];
-  db.nextEmployeeId = 1;
-  saveDatabase();
-  addLog('clear', 'employee', undefined, undefined, `Удалено ${count} сотрудников`);
+export function getEquipmentByCategory(catId: number): Equipment[] {
+  return db.equipment.filter(eq => eq.category_id === catId);
 }
 
-// ============ ОРГСТРУКТУРА (ПОДРАЗДЕЛЕНИЯ) ============
-
-export function getAllDepartments(): Department[] {
-  return [...db.departments].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+export function getEquipmentCountByCategory(catId: number): number {
+  return db.equipment.filter(eq => eq.category_id === catId).length;
 }
 
-export function getDepartmentById(id: number): Department | null {
-  return db.departments.find(d => d.id === id) || null;
-}
-
-export function getDepartmentName(id: number | null): string {
-  if (!id) return 'Не указано';
-  const dept = db.departments.find(d => d.id === id);
-  return dept ? dept.name : 'Неизвестное подразделение';
-}
-
-export function getDepartmentTree(): (Department & { children: Department[]; employeeCount: number })[] {
-  const rootDepts = db.departments.filter(d => d.parent_id === null);
-  
-  return rootDepts.map(dept => {
-    const children = db.departments
-      .filter(d => d.parent_id === dept.id)
-      .map(child => ({
-        ...child,
-        children: [],
-        employeeCount: db.employees.filter(e => e.department_id === child.id).length,
-      }));
-    
-    return {
-      ...dept,
-      children,
-      employeeCount: db.employees.filter(e => e.department_id === dept.id).length,
-    };
-  }).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-}
-
-export function addDepartment(name: string, parentId: number | null = null): number {
-  const newDept: Department = {
-    id: db.nextDepartmentId++,
-    name,
-    parent_id: parentId,
-    head_employee_id: null,
-    created_at: new Date().toISOString(),
-  };
-  db.departments.push(newDept);
-  saveDatabase();
-  addLog('create', 'department', newDept.id, newDept.name, 'Подразделение создано');
-  return newDept.id;
-}
-
-export function updateDepartment(id: number, name: string, parentId: number | null, headEmployeeId: number | null): void {
-  const index = db.departments.findIndex(d => d.id === id);
-  if (index === -1) return;
-  db.departments[index] = {
-    ...db.departments[index],
-    name,
-    parent_id: parentId,
-    head_employee_id: headEmployeeId,
-  };
-  saveDatabase();
-  addLog('update', 'department', id, name, 'Подразделение обновлено');
-}
-
-export function isSystemDepartment(id: number): boolean {
-  return id === 1 || id === 2 || id === 3; // Штат, Подрядчики и Вне штата
-}
-
-export function deleteDepartment(id: number): { success: boolean; message: string } {
-  // Проверяем, является ли подразделение системным
-  if (isSystemDepartment(id)) {
-    return { success: false, message: 'Нельзя удалить системное подразделение' };
+export function clearAllCategories(): { success: boolean; message: string } {
+  const userCategories = db.categories.filter(c => !isSystemCategory(c.id));
+  if (userCategories.length === 0) {
+    return { success: false, message: 'Нет пользовательских категорий для очистки' };
   }
   
-  // Проверяем, есть ли дочерние подразделения
-  const children = db.departments.filter(d => d.parent_id === id);
-  if (children.length > 0) {
-    return { success: false, message: `Нельзя удалить: есть ${children.length} дочерних подразделений` };
-  }
-  
-  // Проверяем, есть ли сотрудники
-  const employees = db.employees.filter(e => e.department_id === id);
-  if (employees.length > 0) {
-    return { success: false, message: `Нельзя удалить: в подразделении ${employees.length} сотрудников` };
-  }
-  
-  const dept = db.departments.find(d => d.id === id);
-  const name = dept?.name || 'Неизвестно';
-  db.departments = db.departments.filter(d => d.id !== id);
+  db.categories = db.categories.filter(c => isSystemCategory(c.id));
   saveDatabase();
-  addLog('delete', 'department', id, name, 'Подразделение удалено');
-  return { success: true, message: 'Подразделение удалено' };
+  return { success: true, message: `Очищено ${userCategories.length} категорий (системные сохранены)` };
 }
 
-export function getSubDepartments(parentId: number | null): Department[] {
-  return db.departments.filter(d => d.parent_id === parentId);
+export function getCategoryFullPath(id: number): string {
+  const cat = db.categories.find(c => c.id === id);
+  return cat?.name || 'Не указано';
 }
 
-export function generateTestDepartments(): number {
-  const count = Math.floor(Math.random() * 6) + 5; // 5..10 корневых
-  const now = new Date().toISOString();
-  let created = 0;
-
-  const rootNames = [
-    'Руководство', 'ИТ-департамент', 'Финансовый отдел', 'Отдел продаж',
-    'Отдел маркетинга', 'Отдел кадров', 'Юридический отдел', 'Отдел логистики',
-    'Производственный отдел', 'Отдел разработки', 'Служба безопасности', 'Бухгалтерия',
-  ].filter(name => name !== 'Штат' && name !== 'Подрядчики' && name !== 'Вне штата'); // Исключаем системные
-
-  const subDeptNames: Record<string, string[]> = {
-    'ИТ-департамент': ['Сетевой отдел', 'Отдел разработки', 'Техподдержка', 'Отдел информационной безопасности'],
-    'Финансовый отдел': ['Бюджетирование', 'Казначейство', 'Финансовый анализ'],
-    'Отдел продаж': ['Отдел корпоративных продаж', 'Отдел розничных продаж', 'Отдел работы с клиентами'],
-    'Руководство': ['Совет директоров', 'Стратегическое планирование'],
-    'Производственный отдел': ['Цех №1', 'Цех №2', 'Отдел контроля качества'],
-  };
-
-  // Создаём корневые подразделения
-  const rootIds: number[] = [];
-  for (let i = 0; i < Math.min(count, rootNames.length); i++) {
-    const dept: Department = {
-      id: db.nextDepartmentId++,
-      name: rootNames[i],
-      parent_id: null,
-      head_employee_id: null,
-      created_at: now,
-    };
-    db.departments.push(dept);
-    rootIds.push(dept.id);
-    created++;
-  }
-
-  // Создаём дочерние подразделения
-  for (const rootName of Object.keys(subDeptNames)) {
-    const parentDept = db.departments.find(d => d.name === rootName && d.parent_id === null);
-    if (!parentDept) continue;
-    
-    const subs = subDeptNames[rootName];
-    for (const subName of subs) {
-      const dept: Department = {
-        id: db.nextDepartmentId++,
-        name: subName,
-        parent_id: parentDept.id,
-        head_employee_id: null,
-        created_at: now,
-      };
-      db.departments.push(dept);
-      created++;
+export function generateTestCategories(): number {
+  const testCategories = [
+    { name: 'Ноутбуки', icon: '💻', description: 'Портативные компьютеры', parent_id: 1 },
+    { name: 'Настольные ПК', icon: '🖥️', description: 'Стационарные компьютеры', parent_id: 1 },
+    { name: 'Серверы', icon: '🖲️', description: 'Серверное оборудование', parent_id: 1 },
+    { name: 'Принтеры', icon: '🖨️', description: 'Печатающие устройства', parent_id: 2 },
+    { name: 'Сканеры', icon: '📠', description: 'Сканирующие устройства', parent_id: 2 },
+    { name: 'Мониторы', icon: '🖵', description: 'Экраны и дисплеи', parent_id: 2 },
+  ];
+  
+  let count = 0;
+  testCategories.forEach(cat => {
+    // Проверяем, не существует ли уже такая категория
+    if (!db.categories.find(c => c.name === cat.name && c.parent_id === cat.parent_id)) {
+      addCategory(cat.name, cat.icon, cat.description, cat.parent_id);
+      count++;
     }
-  }
-
-  saveDatabase();
-  addLog('generate', 'department', undefined, undefined, `Сгенерировано ${created} подразделений`);
-  return created;
-}
-
-export function clearAllDepartments(): { success: boolean; message: string } {
-  // Перемещаем всех сотрудников из несистемных подразделений в "Штат" (id=1)
-  db.employees = db.employees.map(emp => {
-    if (emp.department_id && !isSystemDepartment(emp.department_id)) {
-      return { ...emp, department_id: 1 };
-    }
-    return emp;
   });
-  
-  // Удаляем все несистемные подразделения (включая вложенные)
-  const deletedCount = db.departments.filter(d => !isSystemDepartment(d.id)).length;
-  db.departments = db.departments.filter(d => isSystemDepartment(d.id));
-  saveDatabase();
-  addLog('clear', 'department', undefined, undefined, `Удалено ${deletedCount} подразделений (системные сохранены)`);
-  return { success: true, message: 'Оргструктура очищена (системные подразделения сохранены)' };
+  return count;
 }
 
-// ============ ЛОГИ ============
-
-function addLog(action: LogEntry['action'], entityType: string, entityId?: number, entityName?: string, details?: string): void {
-  try {
-    const log: LogEntry = {
-      id: db.nextLogId++,
-      timestamp: new Date().toISOString(),
-      action,
-      entityType,
-      entityId,
-      entityName,
-      details: details || '',
-    };
-    db.logs.push(log);
-    saveDatabase();
-  } catch (error) {
-    // Логи не должны влиять на работу системы
-    console.error('Error adding log:', error);
-  }
-}
-
-export function getAllLogs(): LogEntry[] {
-  if (!db || !db.logs) {
-    return [];
-  }
-  return [...db.logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-}
-
-export function clearAllLogs(): void {
-  db.logs = [];
-  db.nextLogId = 1;
-  saveDatabase();
-}
-
-export function exportLogs(): string {
-  return JSON.stringify(db.logs, null, 2);
-}
-
-export function getLogStats(): { total: number; byAction: Record<string, number>; byEntityType: Record<string, number> } {
-  if (!db || !db.logs) {
-    return { total: 0, byAction: {}, byEntityType: {} };
-  }
-  
-  const total = db.logs.length;
-  const byAction: Record<string, number> = {};
-  const byEntityType: Record<string, number> = {};
-  
-  db.logs.forEach(log => {
-    byAction[log.action] = (byAction[log.action] || 0) + 1;
-    byEntityType[log.entityType] = (byEntityType[log.entityType] || 0) + 1;
-  });
-  
-  return { total, byAction, byEntityType };
-}
-
-// ============ НАСТРОЙКИ ============
-
-export function getSettings(): AppSettings {
-  if (!db || !db.settings) {
-    return {
-      organizationName: 'Моя Организация',
-      menuPosition: 'top',
-      theme: 'light',
-      language: 'ru',
-      itemsPerPage: 50,
-      showDescriptions: true,
-      autoSaveLogs: true,
-    };
-  }
-  return { ...db.settings };
-}
-
-export function updateSettings(settings: Partial<AppSettings>): void {
-  if (!db) return;
-  db.settings = { ...getSettings(), ...settings };
-  saveDatabase();
-  addLog('update', 'settings', undefined, undefined, 'Настройки обновлены');
-}
-
-// ============ ПОЛЬЗОВАТЕЛИ ============
-
-export function getAllUsers(): User[] {
-  if (!db || !db.users) return [];
-  return [...db.users].sort((a, b) => a.username.localeCompare(b.username));
-}
-
-export function getUserById(id: number): User | null {
-  if (!db || !db.users) return null;
-  return db.users.find(u => u.id === id) || null;
-}
-
+// Users
 export function authenticateUser(username: string, password: string): User | null {
-  if (!db || !db.users) return null;
   const user = db.users.find(u => u.username === username && u.password === password);
   return user || null;
 }
 
-export function addUser(username: string, password: string, fullName: string, role: 'superadmin' | 'admin' | 'user' = 'user'): { success: boolean; message: string; userId?: number } {
-  if (!db) return { success: false, message: 'База данных не инициализирована' };
-  
-  // Проверка уникальности username
+export function getAllUsers(): User[] {
+  return db.users;
+}
+
+export function addUser(username: string, password: string, fullName: string, role: 'superadmin' | 'admin' | 'user' | 'observer' = 'user', employee_id?: number | null): { success: boolean; message: string; userId?: number } {
   if (db.users.some(u => u.username === username)) {
     return { success: false, message: 'Пользователь с таким логином уже существует' };
+  }
+  
+  if (employee_id && db.users.some(u => u.employee_id === employee_id)) {
+    return { success: false, message: 'Этот сотрудник уже привязан к другому пользователю' };
   }
   
   const newUser: User = {
@@ -1928,48 +877,46 @@ export function addUser(username: string, password: string, fullName: string, ro
     password,
     fullName,
     role,
+    employee_id: employee_id || null,
     createdAt: new Date().toISOString(),
   };
   
   db.users.push(newUser);
   saveDatabase();
-  addLog('create', 'user', newUser.id, newUser.username, `Пользователь создан: ${fullName} (${role})`);
   
   return { success: true, message: 'Пользователь создан', userId: newUser.id };
 }
 
 export function updateUser(id: number, updates: Partial<Omit<User, 'id' | 'createdAt'>>): { success: boolean; message: string } {
-  if (!db) return { success: false, message: 'База данных не инициализирована' };
-  
   const index = db.users.findIndex(u => u.id === id);
   if (index === -1) return { success: false, message: 'Пользователь не найден' };
   
-  // Проверка уникальности username если он меняется
   if (updates.username && updates.username !== db.users[index].username) {
     if (db.users.some(u => u.username === updates.username)) {
       return { success: false, message: 'Пользователь с таким логином уже существует' };
     }
   }
   
+  if (updates.employee_id && updates.employee_id !== db.users[index].employee_id) {
+    if (db.users.some(u => u.employee_id === updates.employee_id && u.id !== id)) {
+      return { success: false, message: 'Этот сотрудник уже привязан к другому пользователю' };
+    }
+  }
+  
   db.users[index] = { ...db.users[index], ...updates };
   saveDatabase();
-  addLog('update', 'user', id, updates.username || db.users[index].username, 'Пользователь обновлён');
   
   return { success: true, message: 'Пользователь обновлён' };
 }
 
 export function deleteUser(id: number): { success: boolean; message: string } {
-  if (!db) return { success: false, message: 'База данных не инициализирована' };
-  
   const user = db.users.find(u => u.id === id);
   if (!user) return { success: false, message: 'Пользователь не найден' };
   
-  // Нельзя удалить суперадминистратора
   if (user.role === 'superadmin') {
     return { success: false, message: 'Нельзя удалить суперадминистратора' };
   }
   
-  // Нельзя удалить последнего администратора
   if (user.role === 'admin') {
     const adminCount = db.users.filter(u => u.role === 'admin').length;
     if (adminCount === 1) {
@@ -1979,20 +926,59 @@ export function deleteUser(id: number): { success: boolean; message: string } {
   
   db.users = db.users.filter(u => u.id !== id);
   saveDatabase();
-  addLog('delete', 'user', id, user.username, `Пользователь удалён: ${user.fullName}`);
   
   return { success: true, message: 'Пользователь удалён' };
 }
 
 export function changePassword(id: number, newPassword: string): { success: boolean; message: string } {
-  if (!db) return { success: false, message: 'База данных не инициализирована' };
-  
   const index = db.users.findIndex(u => u.id === id);
   if (index === -1) return { success: false, message: 'Пользователь не найден' };
   
   db.users[index].password = newPassword;
   saveDatabase();
-  addLog('update', 'user', id, db.users[index].username, 'Пароль изменён');
   
   return { success: true, message: 'Пароль изменён' };
+}
+
+// Logs
+export function addLog(action: string, entityType: string, entityId?: number, entityName?: string, details?: string, userId?: number, userName?: string): void {
+  const newLog: LogEntry = {
+    id: db.nextLogId++,
+    timestamp: new Date().toISOString(),
+    action,
+    entityType,
+    entityId,
+    entityName,
+    details,
+    userId,
+    userName,
+  };
+  db.logs.push(newLog);
+  saveDatabase();
+}
+
+export function getAllLogs(): LogEntry[] {
+  return [...db.logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+export function deleteLog(id: number): { success: boolean; message: string } {
+  const log = db.logs.find(l => l.id === id);
+  if (!log) return { success: false, message: 'Лог не найден' };
+  
+  db.logs = db.logs.filter(l => l.id !== id);
+  saveDatabase();
+  
+  return { success: true, message: 'Лог удалён' };
+}
+
+export function clearAllLogs(): { success: boolean; message: string } {
+  if (db.logs.length === 0) {
+    return { success: false, message: 'Нет логов для очистки' };
+  }
+  
+  const count = db.logs.length;
+  db.logs = [];
+  saveDatabase();
+  
+  return { success: true, message: `Удалено ${count} логов` };
 }
