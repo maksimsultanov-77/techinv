@@ -1421,10 +1421,12 @@ function App() {
               </button>
               <button
                 onClick={() => {
+                  const count = categories.filter(c => !isSystemCategory(c.id)).length;
                   const result = clearAllCategories();
                   if (!result.success) {
                     showToast(result.message, 'error');
                   } else {
+                    addLog('clear', 'category', undefined, undefined, `Очищено ${count} категорий`, currentUser?.id, currentUser?.fullName);
                     loadCategories();
                     loadEquipment();
                     showToast(result.message, 'success');
