@@ -1161,6 +1161,23 @@ function App() {
         </div>
       )}
 
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Удалить всё оборудование?</h3>
+            <p className="text-gray-600 mb-6">Будет удалено всё оборудование. Это действие нельзя отменить.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowClearConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleClearAll} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                Удалить всё
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDeptForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
