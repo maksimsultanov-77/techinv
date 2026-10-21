@@ -106,7 +106,10 @@ const defaultDb: DatabaseSchema = {
   ],
   equipment: [],
   employees: [],
-  departments: [],
+  departments: [
+    { id: 1, name: 'Руководство', parent_id: null, head_employee_id: null, created_at: new Date().toISOString() },
+    { id: 2, name: 'Все сотрудники', parent_id: null, head_employee_id: null, created_at: new Date().toISOString() },
+  ],
   locations: [
     { id: 1, name: 'Главный офис', description: 'Центральный офис компании', parent_id: null, created_at: new Date().toISOString() },
     { id: 2, name: 'Вне офиса', description: 'Оборудование вне офиса', parent_id: null, created_at: new Date().toISOString() },
@@ -129,7 +132,7 @@ const defaultDb: DatabaseSchema = {
   nextCategoryId: 3,
   nextEquipmentId: 1,
   nextEmployeeId: 1,
-  nextDepartmentId: 1,
+  nextDepartmentId: 3,
   nextLocationId: 3,
   nextStatusId: 4,
   nextUserId: 2,
@@ -168,6 +171,32 @@ export function initDatabase(): void {
       // Миграция: обновляем nextCategoryId если нужно
       if (db.nextCategoryId < 3) {
         db.nextCategoryId = 3;
+      }
+      
+      // Миграция: добавляем системные подразделения если их нет
+      if (!db.departments.find(d => d.id === 1)) {
+        db.departments.unshift({
+          id: 1,
+          name: 'Руководство',
+          parent_id: null,
+          head_employee_id: null,
+          created_at: new Date().toISOString(),
+        });
+      }
+      if (!db.departments.find(d => d.id === 2)) {
+        const idx = db.departments.findIndex(d => d.id === 1);
+        db.departments.splice(idx + 1, 0, {
+          id: 2,
+          name: 'Все сотрудники',
+          parent_id: null,
+          head_employee_id: null,
+          created_at: new Date().toISOString(),
+        });
+      }
+      
+      // Миграция: обновляем nextDepartmentId если нужно
+      if (db.nextDepartmentId < 3) {
+        db.nextDepartmentId = 3;
       }
       
       // Миграция: добавляем системные местоположения если их нет
@@ -499,6 +528,9 @@ export function addDepartment(name: string, parentId: number | null): number {
 }
 
 export function deleteDepartment(id: number): { success: boolean; message: string } {
+  if (isSystemDepartment(id)) {
+    return { success: false, message: 'Нельзя удалить системное подразделение' };
+  }
   db.departments = db.departments.filter(d => d.id !== id);
   saveDatabase();
   return { success: true, message: 'Подразделение удалено' };
@@ -511,14 +543,19 @@ export function clearAllDepartments(): void {
 
 export function generateTestDepartments(): number {
   const deptNames = ['ИТ-отдел', 'Бухгалтерия', 'Отдел кадров', 'Отдел продаж', 'Маркетинг'];
+  let count = 0;
   deptNames.forEach(name => {
-    addDepartment(name, null);
+    // Проверяем, не существует ли уже такое подразделение
+    if (!db.departments.find(d => d.name === name)) {
+      addDepartment(name, null);
+      count++;
+    }
   });
-  return deptNames.length;
+  return count;
 }
 
 export function isSystemDepartment(id: number): boolean {
-  return false;
+  return id === 1 || id === 2;
 }
 
 export function getDepartmentName(id: number | null): string {
