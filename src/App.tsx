@@ -991,9 +991,16 @@ function App() {
             {currentUser.role !== 'observer' && (
               <div className="flex justify-end gap-2 mb-4">
                 {currentUser.role === 'superadmin' && (
-                  <button onClick={() => setShowStatusTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                    🎲 Тестовые данные
-                  </button>
+                  <>
+                    <button onClick={() => setShowStatusTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                      🎲 Тестовые данные
+                    </button>
+                    {statuses.some(s => !isSystemStatus(s.id)) && (
+                      <button onClick={() => setShowClearStatusConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        🗑️ Очистить
+                      </button>
+                    )}
+                  </>
                 )}
                 <button onClick={() => setShowStatusForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   ➕ Добавить статус
@@ -1599,6 +1606,36 @@ function App() {
               </button>
               <button onClick={handleGenerateTestStatuses} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
                 Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearStatusConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Очистить статусы?</h3>
+            <p className="text-gray-600 mb-6">Все пользовательские статусы будут удалены. Системные статусы (В работе, Неисправно, В ремонте) будут сохранены.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowClearStatusConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  const result = clearAllStatuses();
+                  if (!result.success) {
+                    showToast(result.message, 'error');
+                  } else {
+                    loadStatuses();
+                    loadEquipment();
+                    showToast(result.message, 'success');
+                  }
+                  setShowClearStatusConfirm(false);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Очистить
               </button>
             </div>
           </div>

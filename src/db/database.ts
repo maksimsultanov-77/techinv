@@ -734,9 +734,15 @@ export function deleteStatus(id: number): { success: boolean; message: string } 
   return { success: true, message: 'Статус удалён' };
 }
 
-export function clearAllStatuses(): void {
-  db.statuses = db.statuses.filter(s => s.id <= 3);
+export function clearAllStatuses(): { success: boolean; message: string } {
+  const userStatuses = db.statuses.filter(s => !isSystemStatus(s.id));
+  if (userStatuses.length === 0) {
+    return { success: false, message: 'Нет пользовательских статусов для очистки' };
+  }
+  
+  db.statuses = db.statuses.filter(s => isSystemStatus(s.id));
   saveDatabase();
+  return { success: true, message: `Очищено ${userStatuses.length} статусов (системные сохранены)` };
 }
 
 export function isSystemStatus(id: number): boolean {
