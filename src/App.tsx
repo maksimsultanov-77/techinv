@@ -539,6 +539,7 @@ function App() {
     const result = generateTestData();
     setShowTestConfirm(false);
     if (result.success) {
+      addLog('generate', 'equipment', undefined, undefined, result.message, currentUser?.id, currentUser?.fullName);
       loadEquipment();
       loadAllEmployees();
       showToast(result.message, 'success');
@@ -548,7 +549,9 @@ function App() {
   };
 
   const handleClearAll = () => {
+    const count = equipment.length;
     clearAllEquipment();
+    addLog('clear', 'equipment', undefined, undefined, `Очищено ${count} единиц оборудования`, currentUser?.id, currentUser?.fullName);
     setShowClearConfirm(false);
     loadEquipment();
     showToast('Оборудование очищено', 'success');
