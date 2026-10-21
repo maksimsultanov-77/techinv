@@ -34,6 +34,30 @@ export default function EmployeeDetail({ employee, departments, currentUserRole,
               <span className="text-sm text-gray-800">{employee.position || 'Не указана'}</span>
             </div>
             <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Тип сотрудника:</span>
+              <span className="text-sm text-gray-800">
+                {employee.employee_type === 'staff' ? '👤 Штатный' : 
+                 employee.employee_type === 'external' ? '🌐 Внешний' : 
+                 employee.employee_type === 'contractor' ? '📝 Подрядчик' : 'Не указан'}
+              </span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Режим работы:</span>
+              <span className="text-sm text-gray-800">
+                {employee.work_mode === 'office' ? '🏢 В офисе' : 
+                 employee.work_mode === 'remote' ? '🏠 Удалённо' : 
+                 employee.work_mode === 'hybrid' ? '🔄 Гибрид' : 'Не указан'}
+              </span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Город:</span>
+              <span className="text-sm text-gray-800">{employee.city || 'Не указан'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Часовой пояс:</span>
+              <span className="text-sm text-gray-800">{employee.timezone || 'Не указан'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
               <span className="text-sm font-medium text-gray-500 w-40">Телефон:</span>
               <span className="text-sm text-gray-800">{employee.phone || 'Не указан'}</span>
             </div>

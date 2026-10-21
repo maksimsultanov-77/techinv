@@ -38,9 +38,43 @@ export default function EquipmentDetail({ equipment, employees, statuses, curren
               <span className="text-sm text-gray-800">{getCategoryFullPath(equipment.category_id)}</span>
             </div>
             <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Инв. номер:</span>
+              <span className="text-sm text-gray-800">{equipment.inventory_number || 'Не указан'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Серийный номер:</span>
+              <span className="text-sm text-gray-800">{equipment.serial_number || 'Не указан'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Производитель:</span>
+              <span className="text-sm text-gray-800">{equipment.manufacturer || 'Не указан'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Модель:</span>
+              <span className="text-sm text-gray-800">{equipment.model || 'Не указана'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
               <span className="text-sm font-medium text-gray-500 w-40">Местоположение:</span>
               <span className="text-sm text-gray-800">{getLocationFullPath(equipment.location_id)}</span>
             </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Ответственный:</span>
+              <span className="text-sm text-gray-800">{equipment.responsible_person || 'Не указан'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Дата покупки:</span>
+              <span className="text-sm text-gray-800">{equipment.purchase_date ? new Date(equipment.purchase_date).toLocaleDateString('ru-RU') : 'Не указана'}</span>
+            </div>
+            <div className="flex items-start border-b border-gray-100 pb-2">
+              <span className="text-sm font-medium text-gray-500 w-40">Цена:</span>
+              <span className="text-sm text-gray-800">{equipment.purchase_price ? `${equipment.purchase_price.toLocaleString('ru-RU')} ₽` : 'Не указана'}</span>
+            </div>
+            {equipment.notes && (
+              <div className="flex items-start border-b border-gray-100 pb-2">
+                <span className="text-sm font-medium text-gray-500 w-40">Примечания:</span>
+                <span className="text-sm text-gray-800">{equipment.notes}</span>
+              </div>
+            )}
             {linkedEmployee && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
