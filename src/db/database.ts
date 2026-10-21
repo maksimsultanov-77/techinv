@@ -639,6 +639,9 @@ export function addStatus(name: string, color: string, icon: string, description
 }
 
 export function deleteStatus(id: number): { success: boolean; message: string } {
+  if (isSystemStatus(id)) {
+    return { success: false, message: 'Нельзя удалить системный статус' };
+  }
   db.statuses = db.statuses.filter(s => s.id !== id);
   saveDatabase();
   return { success: true, message: 'Статус удалён' };
@@ -659,6 +662,25 @@ export function getEquipmentByStatus(statusId: number): Equipment[] {
 
 export function getEquipmentCountByStatus(statusId: number): number {
   return db.equipment.filter(eq => eq.status_id === statusId).length;
+}
+
+export function generateTestStatuses(): number {
+  const testStatuses = [
+    { name: 'Списано', color: '#6b7280', icon: '🗑️', description: 'Оборудование списано и выведено из эксплуатации' },
+    { name: 'На складе', color: '#3b82f6', icon: '📦', description: 'Оборудование находится на складе' },
+    { name: 'В пути', color: '#f59e0b', icon: '🚚', description: 'Оборудование в процессе доставки' },
+    { name: 'Зарезервировано', color: '#8b5cf6', icon: '🔒', description: 'Оборудование зарезервировано для сотрудника' },
+  ];
+  
+  let count = 0;
+  testStatuses.forEach(status => {
+    // Проверяем, не существует ли уже такой статус
+    if (!db.statuses.find(s => s.name === status.name)) {
+      addStatus(status.name, status.color, status.icon, status.description);
+      count++;
+    }
+  });
+  return count;
 }
 
 export function getEquipmentByCategory(catId: number): Equipment[] {

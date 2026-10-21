@@ -42,6 +42,7 @@ import {
   isSystemStatus,
   getEquipmentCountByStatus,
   getEquipmentByStatus,
+  generateTestStatuses,
   getAllCategories,
   addCategory,
   deleteCategory,
@@ -164,6 +165,7 @@ function App() {
   const [showDeptTestConfirm, setShowDeptTestConfirm] = useState(false);
   const [showLocTestConfirm, setShowLocTestConfirm] = useState(false);
   const [showCatTestConfirm, setShowCatTestConfirm] = useState(false);
+  const [showStatusTestConfirm, setShowStatusTestConfirm] = useState(false);
 
   // Toast notifications
   interface Toast {
@@ -436,6 +438,13 @@ function App() {
   };
 
   // Status handlers
+  const handleGenerateTestStatuses = () => {
+    const count = generateTestStatuses();
+    setShowStatusTestConfirm(false);
+    loadStatuses();
+    showToast(`Создано ${count} статусов`, 'success');
+  };
+
   const handleAddStatus = () => {
     if (!newStatusName.trim()) return;
     addStatus(newStatusName.trim(), newStatusColor, newStatusIcon, newStatusDesc.trim());
@@ -855,6 +864,11 @@ function App() {
             <h2 className="text-2xl font-bold mb-4">Статусы</h2>
             {currentUser.role !== 'observer' && (
               <div className="flex justify-end gap-2 mb-4">
+                {currentUser.role === 'superadmin' && (
+                  <button onClick={() => setShowStatusTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                    🎲 Тестовые данные
+                  </button>
+                )}
                 <button onClick={() => setShowStatusForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   ➕ Добавить статус
                 </button>
@@ -1029,6 +1043,23 @@ function App() {
                 Отмена
               </button>
               <button onClick={handleGenerateTestCategories} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showStatusTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Создать тестовые статусы?</h3>
+            <p className="text-gray-600 mb-6">Будут созданы тестовые статусы: Списано, На складе, В пути, Зарезервировано</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowStatusTestConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleGenerateTestStatuses} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
                 Создать
               </button>
             </div>
