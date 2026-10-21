@@ -518,11 +518,17 @@ export function getAllDepartments(): Department[] {
 }
 
 export function getDepartmentTree(): any[] {
-  return db.departments.filter(d => d.parent_id === null).map(dept => ({
-    ...dept,
-    children: db.departments.filter(d => d.parent_id === dept.id),
-    employeeCount: db.employees.filter(emp => emp.department_id === dept.id).length,
-  }));
+  const buildTree = (parentId: number | null): any[] => {
+    return db.departments
+      .filter(d => d.parent_id === parentId)
+      .map(dept => ({
+        ...dept,
+        children: buildTree(dept.id),
+        employeeCount: db.employees.filter(emp => emp.department_id === dept.id).length,
+      }));
+  };
+  
+  return buildTree(null);
 }
 
 export function addDepartment(name: string, parentId: number | null): number {

@@ -726,30 +726,63 @@ function App() {
               </div>
             )}
             <div className="space-y-3">
-              {getDepartmentTree().map((dept: any) => (
-                <div key={dept.id} className="bg-white rounded-lg p-4 border border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">{dept.name}</h3>
-                    <div className="flex gap-2">
-                      {dept.employeeCount > 0 && (
-                        <button onClick={() => setViewingDeptEmployees(dept.id)} className="text-green-600 hover:text-green-800">
-                          👥 {dept.employeeCount}
-                        </button>
-                      )}
-                      {getEquipmentByDepartment(dept.id).length > 0 && (
-                        <button onClick={() => setViewingDeptEquipment(dept.id)} className="text-blue-600 hover:text-blue-800">
-                          🖥️ {getEquipmentByDepartment(dept.id).length}
-                        </button>
-                      )}
-                      {!isSystemDepartment(dept.id) && currentUser.role !== 'observer' && (
-                        <button onClick={() => handleDeleteDepartment(dept.id)} className="text-red-600 hover:text-red-800">
-                          🗑️
-                        </button>
+              {getDepartmentTree().map((dept: any) => {
+                const DepartmentItem = ({ department, level = 0 }: { department: any; level?: number }) => {
+                  const [isExpanded, setIsExpanded] = useState(true);
+                  const hasChildren = department.children && department.children.length > 0;
+                  
+                  return (
+                    <div>
+                      <div 
+                        key={department.id} 
+                        className="bg-white rounded-lg p-4 border border-gray-200"
+                        style={{ marginLeft: `${level * 20}px` }}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            {hasChildren && (
+                              <button 
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                {isExpanded ? '▼' : '▶'}
+                              </button>
+                            )}
+                            {!hasChildren && <div className="w-4" />}
+                            <h3 className="font-semibold">{department.name}</h3>
+                          </div>
+                          <div className="flex gap-2">
+                            {department.employeeCount > 0 && (
+                              <button onClick={() => setViewingDeptEmployees(department.id)} className="text-green-600 hover:text-green-800">
+                                👥 {department.employeeCount}
+                              </button>
+                            )}
+                            {getEquipmentByDepartment(department.id).length > 0 && (
+                              <button onClick={() => setViewingDeptEquipment(department.id)} className="text-blue-600 hover:text-blue-800">
+                                🖥️ {getEquipmentByDepartment(department.id).length}
+                              </button>
+                            )}
+                            {!isSystemDepartment(department.id) && currentUser.role !== 'observer' && (
+                              <button onClick={() => handleDeleteDepartment(department.id)} className="text-red-600 hover:text-red-800">
+                                🗑️
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {hasChildren && isExpanded && (
+                        <div className="mt-2 space-y-2">
+                          {department.children.map((child: any) => (
+                            <DepartmentItem key={child.id} department={child} level={level + 1} />
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                };
+                
+                return <DepartmentItem key={dept.id} department={dept} />;
+              })}
             </div>
           </div>
         )}
