@@ -553,9 +553,15 @@ export function deleteDepartment(id: number): { success: boolean; message: strin
   return { success: true, message: 'Подразделение удалено' };
 }
 
-export function clearAllDepartments(): void {
+export function clearAllDepartments(): { success: boolean; message: string } {
+  const userDepartments = db.departments.filter(d => !isSystemDepartment(d.id));
+  if (userDepartments.length === 0) {
+    return { success: false, message: 'Нет пользовательских подразделений для очистки' };
+  }
+  
   db.departments = db.departments.filter(d => isSystemDepartment(d.id));
   saveDatabase();
+  return { success: true, message: `Очищено ${userDepartments.length} подразделений (системные сохранены)` };
 }
 
 export function generateTestDepartments(): number {

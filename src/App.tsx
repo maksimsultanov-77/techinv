@@ -716,9 +716,16 @@ function App() {
             {currentUser.role !== 'observer' && (
               <div className="flex justify-end gap-2 mb-4">
                 {currentUser.role === 'superadmin' && (
-                  <button onClick={() => setShowDeptTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                    🎲 Тестовая структура
-                  </button>
+                  <>
+                    <button onClick={() => setShowDeptTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                      🎲 Тестовая структура
+                    </button>
+                    {departments.some(d => !isSystemDepartment(d.id)) && (
+                      <button onClick={() => setShowClearDeptConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        🗑️ Очистить
+                      </button>
+                    )}
+                  </>
                 )}
                 <button onClick={() => setShowDeptForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   ➕ Добавить подразделение
@@ -1333,6 +1340,37 @@ function App() {
               </button>
               <button onClick={handleGenerateTestDepartments} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
                 Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearDeptConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Очистить оргструктуру?</h3>
+            <p className="text-gray-600 mb-6">Все пользовательские подразделения будут удалены. Системные подразделения (Руководство, Все сотрудники, Вне штата) будут сохранены.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowClearDeptConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  const result = clearAllDepartments();
+                  if (!result.success) {
+                    showToast(result.message, 'error');
+                  } else {
+                    loadDepartments();
+                    loadEmployees();
+                    loadAllEmployees();
+                    showToast(result.message, 'success');
+                  }
+                  setShowClearDeptConfirm(false);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Очистить
               </button>
             </div>
           </div>
