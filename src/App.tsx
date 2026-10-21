@@ -57,6 +57,7 @@ import {
   getEquipmentByDepartment,
   getEquipmentByLocation,
   authenticateUser,
+  addLog,
   User,
   Category,
   Equipment,
@@ -208,9 +209,13 @@ function App() {
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     localStorage.setItem('currentUser', JSON.stringify(user));
+    addLog('login', 'user', user.id, user.fullName, `Пользователь ${user.fullName} вошёл в систему`, user.id, user.fullName);
   };
 
   const handleLogout = () => {
+    if (currentUser) {
+      addLog('logout', 'user', currentUser.id, currentUser.fullName, `Пользователь ${currentUser.fullName} вышел из системы`, currentUser.id, currentUser.fullName);
+    }
     setCurrentUser(null);
     localStorage.removeItem('currentUser');
   };
@@ -312,7 +317,8 @@ function App() {
 
   // Equipment handlers
   const handleAdd = (data: any) => {
-    addEquipment(data);
+    const id = addEquipment(data);
+    addLog('create', 'equipment', id, data.name, 'Оборудование добавлено', currentUser?.id, currentUser?.fullName);
     setShowForm(false);
     loadEquipment();
     showToast('Оборудование добавлено', 'success');
@@ -321,6 +327,7 @@ function App() {
   const handleEdit = (data: any) => {
     if (editingItem) {
       updateEquipment(editingItem.id, data);
+      addLog('update', 'equipment', editingItem.id, data.name, 'Оборудование обновлено', currentUser?.id, currentUser?.fullName);
       setEditingItem(null);
       loadEquipment();
       showToast('Оборудование обновлено', 'success');
@@ -335,14 +342,17 @@ function App() {
         return;
       }
     }
+    const item = equipment.find(eq => eq.id === id);
     deleteEquipment(id);
+    addLog('delete', 'equipment', id, item?.name, 'Оборудование удалено', currentUser?.id, currentUser?.fullName);
     loadEquipment();
     showToast('Оборудование удалено', 'success');
   };
 
   // Employee handlers
   const handleAddEmployee = (data: any) => {
-    addEmployee(data);
+    const id = addEmployee(data);
+    addLog('create', 'employee', id, data.full_name, 'Сотрудник добавлен', currentUser?.id, currentUser?.fullName);
     setShowEmpForm(false);
     loadEmployees();
     loadAllEmployees();
@@ -352,6 +362,7 @@ function App() {
   const handleEditEmployee = (data: any) => {
     if (editingEmployee) {
       updateEmployee(editingEmployee.id, data);
+      addLog('update', 'employee', editingEmployee.id, data.full_name, 'Сотрудник обновлён', currentUser?.id, currentUser?.fullName);
       setEditingEmployee(null);
       loadEmployees();
       loadAllEmployees();
@@ -360,11 +371,13 @@ function App() {
   };
 
   const handleDeleteEmployee = (id: number) => {
+    const employee = employees.find(emp => emp.id === id);
     const result = deleteEmployee(id);
     if (!result.success) {
       showToast(result.message, 'error');
       return;
     }
+    addLog('delete', 'employee', id, employee?.full_name, 'Сотрудник удалён', currentUser?.id, currentUser?.fullName);
     loadEmployees();
     loadAllEmployees();
     showToast(result.message, 'success');
@@ -373,7 +386,8 @@ function App() {
   // Department handlers
   const handleAddDepartment = () => {
     if (!newDeptName.trim()) return;
-    addDepartment(newDeptName.trim(), newDeptParent ? Number(newDeptParent) : null);
+    const id = addDepartment(newDeptName.trim(), newDeptParent ? Number(newDeptParent) : null);
+    addLog('create', 'department', id, newDeptName.trim(), 'Подразделение добавлено', currentUser?.id, currentUser?.fullName);
     setNewDeptName('');
     setNewDeptParent('');
     setShowDeptForm(false);
@@ -384,17 +398,20 @@ function App() {
   };
 
   const handleDeleteDepartment = (id: number) => {
+    const dept = departments.find(d => d.id === id);
     const result = deleteDepartment(id);
     if (!result.success) {
       showToast(result.message, 'error');
       return;
     }
+    addLog('delete', 'department', id, dept?.name, 'Подразделение удалено', currentUser?.id, currentUser?.fullName);
     loadDepartments();
     showToast('Подразделение удалено', 'success');
   };
 
   const handleGenerateTestDepartments = () => {
     const count = generateTestDepartments();
+    addLog('generate', 'department', undefined, undefined, `Создано ${count} тестовых подразделений`, currentUser?.id, currentUser?.fullName);
     setShowDeptTestConfirm(false);
     loadDepartments();
     loadEmployees();
@@ -405,7 +422,8 @@ function App() {
   // Location handlers
   const handleAddLocation = () => {
     if (!newLocName.trim()) return;
-    addLocation(newLocName.trim(), newLocDesc.trim(), newLocParent ? Number(newLocParent) : null);
+    const id = addLocation(newLocName.trim(), newLocDesc.trim(), newLocParent ? Number(newLocParent) : null);
+    addLog('create', 'location', id, newLocName.trim(), 'Местоположение добавлено', currentUser?.id, currentUser?.fullName);
     setNewLocName('');
     setNewLocDesc('');
     setNewLocParent('');
@@ -415,17 +433,20 @@ function App() {
   };
 
   const handleDeleteLocation = (id: number) => {
+    const loc = locations.find(l => l.id === id);
     const result = deleteLocation(id);
     if (!result.success) {
       showToast(result.message, 'error');
       return;
     }
+    addLog('delete', 'location', id, loc?.name, 'Местоположение удалено', currentUser?.id, currentUser?.fullName);
     loadLocations();
     showToast('Местоположение удалено', 'success');
   };
 
   const handleGenerateTestLocations = () => {
     const count = generateTestLocations();
+    addLog('generate', 'location', undefined, undefined, `Создано ${count} тестовых местоположений`, currentUser?.id, currentUser?.fullName);
     setShowLocTestConfirm(false);
     loadLocations();
     showToast(`Создано ${count} местоположений`, 'success');
@@ -434,6 +455,7 @@ function App() {
   // Category handlers
   const handleGenerateTestCategories = () => {
     const count = generateTestCategories();
+    addLog('generate', 'category', undefined, undefined, `Создано ${count} тестовых категорий`, currentUser?.id, currentUser?.fullName);
     setShowCatTestConfirm(false);
     loadCategories();
     showToast(`Создано ${count} категорий`, 'success');
@@ -442,6 +464,7 @@ function App() {
   // Status handlers
   const handleGenerateTestStatuses = () => {
     const count = generateTestStatuses();
+    addLog('generate', 'status', undefined, undefined, `Создано ${count} тестовых статусов`, currentUser?.id, currentUser?.fullName);
     setShowStatusTestConfirm(false);
     loadStatuses();
     showToast(`Создано ${count} статусов`, 'success');
@@ -449,7 +472,8 @@ function App() {
 
   const handleAddStatus = () => {
     if (!newStatusName.trim()) return;
-    addStatus(newStatusName.trim(), newStatusColor, newStatusIcon, newStatusDesc.trim());
+    const id = addStatus(newStatusName.trim(), newStatusColor, newStatusIcon, newStatusDesc.trim());
+    addLog('create', 'status', id, newStatusName.trim(), 'Статус добавлен', currentUser?.id, currentUser?.fullName);
     setNewStatusName('');
     setNewStatusColor('#10b981');
     setNewStatusIcon('✓');
@@ -460,11 +484,13 @@ function App() {
   };
 
   const handleDeleteStatus = (id: number) => {
+    const status = statuses.find(s => s.id === id);
     const result = deleteStatus(id);
     if (!result.success) {
       showToast(result.message, 'error');
       return;
     }
+    addLog('delete', 'status', id, status?.name, 'Статус удалён', currentUser?.id, currentUser?.fullName);
     loadStatuses();
     showToast('Статус удалён', 'success');
   };
@@ -472,7 +498,8 @@ function App() {
   // Category handlers
   const handleAddCategory = () => {
     if (!newCategoryName.trim()) return;
-    addCategory(newCategoryName.trim(), newCategoryIcon, newCategoryDesc.trim(), newCategoryParent ? Number(newCategoryParent) : null);
+    const id = addCategory(newCategoryName.trim(), newCategoryIcon, newCategoryDesc.trim(), newCategoryParent ? Number(newCategoryParent) : null);
+    addLog('create', 'category', id, newCategoryName.trim(), 'Категория добавлена', currentUser?.id, currentUser?.fullName);
     setNewCategoryName('');
     setNewCategoryIcon('📦');
     setNewCategoryDesc('');
@@ -483,11 +510,13 @@ function App() {
   };
 
   const handleDeleteCategory = (id: number) => {
+    const category = categories.find(c => c.id === id);
     const result = deleteCategory(id);
     if (!result.success) {
       showToast(result.message, 'error');
       return;
     }
+    addLog('delete', 'category', id, category?.name, 'Категория удалена', currentUser?.id, currentUser?.fullName);
     loadCategories();
     showToast('Категория удалена', 'success');
   };
@@ -673,15 +702,17 @@ function App() {
                 >
                   📁 Категории <span className="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{categories.length}</span>
                 </button>
-                <button
-                  onClick={() => setActiveView('logs')}
-                  className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
-                    activeView === 'logs' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  📋 Логи
-                </button>
               </>
+            )}
+            {currentUser.role === 'superadmin' && (
+              <button
+                onClick={() => setActiveView('logs')}
+                className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                  activeView === 'logs' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                📋 Логи
+              </button>
             )}
             {currentUser.role !== 'user' && (
               <button
@@ -1113,7 +1144,7 @@ function App() {
         )}
 
         {/* Logs View */}
-        {activeView === 'logs' && currentUser.role !== 'user' && (
+        {activeView === 'logs' && currentUser.role === 'superadmin' && (
           <LogViewer showToast={showToast} currentUser={currentUser} />
         )}
 

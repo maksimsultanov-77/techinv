@@ -78,6 +78,18 @@ export interface User {
   createdAt: string;
 }
 
+export interface LogEntry {
+  id: number;
+  timestamp: string;
+  action: string;
+  entityType: string;
+  entityId?: number;
+  entityName?: string;
+  details?: string;
+  userId?: number;
+  userName?: string;
+}
+
 // Database instance
 const DB_KEY = 'equipment_inventory_db';
 
@@ -89,6 +101,7 @@ interface DatabaseSchema {
   locations: Location[];
   statuses: Status[];
   users: User[];
+  logs: LogEntry[];
   nextCategoryId: number;
   nextEquipmentId: number;
   nextEmployeeId: number;
@@ -96,6 +109,7 @@ interface DatabaseSchema {
   nextLocationId: number;
   nextStatusId: number;
   nextUserId: number;
+  nextLogId: number;
 }
 
 // Initialize database with default values
@@ -130,6 +144,7 @@ const defaultDb: DatabaseSchema = {
       createdAt: new Date().toISOString(),
     },
   ],
+  logs: [],
   nextCategoryId: 3,
   nextEquipmentId: 1,
   nextEmployeeId: 1,
@@ -137,6 +152,7 @@ const defaultDb: DatabaseSchema = {
   nextLocationId: 3,
   nextStatusId: 4,
   nextUserId: 2,
+  nextLogId: 1,
 };
 
 let db: DatabaseSchema = defaultDb;
@@ -234,6 +250,14 @@ export function initDatabase(): void {
       // Миграция: обновляем nextLocationId если нужно
       if (db.nextLocationId < 3) {
         db.nextLocationId = 3;
+      }
+      
+      // Миграция: добавляем logs если их нет
+      if (!db.logs) {
+        db.logs = [];
+      }
+      if (!db.nextLogId) {
+        db.nextLogId = 1;
       }
     } catch (e) {
       console.error('Error loading database:', e);
@@ -914,4 +938,47 @@ export function changePassword(id: number, newPassword: string): { success: bool
   saveDatabase();
   
   return { success: true, message: 'Пароль изменён' };
+}
+
+// Logs
+export function addLog(action: string, entityType: string, entityId?: number, entityName?: string, details?: string, userId?: number, userName?: string): void {
+  const newLog: LogEntry = {
+    id: db.nextLogId++,
+    timestamp: new Date().toISOString(),
+    action,
+    entityType,
+    entityId,
+    entityName,
+    details,
+    userId,
+    userName,
+  };
+  db.logs.push(newLog);
+  saveDatabase();
+}
+
+export function getAllLogs(): LogEntry[] {
+  return [...db.logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
+
+export function deleteLog(id: number): { success: boolean; message: string } {
+  const log = db.logs.find(l => l.id === id);
+  if (!log) return { success: false, message: 'Лог не найден' };
+  
+  db.logs = db.logs.filter(l => l.id !== id);
+  saveDatabase();
+  
+  return { success: true, message: 'Лог удалён' };
+}
+
+export function clearAllLogs(): { success: boolean; message: string } {
+  if (db.logs.length === 0) {
+    return { success: false, message: 'Нет логов для очистки' };
+  }
+  
+  const count = db.logs.length;
+  db.logs = [];
+  saveDatabase();
+  
+  return { success: true, message: `Удалено ${count} логов` };
 }
