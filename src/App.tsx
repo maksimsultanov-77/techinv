@@ -1037,7 +1037,7 @@ function App() {
             <h2 className="text-2xl font-bold mb-4">Категории</h2>
             {currentUser.role !== 'observer' && (
               <div className="flex justify-end gap-2 mb-4">
-                {(currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
+                {currentUser.role === 'superadmin' && (
                   <button onClick={() => setShowCatTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
                     🎲 Тестовые данные
                   </button>
