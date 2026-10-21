@@ -100,7 +100,10 @@ interface DatabaseSchema {
 
 // Initialize database with default values
 const defaultDb: DatabaseSchema = {
-  categories: [],
+  categories: [
+    { id: 1, name: 'Компьютеры', icon: '💻', description: 'Компьютерная техника', parent_id: null },
+    { id: 2, name: 'Периферия', icon: '🖨️', description: 'Периферийное оборудование', parent_id: null },
+  ],
   equipment: [],
   employees: [],
   departments: [],
@@ -123,7 +126,7 @@ const defaultDb: DatabaseSchema = {
       createdAt: new Date().toISOString(),
     },
   ],
-  nextCategoryId: 1,
+  nextCategoryId: 3,
   nextEquipmentId: 1,
   nextEmployeeId: 1,
   nextDepartmentId: 1,
@@ -140,6 +143,32 @@ export function initDatabase(): void {
   if (savedDb) {
     try {
       db = JSON.parse(savedDb);
+      
+      // Миграция: добавляем системные категории если их нет
+      if (!db.categories.find(c => c.id === 1)) {
+        db.categories.unshift({
+          id: 1,
+          name: 'Компьютеры',
+          icon: '💻',
+          description: 'Компьютерная техника',
+          parent_id: null,
+        });
+      }
+      if (!db.categories.find(c => c.id === 2)) {
+        const idx = db.categories.findIndex(c => c.id === 1);
+        db.categories.splice(idx + 1, 0, {
+          id: 2,
+          name: 'Периферия',
+          icon: '🖨️',
+          description: 'Периферийное оборудование',
+          parent_id: null,
+        });
+      }
+      
+      // Миграция: обновляем nextCategoryId если нужно
+      if (db.nextCategoryId < 3) {
+        db.nextCategoryId = 3;
+      }
       
       // Миграция: добавляем системные местоположения если их нет
       if (!db.locations.find(l => l.id === 1)) {
@@ -211,6 +240,9 @@ export function addCategory(name: string, icon: string, description: string, par
 }
 
 export function deleteCategory(id: number): { success: boolean; message: string } {
+  if (isSystemCategory(id)) {
+    return { success: false, message: 'Нельзя удалить системную категорию' };
+  }
   const equipment = db.equipment.filter(eq => eq.category_id === id);
   if (equipment.length > 0) {
     return { success: false, message: `Нельзя удалить: к категории привязано ${equipment.length} единиц оборудования` };
@@ -221,7 +253,7 @@ export function deleteCategory(id: number): { success: boolean; message: string 
 }
 
 export function isSystemCategory(id: number): boolean {
-  return false;
+  return id === 1 || id === 2;
 }
 
 // Equipment
@@ -638,13 +670,34 @@ export function getEquipmentCountByCategory(catId: number): number {
 }
 
 export function clearAllCategories(): void {
-  db.categories = [];
+  db.categories = db.categories.filter(c => isSystemCategory(c.id));
   saveDatabase();
 }
 
 export function getCategoryFullPath(id: number): string {
   const cat = db.categories.find(c => c.id === id);
   return cat?.name || 'Не указано';
+}
+
+export function generateTestCategories(): number {
+  const testCategories = [
+    { name: 'Ноутбуки', icon: '💻', description: 'Портативные компьютеры', parent_id: 1 },
+    { name: 'Настольные ПК', icon: '🖥️', description: 'Стационарные компьютеры', parent_id: 1 },
+    { name: 'Серверы', icon: '🖲️', description: 'Серверное оборудование', parent_id: 1 },
+    { name: 'Принтеры', icon: '🖨️', description: 'Печатающие устройства', parent_id: 2 },
+    { name: 'Сканеры', icon: '📠', description: 'Сканирующие устройства', parent_id: 2 },
+    { name: 'Мониторы', icon: '🖵', description: 'Экраны и дисплеи', parent_id: 2 },
+  ];
+  
+  let count = 0;
+  testCategories.forEach(cat => {
+    // Проверяем, не существует ли уже такая категория
+    if (!db.categories.find(c => c.name === cat.name && c.parent_id === cat.parent_id)) {
+      addCategory(cat.name, cat.icon, cat.description, cat.parent_id);
+      count++;
+    }
+  });
+  return count;
 }
 
 // Users
