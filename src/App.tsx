@@ -76,6 +76,7 @@ import { Settings } from './components/Settings';
 import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
 import { Sidebar } from './components/Sidebar';
+import { BulkEditEmployee } from './components/BulkEditEmployee';
 import { useSettings } from './contexts/SettingsContext';
 
 type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings' | 'users';
@@ -760,13 +761,49 @@ function App() {
             {currentUser.role !== 'observer' && (
               <div className="flex justify-end gap-2 mb-4">
                 {currentUser.role === 'superadmin' && (
-                  <button onClick={() => setShowEmpTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                    🎲 Тестовые данные
-                  </button>
+                  <>
+                    <button onClick={() => setShowEmpTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                      🎲 Тестовые данные
+                    </button>
+                    {employees.length > 0 && (
+                      <button onClick={() => setShowEmpClearConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        🗑️ Очистить
+                      </button>
+                    )}
+                  </>
                 )}
                 <button onClick={() => setShowEmpForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   ➕ Добавить сотрудника
                 </button>
+              </div>
+            )}
+            {selectedEmployeeIds.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-blue-800">
+                    <strong>Выбрано: {selectedEmployeeIds.length}</strong> сотрудников
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowBulkEditEmployee(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      ✏️ Редактировать
+                    </button>
+                    <button
+                      onClick={() => setShowBulkDeleteEmployeeConfirm(true)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                    >
+                      🗑️ Удалить
+                    </button>
+                    <button
+                      onClick={() => setSelectedEmployeeIds([])}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
             <EmployeeList
@@ -1048,6 +1085,86 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {showEmpTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Создать тестовых сотрудников?</h3>
+            <p className="text-gray-600 mb-6">Будут созданы тестовые сотрудники (от 5 до 25 человек) со случайными данными</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowEmpTestConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleGenerateTestEmployees} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEmpClearConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Удалить всех сотрудников?</h3>
+            <p className="text-gray-600 mb-6">Будут удалены все сотрудники. Это действие нельзя отменить.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowEmpClearConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleClearAllEmployees} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                Удалить всех
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkDeleteEmployeeConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Удалить выбранных сотрудников?</h3>
+            <p className="text-gray-600 mb-6">Будут удалены {selectedEmployeeIds.length} сотрудников. Это действие нельзя отменить.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowBulkDeleteEmployeeConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  const result = bulkDeleteEmployee(selectedEmployeeIds);
+                  if (!result.success) {
+                    showToast(result.message, 'error');
+                  } else {
+                    setSelectedEmployeeIds([]);
+                    setShowBulkDeleteEmployeeConfirm(false);
+                    loadEmployees();
+                    loadAllEmployees();
+                    showToast(result.message, 'success');
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkEditEmployee && (
+        <BulkEditEmployee
+          selectedIds={selectedEmployeeIds}
+          departments={departments}
+          onSave={() => {
+            setShowBulkEditEmployee(false);
+            setSelectedEmployeeIds([]);
+            loadEmployees();
+            loadAllEmployees();
+            showToast('Сотрудники обновлены', 'success');
+          }}
+          onCancel={() => setShowBulkEditEmployee(false)}
+        />
       )}
 
       {showStatusTestConfirm && (

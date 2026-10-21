@@ -409,9 +409,24 @@ export function bulkUpdateEmployee(ids: number[], updates: Partial<Employee>): v
   saveDatabase();
 }
 
-export function bulkDeleteEmployee(ids: number[]): void {
+export function bulkDeleteEmployee(ids: number[]): { success: boolean; message: string; deletedCount: number } {
+  // Проверяем, есть ли оборудование, привязанное к удаляемым сотрудникам
+  const linkedEquipment = db.equipment.filter(eq => 
+    eq.responsible_employee_id && ids.includes(eq.responsible_employee_id)
+  );
+  
+  if (linkedEquipment.length > 0) {
+    return { 
+      success: false, 
+      message: `Нельзя удалить: за выбранными сотрудниками закреплено ${linkedEquipment.length} единиц оборудования`,
+      deletedCount: 0
+    };
+  }
+  
+  const deletedCount = ids.length;
   db.employees = db.employees.filter(emp => !ids.includes(emp.id));
   saveDatabase();
+  return { success: true, message: `Удалено ${deletedCount} сотрудников`, deletedCount };
 }
 
 export function clearAllEmployees(): void {
