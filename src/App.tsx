@@ -1799,10 +1799,12 @@ function App() {
               </button>
               <button
                 onClick={() => {
+                  const count = statuses.filter(s => !isSystemStatus(s.id)).length;
                   const result = clearAllStatuses();
                   if (!result.success) {
                     showToast(result.message, 'error');
                   } else {
+                    addLog('clear', 'status', undefined, undefined, `Очищено ${count} статусов`, currentUser?.id, currentUser?.fullName);
                     loadStatuses();
                     loadEquipment();
                     showToast(result.message, 'success');
