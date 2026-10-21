@@ -1255,10 +1255,12 @@ function App() {
               </button>
               <button
                 onClick={() => {
+                  const count = locations.filter(l => !isSystemLocation(l.id)).length;
                   const result = clearAllLocations();
                   if (!result.success) {
                     showToast(result.message, 'error');
                   } else {
+                    addLog('clear', 'location', undefined, undefined, `Очищено ${count} местоположений`, currentUser?.id, currentUser?.fullName);
                     loadLocations();
                     loadEquipment();
                     showToast(result.message, 'success');
