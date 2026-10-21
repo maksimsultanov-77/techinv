@@ -557,6 +557,7 @@ function App() {
   const handleGenerateTestEmployees = () => {
     try {
       const count = generateTestEmployees();
+      addLog('generate', 'employee', undefined, undefined, `Создано ${count} тестовых сотрудников`, currentUser?.id, currentUser?.fullName);
       setShowEmpTestConfirm(false);
       loadEmployees();
       loadAllEmployees();
@@ -567,7 +568,9 @@ function App() {
   };
 
   const handleClearAllEmployees = () => {
+    const count = employees.length;
     clearAllEmployees();
+    addLog('clear', 'employee', undefined, undefined, `Очищено ${count} сотрудников`, currentUser?.id, currentUser?.fullName);
     setShowEmpClearConfirm(false);
     loadEmployees();
     loadAllEmployees();
