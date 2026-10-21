@@ -104,7 +104,10 @@ const defaultDb: DatabaseSchema = {
   equipment: [],
   employees: [],
   departments: [],
-  locations: [],
+  locations: [
+    { id: 1, name: 'Главный офис', description: 'Центральный офис компании', parent_id: null, created_at: new Date().toISOString() },
+    { id: 2, name: 'Вне офиса', description: 'Оборудование вне офиса', parent_id: null, created_at: new Date().toISOString() },
+  ],
   statuses: [
     { id: 1, name: 'В работе', color: '#10b981', icon: '✓', description: 'Оборудование работает нормально' },
     { id: 2, name: 'Неисправно', color: '#ef4444', icon: '✗', description: 'Оборудование неисправно' },
@@ -124,7 +127,7 @@ const defaultDb: DatabaseSchema = {
   nextEquipmentId: 1,
   nextEmployeeId: 1,
   nextDepartmentId: 1,
-  nextLocationId: 1,
+  nextLocationId: 3,
   nextStatusId: 4,
   nextUserId: 2,
 };
@@ -137,6 +140,32 @@ export function initDatabase(): void {
   if (savedDb) {
     try {
       db = JSON.parse(savedDb);
+      
+      // Миграция: добавляем системные местоположения если их нет
+      if (!db.locations.find(l => l.id === 1)) {
+        db.locations.unshift({
+          id: 1,
+          name: 'Главный офис',
+          description: 'Центральный офис компании',
+          parent_id: null,
+          created_at: new Date().toISOString(),
+        });
+      }
+      if (!db.locations.find(l => l.id === 2)) {
+        const idx = db.locations.findIndex(l => l.id === 1);
+        db.locations.splice(idx + 1, 0, {
+          id: 2,
+          name: 'Вне офиса',
+          description: 'Оборудование вне офиса',
+          parent_id: null,
+          created_at: new Date().toISOString(),
+        });
+      }
+      
+      // Миграция: обновляем nextLocationId если нужно
+      if (db.nextLocationId < 3) {
+        db.nextLocationId = 3;
+      }
     } catch (e) {
       console.error('Error loading database:', e);
       db = defaultDb;
@@ -476,35 +505,83 @@ export function addLocation(name: string, description: string, parentId: number 
 }
 
 export function deleteLocation(id: number): { success: boolean; message: string } {
+  if (isSystemLocation(id)) {
+    return { success: false, message: 'Нельзя удалить системное местоположение' };
+  }
   db.locations = db.locations.filter(l => l.id !== id);
   saveDatabase();
   return { success: true, message: 'Местоположение удалено' };
 }
 
 export function clearAllLocations(): void {
-  db.locations = [];
+  db.locations = db.locations.filter(l => isSystemLocation(l.id));
   saveDatabase();
 }
 
 export function generateTestLocations(): number {
-  const locNames = ['Главный офис', 'Филиал Север', 'Филиал Юг', 'Склад №1', 'Склад №2'];
+  const locNames = ['Филиал Север', 'Филиал Юг', 'Склад №1', 'Склад №2'];
+  let count = 0;
   locNames.forEach(name => {
-    addLocation(name, '', null);
+    // Проверяем, не существует ли уже такое местоположение
+    if (!db.locations.find(l => l.name === name)) {
+      addLocation(name, '', null);
+      count++;
+    }
   });
-  return locNames.length;
+  return count;
 }
 
 export function isSystemLocation(id: number): boolean {
-  return false;
+  return id === 1 || id === 2;
 }
 
 export function getLocationFullPath(id: number): string {
   const loc = db.locations.find(l => l.id === id);
-  return loc?.name || 'Не указано';
+  if (!loc) return 'Не указано';
+  
+  if (loc.parent_id) {
+    const parent = db.locations.find(l => l.id === loc.parent_id);
+    if (parent) {
+      return `${parent.name} - ${loc.name}`;
+    }
+  }
+  
+  return loc.name;
 }
 
-export function getEquipmentByLocation(locId: number): Equipment[] {
-  return db.equipment.filter(eq => eq.location_id === locId);
+export function getEquipmentByLocation(locId: number, includeChildren: boolean = true): Equipment[] {
+  if (!includeChildren) {
+    return db.equipment.filter(eq => eq.location_id === locId);
+  }
+  
+  // Получаем все дочерние местоположения
+  const getChildLocationIds = (parentId: number): number[] => {
+    const children = db.locations.filter(l => l.parent_id === parentId);
+    const childIds = children.map(l => l.id);
+    const allChildIds = [...childIds];
+    
+    // Рекурсивно получаем всех потомков
+    for (const childId of childIds) {
+      allChildIds.push(...getChildLocationIds(childId));
+    }
+    
+    return allChildIds;
+  };
+  
+  const allLocationIds = [locId, ...getChildLocationIds(locId)];
+  return db.equipment.filter(eq => allLocationIds.includes(eq.location_id));
+}
+
+export function getEquipmentCountByLocation(locId: number): number {
+  return getEquipmentByLocation(locId, true).length;
+}
+
+export function getLocationTree(): any[] {
+  return db.locations.filter(l => l.parent_id === null).map(loc => ({
+    ...loc,
+    children: db.locations.filter(l => l.parent_id === loc.id),
+    equipmentCount: getEquipmentCountByLocation(loc.id),
+  }));
 }
 
 // Statuses
