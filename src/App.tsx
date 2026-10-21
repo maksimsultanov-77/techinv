@@ -1155,6 +1155,58 @@ function App() {
         </div>
       )}
 
+      {showLocForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Добавить местоположение</h3>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                <input
+                  type="text"
+                  value={newLocName}
+                  onChange={(e) => setNewLocName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите название местоположения"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Описание</label>
+                <textarea
+                  value={newLocDesc}
+                  onChange={(e) => setNewLocDesc(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Введите описание (необязательно)"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Родительское местоположение</label>
+                <select
+                  value={newLocParent}
+                  onChange={(e) => setNewLocParent(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Нет (корневое местоположение)</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowLocForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleAddLocation} disabled={!newLocName.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCatTestConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md">
