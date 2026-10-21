@@ -354,7 +354,15 @@ export function clearAllEquipment(): void {
   saveDatabase();
 }
 
-export function generateTestData(): number {
+export function generateTestData(): { success: boolean; message: string; count?: number } {
+  // Проверка на наличие сотрудников
+  if (db.employees.length === 0) {
+    return { 
+      success: false, 
+      message: 'Невозможно создать тестовое оборудование: сначала добавьте сотрудников' 
+    };
+  }
+  
   const count = Math.floor(Math.random() * 50) + 10;
   for (let i = 0; i < count; i++) {
     // Случайно привязываем к существующему сотруднику (70% шанс)
@@ -382,7 +390,7 @@ export function generateTestData(): number {
       notes: 'Тестовая запись',
     });
   }
-  return count;
+  return { success: true, message: `Создано ${count} единиц тестового оборудования`, count };
 }
 
 export function getStats(): any {

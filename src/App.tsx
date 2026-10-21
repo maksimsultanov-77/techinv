@@ -506,14 +506,14 @@ function App() {
   };
 
   const handleGenerateTest = () => {
-    try {
-      const count = generateTestData();
-      setShowTestConfirm(false);
+    const result = generateTestData();
+    setShowTestConfirm(false);
+    if (result.success) {
       loadEquipment();
       loadAllEmployees();
-      showToast(`Создано ${count} единиц оборудования`, 'success');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Ошибка', 'error');
+      showToast(result.message, 'success');
+    } else {
+      showToast(result.message, 'error');
     }
   };
 
@@ -867,12 +867,20 @@ function App() {
               <div className="flex justify-end gap-2 mb-4">
                 {currentUser.role === 'superadmin' && (
                   <>
-                    <button onClick={() => setShowTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                      🎲 Тестовые данные
-                    </button>
-                    <button onClick={() => setShowClearConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                      🗑️ Очистить
-                    </button>
+                    {employees.length > 0 ? (
+                      <button onClick={() => setShowTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                        🎲 Тестовые данные
+                      </button>
+                    ) : (
+                      <div className="px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm">
+                        ⚠️ Сначала добавьте сотрудников
+                      </div>
+                    )}
+                    {equipment.length > 0 && (
+                      <button onClick={() => setShowClearConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        🗑️ Очистить
+                      </button>
+                    )}
                   </>
                 )}
                 <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
@@ -1155,6 +1163,23 @@ function App() {
               </button>
               <button onClick={handleClearAllEmployees} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
                 Удалить всех
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTestConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Создать тестовое оборудование?</h3>
+            <p className="text-gray-600 mb-6">Будет создано от 10 до 60 единиц тестового оборудования со случайными данными.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowTestConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleGenerateTest} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                Создать
               </button>
             </div>
           </div>
