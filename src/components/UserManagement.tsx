@@ -13,6 +13,8 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordUserId, setPasswordUserId] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   
   // Form state
   const [username, setUsername] = useState('');
@@ -133,18 +135,24 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
       return;
     }
 
-    if (!confirm(`Удалить пользователя "${user.fullName}"?`)) {
-      return;
-    }
+    setUserToDelete(user);
+    setShowDeleteConfirm(true);
+  };
 
-    const result = deleteUser(user.id);
+  const confirmDelete = () => {
+    if (!userToDelete) return;
+
+    const result = deleteUser(userToDelete.id);
     if (result.success) {
-      addLog('delete', 'user', user.id, user.username, 'Пользователь удалён', currentUser.id, currentUser.fullName);
+      addLog('delete', 'user', userToDelete.id, userToDelete.username, 'Пользователь удалён', currentUser.id, currentUser.fullName);
       showToast(result.message, 'success');
       loadUsers();
     } else {
       showToast(result.message, 'error');
     }
+
+    setShowDeleteConfirm(false);
+    setUserToDelete(null);
   };
 
   return (
@@ -380,6 +388,42 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                 >
                   Изменить пароль
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно подтверждения удаления */}
+      {showDeleteConfirm && userToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-800">⚠️ Подтверждение удаления</h2>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700 mb-4">
+                Вы уверены, что хотите удалить пользователя <strong>"{userToDelete.fullName}"</strong>?
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                Это действие нельзя отменить.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setUserToDelete(null);
+                  }}
+                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                >
+                  Удалить
                 </button>
               </div>
             </div>
