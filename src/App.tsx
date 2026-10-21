@@ -927,25 +927,59 @@ function App() {
               </div>
             )}
             <div className="space-y-3">
-              {locations.map(loc => (
-                <div key={loc.id} className="bg-white rounded-lg p-4 border border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">{loc.name}</h3>
-                    <div className="flex gap-2">
-                      {getEquipmentByLocation(loc.id).length > 0 && (
-                        <button onClick={() => setViewingLocationEquipment(loc.id)} className="text-blue-600 hover:text-blue-800">
-                          🖥️ {getEquipmentByLocation(loc.id).length}
-                        </button>
-                      )}
-                      {!isSystemLocation(loc.id) && currentUser.role !== 'observer' && (
-                        <button onClick={() => handleDeleteLocation(loc.id)} className="text-red-600 hover:text-red-800">
-                          🗑️
-                        </button>
+              {locations.filter(loc => loc.parent_id === null).map(loc => {
+                const LocationItem = ({ location, level = 0 }: { location: any; level?: number }) => {
+                  const [isExpanded, setIsExpanded] = useState(true);
+                  const children = locations.filter(l => l.parent_id === location.id);
+                  const hasChildren = children.length > 0;
+                  
+                  return (
+                    <div>
+                      <div 
+                        key={location.id} 
+                        className="bg-white rounded-lg p-4 border border-gray-200"
+                        style={{ marginLeft: `${level * 20}px` }}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            {hasChildren && (
+                              <button 
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                {isExpanded ? '▼' : '▶'}
+                              </button>
+                            )}
+                            {!hasChildren && <div className="w-4" />}
+                            <h3 className="font-semibold">{location.name}</h3>
+                          </div>
+                          <div className="flex gap-2">
+                            {getEquipmentByLocation(location.id, false).length > 0 && (
+                              <button onClick={() => setViewingLocationEquipment(location.id)} className="text-blue-600 hover:text-blue-800">
+                                🖥️ {getEquipmentByLocation(location.id, false).length}
+                              </button>
+                            )}
+                            {!isSystemLocation(location.id) && currentUser.role !== 'observer' && (
+                              <button onClick={() => handleDeleteLocation(location.id)} className="text-red-600 hover:text-red-800">
+                                🗑️
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {hasChildren && isExpanded && (
+                        <div className="mt-2 space-y-2">
+                          {children.map((child: any) => (
+                            <LocationItem key={child.id} location={child} level={level + 1} />
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                };
+                
+                return <LocationItem key={loc.id} location={loc} />;
+              })}
             </div>
           </div>
         )}

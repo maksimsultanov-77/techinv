@@ -661,10 +661,8 @@ export function getLocationFullPath(id: number): string {
   if (!loc) return 'Не указано';
   
   if (loc.parent_id) {
-    const parent = db.locations.find(l => l.id === loc.parent_id);
-    if (parent) {
-      return `${parent.name} - ${loc.name}`;
-    }
+    const parentPath = getLocationFullPath(loc.parent_id);
+    return `${parentPath} - ${loc.name}`;
   }
   
   return loc.name;
