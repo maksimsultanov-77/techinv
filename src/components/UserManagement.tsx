@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, getAllUsers, addUser, updateUser, deleteUser, changePassword, getAllEmployees, Employee } from '../db/database';
+import { User, getAllUsers, addUser, updateUser, deleteUser, changePassword, getAllEmployees, Employee, addLog } from '../db/database';
 
 interface UserManagementProps {
   currentUser: User;
@@ -80,6 +80,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
 
       const result = updateUser(editingUser.id, updates);
       if (result.success) {
+        addLog('update', 'user', editingUser.id, username.trim(), 'Пользователь обновлён', currentUser.id, currentUser.fullName);
         showToast(result.message, 'success');
         setShowForm(false);
         loadUsers();
@@ -94,6 +95,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
 
       const result = addUser(username.trim(), password, fullName.trim(), role, employeeId);
       if (result.success) {
+        addLog('create', 'user', result.userId, username.trim(), 'Пользователь создан', currentUser.id, currentUser.fullName);
         showToast(result.message, 'success');
         setShowForm(false);
         loadUsers();
@@ -111,6 +113,8 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
 
     const result = changePassword(passwordUserId, password);
     if (result.success) {
+      const user = users.find(u => u.id === passwordUserId);
+      addLog('update', 'user', passwordUserId, user?.username, 'Пароль изменён', currentUser.id, currentUser.fullName);
       showToast(result.message, 'success');
       setShowPasswordForm(false);
     } else {
@@ -135,6 +139,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
 
     const result = deleteUser(user.id);
     if (result.success) {
+      addLog('delete', 'user', user.id, user.username, 'Пользователь удалён', currentUser.id, currentUser.fullName);
       showToast(result.message, 'success');
       loadUsers();
     } else {
