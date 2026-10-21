@@ -166,6 +166,7 @@ function App() {
   const [showDeptTestConfirm, setShowDeptTestConfirm] = useState(false);
   const [showLocTestConfirm, setShowLocTestConfirm] = useState(false);
   const [showCatTestConfirm, setShowCatTestConfirm] = useState(false);
+  const [showClearCatConfirm, setShowClearCatConfirm] = useState(false);
   const [showStatusTestConfirm, setShowStatusTestConfirm] = useState(false);
 
   // Toast notifications
@@ -1038,9 +1039,16 @@ function App() {
             {currentUser.role !== 'observer' && (
               <div className="flex justify-end gap-2 mb-4">
                 {currentUser.role === 'superadmin' && (
-                  <button onClick={() => setShowCatTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                    🎲 Тестовые данные
-                  </button>
+                  <>
+                    <button onClick={() => setShowCatTestConfirm(true)} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                      🎲 Тестовые данные
+                    </button>
+                    {categories.some(c => !isSystemCategory(c.id)) && (
+                      <button onClick={() => setShowClearCatConfirm(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        🗑️ Очистить
+                      </button>
+                    )}
+                  </>
                 )}
                 <button onClick={() => setShowCategoryForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   ➕ Добавить категорию
@@ -1292,6 +1300,36 @@ function App() {
               </button>
               <button onClick={handleGenerateTestCategories} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
                 Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearCatConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-xl font-bold mb-4">Очистить категории?</h3>
+            <p className="text-gray-600 mb-6">Все пользовательские категории будут удалены. Системные категории (Компьютеры, Периферия) будут сохранены.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowClearCatConfirm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  const result = clearAllCategories();
+                  if (!result.success) {
+                    showToast(result.message, 'error');
+                  } else {
+                    loadCategories();
+                    loadEquipment();
+                    showToast(result.message, 'success');
+                  }
+                  setShowClearCatConfirm(false);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Очистить
               </button>
             </div>
           </div>

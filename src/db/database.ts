@@ -791,9 +791,15 @@ export function getEquipmentCountByCategory(catId: number): number {
   return db.equipment.filter(eq => eq.category_id === catId).length;
 }
 
-export function clearAllCategories(): void {
+export function clearAllCategories(): { success: boolean; message: string } {
+  const userCategories = db.categories.filter(c => !isSystemCategory(c.id));
+  if (userCategories.length === 0) {
+    return { success: false, message: 'Нет пользовательских категорий для очистки' };
+  }
+  
   db.categories = db.categories.filter(c => isSystemCategory(c.id));
   saveDatabase();
+  return { success: true, message: `Очищено ${userCategories.length} категорий (системные сохранены)` };
 }
 
 export function getCategoryFullPath(id: number): string {
