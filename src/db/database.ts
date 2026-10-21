@@ -628,9 +628,15 @@ export function deleteLocation(id: number): { success: boolean; message: string 
   return { success: true, message: 'Местоположение удалено' };
 }
 
-export function clearAllLocations(): void {
+export function clearAllLocations(): { success: boolean; message: string } {
+  const userLocations = db.locations.filter(l => !isSystemLocation(l.id));
+  if (userLocations.length === 0) {
+    return { success: false, message: 'Нет пользовательских местоположений для очистки' };
+  }
+  
   db.locations = db.locations.filter(l => isSystemLocation(l.id));
   saveDatabase();
+  return { success: true, message: `Очищено ${userLocations.length} местоположений (системные сохранены)` };
 }
 
 export function generateTestLocations(): number {
