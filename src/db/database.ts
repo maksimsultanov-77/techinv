@@ -109,6 +109,7 @@ const defaultDb: DatabaseSchema = {
   departments: [
     { id: 1, name: 'Руководство', parent_id: null, head_employee_id: null, created_at: new Date().toISOString() },
     { id: 2, name: 'Все сотрудники', parent_id: null, head_employee_id: null, created_at: new Date().toISOString() },
+    { id: 3, name: 'Вне штата', parent_id: null, head_employee_id: null, created_at: new Date().toISOString() },
   ],
   locations: [
     { id: 1, name: 'Главный офис', description: 'Центральный офис компании', parent_id: null, created_at: new Date().toISOString() },
@@ -132,7 +133,7 @@ const defaultDb: DatabaseSchema = {
   nextCategoryId: 3,
   nextEquipmentId: 1,
   nextEmployeeId: 1,
-  nextDepartmentId: 3,
+  nextDepartmentId: 4,
   nextLocationId: 3,
   nextStatusId: 4,
   nextUserId: 2,
@@ -193,10 +194,20 @@ export function initDatabase(): void {
           created_at: new Date().toISOString(),
         });
       }
+      if (!db.departments.find(d => d.id === 3)) {
+        const idx = db.departments.findIndex(d => d.id === 2);
+        db.departments.splice(idx + 1, 0, {
+          id: 3,
+          name: 'Вне штата',
+          parent_id: null,
+          head_employee_id: null,
+          created_at: new Date().toISOString(),
+        });
+      }
       
       // Миграция: обновляем nextDepartmentId если нужно
-      if (db.nextDepartmentId < 3) {
-        db.nextDepartmentId = 3;
+      if (db.nextDepartmentId < 4) {
+        db.nextDepartmentId = 4;
       }
       
       // Миграция: добавляем системные местоположения если их нет
@@ -537,12 +548,12 @@ export function deleteDepartment(id: number): { success: boolean; message: strin
 }
 
 export function clearAllDepartments(): void {
-  db.departments = [];
+  db.departments = db.departments.filter(d => isSystemDepartment(d.id));
   saveDatabase();
 }
 
 export function generateTestDepartments(): number {
-  const deptNames = ['ИТ-отдел', 'Бухгалтерия', 'Отдел кадров', 'Отдел продаж', 'Маркетинг'];
+  const deptNames = ['ИТ-отдел', 'Бухгалтерия', 'Отдел кадров', 'Отдел продаж', 'Маркетинг', 'Юридический отдел', 'Отдел логистики', 'Финансовый отдел'];
   let count = 0;
   deptNames.forEach(name => {
     // Проверяем, не существует ли уже такое подразделение
@@ -555,7 +566,7 @@ export function generateTestDepartments(): number {
 }
 
 export function isSystemDepartment(id: number): boolean {
-  return id === 1 || id === 2;
+  return id === 1 || id === 2 || id === 3;
 }
 
 export function getDepartmentName(id: number | null): string {
