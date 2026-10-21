@@ -260,10 +260,17 @@ export function getAllCategories(): Category[] {
 }
 
 export function getCategoryTree(): any[] {
-  return db.categories.filter(c => c.parent_id === null).map(cat => ({
-    ...cat,
-    children: db.categories.filter(c => c.parent_id === cat.id),
-  }));
+  const buildTree = (parentId: number | null): any[] => {
+    return db.categories
+      .filter(c => c.parent_id === parentId)
+      .map(cat => ({
+        ...cat,
+        children: buildTree(cat.id),
+        equipmentCount: db.equipment.filter(eq => eq.category_id === cat.id).length,
+      }));
+  };
+  
+  return buildTree(null);
 }
 
 export function addCategory(name: string, icon: string, description: string, parentId: number | null): number {

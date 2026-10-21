@@ -1048,25 +1048,58 @@ function App() {
               </div>
             )}
             <div className="space-y-3">
-              {getCategoryTree().map((cat: any) => (
-                <div key={cat.id} className="bg-white rounded-lg p-4 border border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">{cat.icon} {cat.name}</h3>
-                    <div className="flex gap-2">
-                      {getEquipmentByCategory(cat.id).length > 0 && (
-                        <button onClick={() => setViewingCategoryEquipment(cat.id)} className="text-blue-600 hover:text-blue-800">
-                          🖥️ {getEquipmentByCategory(cat.id).length}
-                        </button>
-                      )}
-                      {!isSystemCategory(cat.id) && currentUser.role !== 'observer' && (
-                        <button onClick={() => handleDeleteCategory(cat.id)} className="text-red-600 hover:text-red-800">
-                          🗑️
-                        </button>
+              {getCategoryTree().map((cat: any) => {
+                const CategoryItem = ({ category, level = 0 }: { category: any; level?: number }) => {
+                  const [isExpanded, setIsExpanded] = useState(true);
+                  const hasChildren = category.children && category.children.length > 0;
+                  
+                  return (
+                    <div>
+                      <div 
+                        key={category.id} 
+                        className="bg-white rounded-lg p-4 border border-gray-200"
+                        style={{ marginLeft: `${level * 20}px` }}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            {hasChildren && (
+                              <button 
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                {isExpanded ? '▼' : '▶'}
+                              </button>
+                            )}
+                            {!hasChildren && <div className="w-4" />}
+                            <h3 className="font-semibold">{category.icon} {category.name}</h3>
+                          </div>
+                          <div className="flex gap-2">
+                            {getEquipmentByCategory(category.id).length > 0 && (
+                              <button onClick={() => setViewingCategoryEquipment(category.id)} className="text-blue-600 hover:text-blue-800">
+                                🖥️ {getEquipmentByCategory(category.id).length}
+                              </button>
+                            )}
+                            {!isSystemCategory(category.id) && currentUser.role !== 'observer' && (
+                              <button onClick={() => handleDeleteCategory(category.id)} className="text-red-600 hover:text-red-800">
+                                🗑️
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {hasChildren && isExpanded && (
+                        <div className="mt-2 space-y-2">
+                          {category.children.map((child: any) => (
+                            <CategoryItem key={child.id} category={child} level={level + 1} />
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                };
+                
+                return <CategoryItem key={cat.id} category={cat} />;
+              })}
             </div>
           </div>
         )}
