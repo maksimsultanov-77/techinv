@@ -1700,6 +1700,7 @@ function App() {
                   if (!result.success) {
                     showToast(result.message, 'error');
                   } else {
+                    addLog('clear', 'department', undefined, undefined, result.message, currentUser?.id, currentUser?.fullName);
                     loadDepartments();
                     loadEmployees();
                     loadAllEmployees();
