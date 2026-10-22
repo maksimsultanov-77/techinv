@@ -215,9 +215,27 @@ function App() {
     }
   }, [isLoaded]);
 
+  // Установка вкладки по умолчанию для роли user при загрузке страницы
+  useEffect(() => {
+    if (currentUser && currentUser.role === 'user') {
+      // Проверяем, сохранена ли вкладка в localStorage
+      const savedView = localStorage.getItem('activeView');
+      // Если вкладка не сохранена или это не dashboard/equipment, устанавливаем dashboard
+      if (!savedView || (savedView !== 'dashboard' && savedView !== 'equipment')) {
+        setActiveView('dashboard');
+      }
+    }
+  }, [currentUser]);
+
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     localStorage.setItem('currentUser', JSON.stringify(user));
+    
+    // Для роли user всегда начинаем с вкладки "Главное"
+    if (user.role === 'user') {
+      setActiveView('dashboard');
+    }
+    
     addLog('login', 'user', user.id, user.fullName, `Пользователь ${user.fullName} вошёл в систему`, user.id, user.fullName);
   };
 
