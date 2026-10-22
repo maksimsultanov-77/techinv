@@ -78,13 +78,17 @@ import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
 import { Sidebar } from './components/Sidebar';
 import { BulkEditEmployee } from './components/BulkEditEmployee';
+import Dashboard from './components/Dashboard';
 import { useSettings } from './contexts/SettingsContext';
 
-type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings' | 'users';
+type ViewMode = 'dashboard' | 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings' | 'users';
 
 function App() {
   const { settings, isLoaded } = useSettings();
-  const [activeView, setActiveView] = useState<ViewMode>('structure');
+  const [activeView, setActiveView] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('activeView');
+    return (saved as ViewMode) || 'dashboard';
+  });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Equipment state
@@ -185,6 +189,11 @@ function App() {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
   };
+
+  // Сохранение activeView в localStorage при изменении
+  useEffect(() => {
+    localStorage.setItem('activeView', activeView);
+  }, [activeView]);
 
   // Проверка авторизации при загрузке
   useEffect(() => {
@@ -654,6 +663,14 @@ function App() {
 
               {/* Navigation Tabs */}
               <div className="flex gap-2 mt-4 border-b border-gray-200 -mb-4 overflow-x-auto">
+            <button
+              onClick={() => setActiveView('dashboard')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                activeView === 'dashboard' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              🏠 Главное
+            </button>
             {currentUser.role !== 'user' && (
               <>
                 <button
@@ -747,6 +764,11 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Dashboard View */}
+        {activeView === 'dashboard' && (
+          <Dashboard currentUser={currentUser} />
+        )}
+
         {/* Structure View */}
         {activeView === 'structure' && currentUser.role !== 'user' && (
           <div>
@@ -855,6 +877,79 @@ function App() {
                 </button>
               </div>
             )}
+            {/* Фильтры */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🔍 Поиск</label>
+                  <input
+                    type="text"
+                    value={empSearchQuery}
+                    onChange={(e) => setEmpSearchQuery(e.target.value)}
+                    placeholder="ФИО, должность, email..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🏢 Подразделение</label>
+                  <select
+                    value={empDepartment || ''}
+                    onChange={(e) => setEmpDepartment(e.target.value ? Number(e.target.value) : undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все подразделения</option>
+                    {departments.map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">👤 Тип сотрудника</label>
+                  <select
+                    value={empType || ''}
+                    onChange={(e) => setEmpType(e.target.value || undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все типы</option>
+                    <option value="staff">Штатный</option>
+                    <option value="external">Внешний</option>
+                    <option value="contractor">Подрядчик</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🏠 Режим работы</label>
+                  <select
+                    value={empWorkMode || ''}
+                    onChange={(e) => setEmpWorkMode(e.target.value || undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все режимы</option>
+                    <option value="office">В офисе</option>
+                    <option value="remote">Удалённо</option>
+                    <option value="hybrid">Гибрид</option>
+                  </select>
+                </div>
+              </div>
+              {(empSearchQuery || empDepartment || empType || empWorkMode) && (
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    Найдено: <strong>{employees.length}</strong> сотрудников
+                  </span>
+                  <button
+                    onClick={() => {
+                      setEmpSearchQuery('');
+                      setEmpDepartment(undefined);
+                      setEmpType(undefined);
+                      setEmpWorkMode(undefined);
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    ✕ Сбросить фильтры
+                  </button>
+                </div>
+              )}
+            </div>
+
             {selectedEmployeeIds.length > 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <div className="flex items-center justify-between">
@@ -926,6 +1021,80 @@ function App() {
                 </button>
               </div>
             )}
+            
+            {/* Фильтры оборудования */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🔍 Поиск</label>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Название, серийный номер..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">📁 Категория</label>
+                  <select
+                    value={selectedCategory || ''}
+                    onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все категории</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🏷️ Статус</label>
+                  <select
+                    value={selectedStatus || ''}
+                    onChange={(e) => setSelectedStatus(e.target.value ? Number(e.target.value) : undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все статусы</option>
+                    {statuses.map(status => (
+                      <option key={status.id} value={status.id}>{status.icon} {status.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">📍 Местоположение</label>
+                  <select
+                    value={selectedLocation || ''}
+                    onChange={(e) => setSelectedLocation(e.target.value ? Number(e.target.value) : undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все местоположения</option>
+                    {locations.map(loc => (
+                      <option key={loc.id} value={loc.id}>{loc.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {(searchQuery || selectedCategory || selectedStatus || selectedLocation) && (
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    Найдено: <strong>{equipment.length}</strong> единиц оборудования
+                  </span>
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedCategory(undefined);
+                      setSelectedStatus(undefined);
+                      setSelectedLocation(undefined);
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    ✕ Сбросить фильтры
+                  </button>
+                </div>
+              )}
+            </div>
+
             <EquipmentList
               equipment={equipment}
               statuses={statuses}

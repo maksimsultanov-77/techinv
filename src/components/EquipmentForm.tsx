@@ -78,6 +78,50 @@ export default function EquipmentForm({ categories, employees, locations, status
               </select>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Инвентарный номер</label>
+              <input
+                type="text"
+                value={formData.inventory_number}
+                onChange={(e) => setFormData({ ...formData, inventory_number: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                placeholder="INV-001"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Серийный номер</label>
+              <input
+                type="text"
+                value={formData.serial_number}
+                onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                placeholder="SN-123456"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Производитель</label>
+              <input
+                type="text"
+                value={formData.manufacturer}
+                onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                placeholder="HP, Dell, Lenovo"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Модель</label>
+              <input
+                type="text"
+                value={formData.model}
+                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                placeholder="Model X100"
+              />
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Местоположение</label>
             <select
@@ -102,6 +146,38 @@ export default function EquipmentForm({ categories, employees, locations, status
                 <option key={emp.id} value={emp.id}>{emp.full_name}</option>
               ))}
             </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Дата покупки</label>
+              <input
+                type="date"
+                value={formData.purchase_date}
+                onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Цена (₽)</label>
+              <input
+                type="number"
+                value={formData.purchase_price}
+                onChange={(e) => setFormData({ ...formData, purchase_price: Number(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                placeholder="0"
+                min="0"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Примечания</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              rows={3}
+              placeholder="Дополнительная информация об оборудовании"
+            />
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button type="button" onClick={onCancel} className="px-6 py-2 border border-gray-300 rounded-lg">

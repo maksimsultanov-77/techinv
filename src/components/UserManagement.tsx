@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, getAllUsers, addUser, updateUser, deleteUser, changePassword, getAllEmployees, Employee, addLog } from '../db/database';
 
 interface UserManagementProps {
@@ -15,6 +15,10 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
   const [passwordUserId, setPasswordUserId] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  
+  // Filters state
+  const [filterRole, setFilterRole] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   
   // Form state
   const [username, setUsername] = useState('');
@@ -34,6 +38,33 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
 
   const loadEmployees = () => {
     setEmployees(getAllEmployees());
+  };
+
+  // Фильтрация пользователей
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      // Фильтр по роли
+      if (filterRole && user.role !== filterRole) return false;
+      
+      // Текстовый поиск
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const searchableText = [
+          user.fullName,
+          user.username,
+          user.employee_id ? employees.find(e => e.id === user.employee_id)?.full_name : ''
+        ].filter(Boolean).join(' ').toLowerCase();
+        
+        if (!searchableText.includes(query)) return false;
+      }
+      
+      return true;
+    });
+  }, [users, filterRole, searchQuery, employees]);
+
+  const handleResetFilters = () => {
+    setFilterRole('');
+    setSearchQuery('');
   };
 
   const handleAdd = () => {
@@ -178,14 +209,64 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
         </div>
 
         <div className="p-6">
+          {/* Панель фильтров */}
+          {users.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🔍 Поиск</label>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="ФИО, логин, сотрудник..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">👤 Роль</label>
+                  <select
+                    value={filterRole}
+                    onChange={(e) => setFilterRole(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все роли</option>
+                    <option value="superadmin">👑 Суперадмин</option>
+                    <option value="admin">🔑 Администратор базы</option>
+                    <option value="user">👤 Пользователь</option>
+                    <option value="observer">👁️ Наблюдатель</option>
+                  </select>
+                </div>
+              </div>
+              {(filterRole || searchQuery) && (
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    Найдено: <strong>{filteredUsers.length}</strong> из {users.length} пользователей
+                  </span>
+                  <button
+                    onClick={handleResetFilters}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    ✕ Сбросить фильтры
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {users.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <div className="text-6xl mb-4">👥</div>
               <p>Нет пользователей</p>
             </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <div className="text-6xl mb-4">🔍</div>
+              <p>Нет пользователей, соответствующих фильтрам</p>
+            </div>
           ) : (
             <div className="space-y-3">
-              {users.map(user => (
+              {filteredUsers.map(user => (
                 <div key={user.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 flex-1">
