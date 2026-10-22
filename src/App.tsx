@@ -1325,7 +1325,7 @@ function App() {
 
         {/* Settings View */}
         {activeView === 'settings' && currentUser.role !== 'user' && (
-          <Settings showToast={showToast} />
+          <Settings showToast={showToast} currentUser={currentUser} />
         )}
 
         {/* Users View */}
