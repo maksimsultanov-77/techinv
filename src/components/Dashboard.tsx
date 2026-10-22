@@ -74,22 +74,21 @@ export default function Dashboard({ currentUser }: DashboardProps) {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4">🏷️ Оборудование по статусам</h3>
           <div className="space-y-3">
-            {statuses.map(status => {
-              const count = stats.byStatus?.[status.id] || 0;
-              const percentage = stats.total > 0 ? (count / stats.total) * 100 : 0;
+            {stats.byStatus?.map((statusStat: any) => {
+              const percentage = stats.total > 0 ? (statusStat.count / stats.total) * 100 : 0;
               return (
-                <div key={status.id}>
+                <div key={statusStat.name}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-lg">{status.icon}</span>
-                      <span className="text-sm font-medium text-gray-700">{status.name}</span>
+                      <span className="text-lg">{statusStat.icon}</span>
+                      <span className="text-sm font-medium text-gray-700">{statusStat.name}</span>
                     </div>
-                    <span className="text-sm text-gray-600">{count} ({percentage.toFixed(1)}%)</span>
+                    <span className="text-sm text-gray-600">{statusStat.count} ({percentage.toFixed(1)}%)</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="h-2 rounded-full transition-all"
-                      style={{ width: `${percentage}%`, backgroundColor: status.color }}
+                      style={{ width: `${percentage}%`, backgroundColor: statusStat.color }}
                     />
                   </div>
                 </div>
@@ -102,17 +101,16 @@ export default function Dashboard({ currentUser }: DashboardProps) {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4">📁 Оборудование по категориям</h3>
           <div className="space-y-3">
-            {categories.map(category => {
-              const count = stats.byCategory?.[category.id] || 0;
-              const percentage = stats.total > 0 ? (count / stats.total) * 100 : 0;
+            {stats.byCategory?.map((categoryStat: any) => {
+              const percentage = stats.total > 0 ? (categoryStat.count / stats.total) * 100 : 0;
               return (
-                <div key={category.id}>
+                <div key={categoryStat.name}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-lg">{category.icon}</span>
-                      <span className="text-sm font-medium text-gray-700">{category.name}</span>
+                      <span className="text-lg">{categoryStat.icon}</span>
+                      <span className="text-sm font-medium text-gray-700">{categoryStat.name}</span>
                     </div>
-                    <span className="text-sm text-gray-600">{count} ({percentage.toFixed(1)}%)</span>
+                    <span className="text-sm text-gray-600">{categoryStat.count} ({percentage.toFixed(1)}%)</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
