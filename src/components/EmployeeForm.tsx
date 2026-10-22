@@ -144,13 +144,86 @@ export function EmployeeForm({ departments, employee, onSave, onCancel }: Employ
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Часовой пояс</label>
-            <input
-              type="text"
+            <select
               value={formData.timezone}
               onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              placeholder="Europe/Moscow"
-            />
+            >
+              <optgroup label="Россия">
+                <option value="Europe/Kaliningrad">Калининград (UTC+2)</option>
+                <option value="Europe/Moscow">Москва (UTC+3)</option>
+                <option value="Europe/Samara">Самара (UTC+4)</option>
+                <option value="Asia/Yekaterinburg">Екатеринбург (UTC+5)</option>
+                <option value="Asia/Omsk">Омск (UTC+6)</option>
+                <option value="Asia/Krasnoyarsk">Красноярск (UTC+7)</option>
+                <option value="Asia/Irkutsk">Иркутск (UTC+8)</option>
+                <option value="Asia/Yakutsk">Якутск (UTC+9)</option>
+                <option value="Asia/Vladivostok">Владивосток (UTC+10)</option>
+                <option value="Asia/Magadan">Магадан (UTC+11)</option>
+                <option value="Asia/Kamchatka">Камчатка (UTC+12)</option>
+              </optgroup>
+              <optgroup label="Европа">
+                <option value="Europe/London">Лондон (UTC+0)</option>
+                <option value="Europe/Paris">Париж (UTC+1)</option>
+                <option value="Europe/Berlin">Берлин (UTC+1)</option>
+                <option value="Europe/Rome">Рим (UTC+1)</option>
+                <option value="Europe/Madrid">Мадрид (UTC+1)</option>
+                <option value="Europe/Warsaw">Варшава (UTC+1)</option>
+                <option value="Europe/Kiev">Киев (UTC+2)</option>
+                <option value="Europe/Minsk">Минск (UTC+3)</option>
+                <option value="Europe/Istanbul">Стамбул (UTC+3)</option>
+              </optgroup>
+              <optgroup label="Азия">
+                <option value="Asia/Dubai">Дубай (UTC+4)</option>
+                <option value="Asia/Tehran">Тегеран (UTC+3:30)</option>
+                <option value="Asia/Karachi">Карачи (UTC+5)</option>
+                <option value="Asia/Kolkata">Калькутта (UTC+5:30)</option>
+                <option value="Asia/Dhaka">Дакка (UTC+6)</option>
+                <option value="Asia/Bangkok">Бангкок (UTC+7)</option>
+                <option value="Asia/Singapore">Сингапур (UTC+8)</option>
+                <option value="Asia/Shanghai">Шанхай (UTC+8)</option>
+                <option value="Asia/Tokyo">Токио (UTC+9)</option>
+                <option value="Asia/Seoul">Сеул (UTC+9)</option>
+              </optgroup>
+              <optgroup label="СНГ и Центральная Азия">
+                <option value="Asia/Almaty">Алматы (UTC+6)</option>
+                <option value="Asia/Tashkent">Ташкент (UTC+5)</option>
+                <option value="Asia/Bishkek">Бишкек (UTC+6)</option>
+                <option value="Asia/Dushanbe">Душанбе (UTC+5)</option>
+                <option value="Asia/Ashgabat">Ашхабад (UTC+5)</option>
+                <option value="Asia/Baku">Баку (UTC+4)</option>
+                <option value="Asia/Yerevan">Ереван (UTC+4)</option>
+                <option value="Asia/Tbilisi">Тбилиси (UTC+4)</option>
+              </optgroup>
+              <optgroup label="Америка">
+                <option value="America/New_York">Нью-Йорк (UTC-5)</option>
+                <option value="America/Chicago">Чикаго (UTC-6)</option>
+                <option value="America/Denver">Денвер (UTC-7)</option>
+                <option value="America/Los_Angeles">Лос-Анджелес (UTC-8)</option>
+                <option value="America/Anchorage">Анкоридж (UTC-9)</option>
+                <option value="Pacific/Honolulu">Гонолулу (UTC-10)</option>
+                <option value="America/Toronto">Торонто (UTC-5)</option>
+                <option value="America/Vancouver">Ванкувер (UTC-8)</option>
+                <option value="America/Mexico_City">Мехико (UTC-6)</option>
+                <option value="America/Sao_Paulo">Сан-Паулу (UTC-3)</option>
+                <option value="America/Buenos_Aires">Буэнос-Айрес (UTC-3)</option>
+              </optgroup>
+              <optgroup label="Австралия и Океания">
+                <option value="Australia/Perth">Перт (UTC+8)</option>
+                <option value="Australia/Adelaide">Аделаида (UTC+9:30)</option>
+                <option value="Australia/Sydney">Сидней (UTC+10)</option>
+                <option value="Australia/Brisbane">Брисбен (UTC+10)</option>
+                <option value="Pacific/Auckland">Окленд (UTC+12)</option>
+                <option value="Pacific/Fiji">Фиджи (UTC+12)</option>
+              </optgroup>
+              <optgroup label="Африка">
+                <option value="Africa/Cairo">Каир (UTC+2)</option>
+                <option value="Africa/Johannesburg">Йоханнесбург (UTC+2)</option>
+                <option value="Africa/Lagos">Лагос (UTC+1)</option>
+                <option value="Africa/Nairobi">Найроби (UTC+3)</option>
+                <option value="Africa/Casablanca">Касабланка (UTC+1)</option>
+              </optgroup>
+            </select>
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button type="button" onClick={onCancel} className="px-6 py-2 border border-gray-300 rounded-lg">
