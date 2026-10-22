@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, LogEntry, getAllLogs, deleteLog, clearAllLogs } from '../db/database';
 
 interface LogViewerProps {
@@ -9,6 +9,13 @@ interface LogViewerProps {
 export function LogViewer({ showToast, currentUser }: LogViewerProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  
+  // Фильтры
+  const [filterAction, setFilterAction] = useState<string>('');
+  const [filterEntityType, setFilterEntityType] = useState<string>('');
+  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
+  const [filterDateTo, setFilterDateTo] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     loadLogs();
@@ -17,6 +24,61 @@ export function LogViewer({ showToast, currentUser }: LogViewerProps) {
   const loadLogs = () => {
     setLogs(getAllLogs());
   };
+
+  // Фильтрация логов
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      // Фильтр по действию
+      if (filterAction && log.action !== filterAction) return false;
+      
+      // Фильтр по типу сущности
+      if (filterEntityType && log.entityType !== filterEntityType) return false;
+      
+      // Фильтр по дате от
+      if (filterDateFrom) {
+        const logDate = new Date(log.timestamp);
+        const fromDate = new Date(filterDateFrom);
+        if (logDate < fromDate) return false;
+      }
+      
+      // Фильтр по дате до
+      if (filterDateTo) {
+        const logDate = new Date(log.timestamp);
+        const toDate = new Date(filterDateTo);
+        toDate.setHours(23, 59, 59, 999);
+        if (logDate > toDate) return false;
+      }
+      
+      // Текстовый поиск
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const searchableText = [
+          log.entityName,
+          log.details,
+          log.userName,
+          log.entityType
+        ].filter(Boolean).join(' ').toLowerCase();
+        
+        if (!searchableText.includes(query)) return false;
+      }
+      
+      return true;
+    });
+  }, [logs, filterAction, filterEntityType, filterDateFrom, filterDateTo, searchQuery]);
+
+  const handleResetFilters = () => {
+    setFilterAction('');
+    setFilterEntityType('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setSearchQuery('');
+  };
+
+  // Получить уникальные типы сущностей из логов
+  const entityTypes = useMemo(() => {
+    const types = new Set(logs.map(log => log.entityType));
+    return Array.from(types).sort();
+  }, [logs]);
 
   const handleDeleteLog = (id: number) => {
     const result = deleteLog(id);
@@ -79,14 +141,91 @@ export function LogViewer({ showToast, currentUser }: LogViewerProps) {
         )}
       </div>
 
-      {logs.length === 0 ? (
+      {/* Панель фильтров */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">🔍 Поиск</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Название, детали..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">⚡ Действие</label>
+            <select
+              value={filterAction}
+              onChange={(e) => setFilterAction(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Все действия</option>
+              <option value="create">➕ Создание</option>
+              <option value="update">✏️ Изменение</option>
+              <option value="delete">🗑️ Удаление</option>
+              <option value="clear">🧹 Очистка</option>
+              <option value="generate">🎲 Генерация</option>
+              <option value="login">🔐 Вход</option>
+              <option value="logout">🚪 Выход</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">📦 Тип сущности</label>
+            <select
+              value={filterEntityType}
+              onChange={(e) => setFilterEntityType(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Все типы</option>
+              {entityTypes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">📅 Дата от</label>
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">📅 Дата до</label>
+            <input
+              type="date"
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+        {(filterAction || filterEntityType || filterDateFrom || filterDateTo || searchQuery) && (
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-sm text-gray-600">
+              Найдено: <strong>{filteredLogs.length}</strong> из {logs.length} логов
+            </span>
+            <button
+              onClick={handleResetFilters}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              ✕ Сбросить фильтры
+            </button>
+          </div>
+        )}
+      </div>
+
+      {filteredLogs.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <div className="text-6xl mb-4">📋</div>
-          <p>Логи отсутствуют</p>
+          <p>{logs.length === 0 ? 'Логи отсутствуют' : 'Нет логов, соответствующих фильтрам'}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {logs.map(log => (
+          {filteredLogs.map(log => (
             <div key={log.id} className="bg-white rounded-lg p-4 border border-gray-200">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
