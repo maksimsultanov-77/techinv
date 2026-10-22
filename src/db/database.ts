@@ -164,7 +164,7 @@ export function initDatabase(): void {
     try {
       db = JSON.parse(savedDb);
       
-      // Миграция: добавляем системные категории если их нет
+      // Migration: add system categories if they don't exist
       if (!db.categories.find(c => c.id === 1)) {
         db.categories.unshift({
           id: 1,
@@ -185,12 +185,12 @@ export function initDatabase(): void {
         });
       }
       
-      // Миграция: обновляем nextCategoryId если нужно
+      // Migration: update nextCategoryId if needed
       if (db.nextCategoryId < 3) {
         db.nextCategoryId = 3;
       }
       
-      // Миграция: добавляем системные подразделения если их нет
+      // Migration: add system departments if they don't exist
       if (!db.departments.find(d => d.id === 1)) {
         db.departments.unshift({
           id: 1,
@@ -221,12 +221,12 @@ export function initDatabase(): void {
         });
       }
       
-      // Миграция: обновляем nextDepartmentId если нужно
+      // Migration: update nextDepartmentId if needed
       if (db.nextDepartmentId < 4) {
         db.nextDepartmentId = 4;
       }
       
-      // Миграция: добавляем системные местоположения если их нет
+      // Migration: add system locations if they don't exist
       if (!db.locations.find(l => l.id === 1)) {
         db.locations.unshift({
           id: 1,
@@ -247,12 +247,12 @@ export function initDatabase(): void {
         });
       }
       
-      // Миграция: обновляем nextLocationId если нужно
+      // Migration: update nextLocationId if needed
       if (db.nextLocationId < 3) {
         db.nextLocationId = 3;
       }
       
-      // Миграция: добавляем logs если их нет
+      // Migration: add logs if they don't exist
       if (!db.logs) {
         db.logs = [];
       }
@@ -393,7 +393,7 @@ export function clearAllEquipment(): void {
 }
 
 export function generateTestData(): { success: boolean; message: string; count?: number } {
-  // Проверка на наличие сотрудников
+  // Check for employees existence
   if (db.employees.length === 0) {
     return { 
       success: false, 
@@ -403,7 +403,7 @@ export function generateTestData(): { success: boolean; message: string; count?:
   
   const count = Math.floor(Math.random() * 50) + 10;
   for (let i = 0; i < count; i++) {
-    // Случайно привязываем к существующему сотруднику (70% шанс)
+    // Randomly assign to existing employee (70% chance)
     let responsibleEmployeeId: number | null = null;
     let responsibleName = '';
     if (db.employees.length > 0 && Math.random() > 0.3) {
@@ -502,7 +502,7 @@ export function bulkUpdateEmployee(ids: number[], updates: Partial<Employee>): v
 }
 
 export function bulkDeleteEmployee(ids: number[]): { success: boolean; message: string; deletedCount: number } {
-  // Проверяем, есть ли оборудование, привязанное к удаляемым сотрудникам
+  // Check if there is equipment assigned to employees being deleted
   const linkedEquipment = db.equipment.filter(eq => 
     eq.responsible_employee_id && ids.includes(eq.responsible_employee_id)
   );
@@ -635,7 +635,7 @@ export function generateTestDepartments(): number {
   const deptNames = ['ИТ-отдел', 'Бухгалтерия', 'Отдел кадров', 'Отдел продаж', 'Маркетинг', 'Юридический отдел', 'Отдел логистики', 'Финансовый отдел'];
   let count = 0;
   deptNames.forEach(name => {
-    // Проверяем, не существует ли уже такое подразделение
+    // Check if department already exists
     if (!db.departments.find(d => d.name === name)) {
       addDepartment(name, null);
       count++;
@@ -702,7 +702,7 @@ export function generateTestLocations(): number {
   const locNames = ['Филиал Север', 'Филиал Юг', 'Склад №1', 'Склад №2'];
   let count = 0;
   locNames.forEach(name => {
-    // Проверяем, не существует ли уже такое местоположение
+    // Check if location already exists
     if (!db.locations.find(l => l.name === name)) {
       addLocation(name, '', null);
       count++;
@@ -732,13 +732,13 @@ export function getEquipmentByLocation(locId: number, includeChildren: boolean =
     return db.equipment.filter(eq => eq.location_id === locId);
   }
   
-  // Получаем все дочерние местоположения
+  // Get all child locations
   const getChildLocationIds = (parentId: number): number[] => {
     const children = db.locations.filter(l => l.parent_id === parentId);
     const childIds = children.map(l => l.id);
     const allChildIds = [...childIds];
     
-    // Рекурсивно получаем всех потомков
+    // Recursively get all descendants
     for (const childId of childIds) {
       allChildIds.push(...getChildLocationIds(childId));
     }
@@ -826,7 +826,7 @@ export function generateTestStatuses(): number {
   
   let count = 0;
   testStatuses.forEach(status => {
-    // Проверяем, не существует ли уже такой статус
+    // Check if status already exists
     if (!db.statuses.find(s => s.name === status.name)) {
       addStatus(status.name, status.color, status.icon, status.description);
       count++;
@@ -871,7 +871,7 @@ export function generateTestCategories(): number {
   
   let count = 0;
   testCategories.forEach(cat => {
-    // Проверяем, не существует ли уже такая категория
+    // Check if category already exists
     if (!db.categories.find(c => c.name === cat.name && c.parent_id === cat.parent_id)) {
       addCategory(cat.name, cat.icon, cat.description, cat.parent_id);
       count++;

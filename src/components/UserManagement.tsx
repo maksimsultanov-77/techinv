@@ -40,13 +40,13 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
     setEmployees(getAllEmployees());
   };
 
-  // Фильтрация пользователей
+  // Filter users
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
-      // Фильтр по роли
+      // Filter by role
       if (filterRole && user.role !== filterRole) return false;
       
-      // Текстовый поиск
+      // Text search
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const searchableText = [

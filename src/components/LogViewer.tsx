@@ -10,7 +10,7 @@ export function LogViewer({ showToast, currentUser }: LogViewerProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   
-  // Фильтры
+  // Filters
   const [filterAction, setFilterAction] = useState<string>('');
   const [filterEntityType, setFilterEntityType] = useState<string>('');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
@@ -25,23 +25,23 @@ export function LogViewer({ showToast, currentUser }: LogViewerProps) {
     setLogs(getAllLogs());
   };
 
-  // Фильтрация логов
+  // Filter logs
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
-      // Фильтр по действию
+      // Filter by action
       if (filterAction && log.action !== filterAction) return false;
       
-      // Фильтр по типу сущности
+      // Filter by entity type
       if (filterEntityType && log.entityType !== filterEntityType) return false;
       
-      // Фильтр по дате от
+      // Filter by date from
       if (filterDateFrom) {
         const logDate = new Date(log.timestamp);
         const fromDate = new Date(filterDateFrom);
         if (logDate < fromDate) return false;
       }
       
-      // Фильтр по дате до
+      // Filter by date to
       if (filterDateTo) {
         const logDate = new Date(log.timestamp);
         const toDate = new Date(filterDateTo);
@@ -49,7 +49,7 @@ export function LogViewer({ showToast, currentUser }: LogViewerProps) {
         if (logDate > toDate) return false;
       }
       
-      // Текстовый поиск
+      // Text search
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const searchableText = [
@@ -74,7 +74,7 @@ export function LogViewer({ showToast, currentUser }: LogViewerProps) {
     setSearchQuery('');
   };
 
-  // Получить уникальные типы сущностей из логов
+  // Get unique entity types from logs
   const entityTypes = useMemo(() => {
     const types = new Set(logs.map(log => log.entityType));
     return Array.from(types).sort();

@@ -190,12 +190,12 @@ function App() {
     }, 3000);
   };
 
-  // Сохранение activeView в localStorage при изменении
+  // Save activeView to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('activeView', activeView);
   }, [activeView]);
 
-  // Проверка авторизации при загрузке
+  // Check authorization on load
   useEffect(() => {
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
@@ -215,12 +215,12 @@ function App() {
     }
   }, [isLoaded]);
 
-  // Установка вкладки по умолчанию для роли user при загрузке страницы
+  // Set default tab for user role on page load
   useEffect(() => {
     if (currentUser && currentUser.role === 'user') {
-      // Проверяем, сохранена ли вкладка в localStorage
+      // Check if tab is saved in localStorage
       const savedView = localStorage.getItem('activeView');
-      // Если вкладка не сохранена или это не dashboard/equipment, устанавливаем dashboard
+      // If tab is not saved or it's not dashboard/equipment, set to dashboard
       if (!savedView || (savedView !== 'dashboard' && savedView !== 'equipment')) {
         setActiveView('dashboard');
       }
@@ -231,7 +231,7 @@ function App() {
     setCurrentUser(user);
     localStorage.setItem('currentUser', JSON.stringify(user));
     
-    // Для роли user всегда начинаем с вкладки "Главное"
+    // For user role always start with "Dashboard" tab
     if (user.role === 'user') {
       setActiveView('dashboard');
     }
