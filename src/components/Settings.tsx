@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
+import { User } from '../db/database';
 
 interface SettingsProps {
   showToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  currentUser?: User;
 }
 
-export function Settings({ showToast }: SettingsProps) {
+export function Settings({ showToast, currentUser }: SettingsProps) {
   const { settings, updateSettings } = useSettings();
   const [draftSettings, setDraftSettings] = useState(settings);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  const isReadOnly = currentUser?.role === 'observer';
 
   const handleChange = (key: string, value: any) => {
+    if (isReadOnly) return;
     const newSettings = { ...draftSettings, [key]: value };
     setDraftSettings(newSettings);
     setHasChanges(true);
@@ -66,7 +71,8 @@ export function Settings({ showToast }: SettingsProps) {
                 type="text"
                 value={draftSettings.organizationName}
                 onChange={(e) => handleChange('organizationName', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isReadOnly}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                 placeholder="Введите название организации"
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -88,11 +94,12 @@ export function Settings({ showToast }: SettingsProps) {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => handleChange('menuPosition', 'top')}
+                  disabled={isReadOnly}
                   className={`p-4 border-2 rounded-lg transition-all ${
                     draftSettings.menuPosition === 'top'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  } ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-2xl mb-2">⬆️</div>
                   <div className="font-medium text-gray-800">Сверху</div>
@@ -100,11 +107,12 @@ export function Settings({ showToast }: SettingsProps) {
                 </button>
                 <button
                   onClick={() => handleChange('menuPosition', 'left')}
+                  disabled={isReadOnly}
                   className={`p-4 border-2 rounded-lg transition-all ${
                     draftSettings.menuPosition === 'left'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  } ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-2xl mb-2">⬅️</div>
                   <div className="font-medium text-gray-800">Слева</div>
@@ -120,11 +128,12 @@ export function Settings({ showToast }: SettingsProps) {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => handleChange('theme', 'light')}
+                  disabled={isReadOnly}
                   className={`p-4 border-2 rounded-lg transition-all ${
                     draftSettings.theme === 'light'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  } ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-2xl mb-2">☀️</div>
                   <div className="font-medium text-gray-800">Светлая</div>
@@ -132,11 +141,12 @@ export function Settings({ showToast }: SettingsProps) {
                 </button>
                 <button
                   onClick={() => handleChange('theme', 'dark')}
+                  disabled={isReadOnly}
                   className={`p-4 border-2 rounded-lg transition-all ${
                     draftSettings.theme === 'dark'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  } ${isReadOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-2xl mb-2">🌙</div>
                   <div className="font-medium text-gray-800">Тёмная</div>
@@ -152,7 +162,8 @@ export function Settings({ showToast }: SettingsProps) {
               <select
                 value={draftSettings.language}
                 onChange={(e) => handleChange('language', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isReadOnly}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 <option value="ru">🇷🇺 Русский</option>
                 <option value="en">🇬🇧 English</option>
@@ -173,7 +184,8 @@ export function Settings({ showToast }: SettingsProps) {
               <select
                 value={draftSettings.itemsPerPage}
                 onChange={(e) => handleChange('itemsPerPage', Number(e.target.value))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isReadOnly}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 <option value={25}>25 элементов</option>
                 <option value={50}>50 элементов</option>
@@ -186,12 +198,13 @@ export function Settings({ showToast }: SettingsProps) {
             </div>
 
             <div>
-              <label className="flex items-center gap-3 cursor-pointer">
+              <label className={`flex items-center gap-3 ${isReadOnly ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                 <input
                   type="checkbox"
                   checked={draftSettings.showDescriptions}
                   onChange={(e) => handleChange('showDescriptions', e.target.checked)}
-                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  disabled={isReadOnly}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:cursor-not-allowed"
                 />
                 <div>
                   <div className="font-medium text-gray-800">Показывать описания</div>
@@ -210,12 +223,13 @@ export function Settings({ showToast }: SettingsProps) {
             </h3>
 
             <div>
-              <label className="flex items-center gap-3 cursor-pointer">
+              <label className={`flex items-center gap-3 ${isReadOnly ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                 <input
                   type="checkbox"
                   checked={draftSettings.autoSaveLogs}
                   onChange={(e) => handleChange('autoSaveLogs', e.target.checked)}
-                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  disabled={isReadOnly}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:cursor-not-allowed"
                 />
                 <div>
                   <div className="font-medium text-gray-800">Автоматическое сохранение логов</div>
@@ -229,22 +243,36 @@ export function Settings({ showToast }: SettingsProps) {
         </div>
 
         {/* Кнопки действий */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-          <button
-            onClick={handleReset}
-            disabled={!hasChanges}
-            className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Сбросить изменения
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!hasChanges}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            💾 Сохранить настройки
-          </button>
-        </div>
+        {!isReadOnly && (
+          <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+            <button
+              onClick={handleReset}
+              disabled={!hasChanges}
+              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Сбросить изменения
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              💾 Сохранить настройки
+            </button>
+          </div>
+        )}
+        
+        {isReadOnly && (
+          <div className="p-6 border-t border-gray-200 bg-yellow-50">
+            <div className="flex items-center gap-2 text-yellow-800">
+              <span className="text-xl">👁️</span>
+              <p className="text-sm font-medium">Режим только для чтения</p>
+            </div>
+            <p className="text-xs text-yellow-700 mt-1 ml-7">
+              Вы просматриваете настройки в режиме наблюдения. Изменения недоступны.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Информация о версии */}
