@@ -321,7 +321,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
                       >
                         ✏️
                       </button>
-                      {user.id !== currentUser.id && (
+                      {user.id !== currentUser.id && !(currentUser.role === 'admin' && user.role === 'superadmin') && (
                         <button
                           onClick={() => handleDelete(user)}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
