@@ -19,7 +19,7 @@ export default function Dashboard({ currentUser }: DashboardProps) {
   const statuses = getAllStatuses();
   const categories = getAllCategories();
   
-  // Получаем оборудование пользователя, если он role === 'user'
+  // Get user equipment if role === 'user'
   const userEquipment = currentUser.role === 'user' && currentUser.employee_id 
     ? getEquipmentByEmployee(currentUser.employee_id) 
     : [];
@@ -27,7 +27,7 @@ export default function Dashboard({ currentUser }: DashboardProps) {
 
   return (
     <div className="space-y-6">
-      {/* Заголовок */}
+      {/* Header */}
       <div>
         <h2 className="text-3xl font-bold text-gray-800 mb-2">📊 Главная панель</h2>
         <p className="text-gray-600">
@@ -35,9 +35,9 @@ export default function Dashboard({ currentUser }: DashboardProps) {
         </p>
       </div>
 
-      {/* Основные карточки статистики */}
+      {/* Main statistics cards */}
       {currentUser.role === 'user' ? (
-        // Для роли user показываем только его оборудование
+        // For user role show only their equipment
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
@@ -64,7 +64,7 @@ export default function Dashboard({ currentUser }: DashboardProps) {
           </div>
         </div>
       ) : (
-        // Для других ролей показываем полную статистику
+        // For other roles show full statistics
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">
