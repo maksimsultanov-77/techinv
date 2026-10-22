@@ -1021,6 +1021,80 @@ function App() {
                 </button>
               </div>
             )}
+            
+            {/* Фильтры оборудования */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🔍 Поиск</label>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Название, серийный номер..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">📁 Категория</label>
+                  <select
+                    value={selectedCategory || ''}
+                    onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все категории</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🏷️ Статус</label>
+                  <select
+                    value={selectedStatus || ''}
+                    onChange={(e) => setSelectedStatus(e.target.value ? Number(e.target.value) : undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все статусы</option>
+                    {statuses.map(status => (
+                      <option key={status.id} value={status.id}>{status.icon} {status.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">📍 Местоположение</label>
+                  <select
+                    value={selectedLocation || ''}
+                    onChange={(e) => setSelectedLocation(e.target.value ? Number(e.target.value) : undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все местоположения</option>
+                    {locations.map(loc => (
+                      <option key={loc.id} value={loc.id}>{loc.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {(searchQuery || selectedCategory || selectedStatus || selectedLocation) && (
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    Найдено: <strong>{equipment.length}</strong> единиц оборудования
+                  </span>
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedCategory(undefined);
+                      setSelectedStatus(undefined);
+                      setSelectedLocation(undefined);
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    ✕ Сбросить фильтры
+                  </button>
+                </div>
+              )}
+            </div>
+
             <EquipmentList
               equipment={equipment}
               statuses={statuses}

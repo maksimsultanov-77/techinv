@@ -335,7 +335,14 @@ export function getAllEquipment(searchQuery?: string, categoryId?: number, statu
   if (locationId) result = result.filter(eq => eq.location_id === locationId);
   if (searchQuery) {
     const query = searchQuery.toLowerCase();
-    result = result.filter(eq => eq.name.toLowerCase().includes(query));
+    result = result.filter(eq => 
+      eq.name.toLowerCase().includes(query) ||
+      eq.serial_number?.toLowerCase().includes(query) ||
+      eq.inventory_number?.toLowerCase().includes(query) ||
+      eq.manufacturer?.toLowerCase().includes(query) ||
+      eq.model?.toLowerCase().includes(query) ||
+      eq.responsible_person?.toLowerCase().includes(query)
+    );
   }
   return result;
 }
