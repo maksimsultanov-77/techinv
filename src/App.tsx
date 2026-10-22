@@ -85,7 +85,10 @@ type ViewMode = 'dashboard' | 'equipment' | 'employees' | 'structure' | 'locatio
 
 function App() {
   const { settings, isLoaded } = useSettings();
-  const [activeView, setActiveView] = useState<ViewMode>('structure');
+  const [activeView, setActiveView] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem('activeView');
+    return (saved as ViewMode) || 'dashboard';
+  });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Equipment state
@@ -186,6 +189,11 @@ function App() {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
   };
+
+  // Сохранение activeView в localStorage при изменении
+  useEffect(() => {
+    localStorage.setItem('activeView', activeView);
+  }, [activeView]);
 
   // Проверка авторизации при загрузке
   useEffect(() => {
