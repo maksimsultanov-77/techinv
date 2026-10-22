@@ -877,6 +877,79 @@ function App() {
                 </button>
               </div>
             )}
+            {/* Фильтры */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🔍 Поиск</label>
+                  <input
+                    type="text"
+                    value={empSearchQuery}
+                    onChange={(e) => setEmpSearchQuery(e.target.value)}
+                    placeholder="ФИО, должность, email..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🏢 Подразделение</label>
+                  <select
+                    value={empDepartment || ''}
+                    onChange={(e) => setEmpDepartment(e.target.value ? Number(e.target.value) : undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все подразделения</option>
+                    {departments.map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">👤 Тип сотрудника</label>
+                  <select
+                    value={empType || ''}
+                    onChange={(e) => setEmpType(e.target.value || undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все типы</option>
+                    <option value="staff">Штатный</option>
+                    <option value="external">Внешний</option>
+                    <option value="contractor">Подрядчик</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🏠 Режим работы</label>
+                  <select
+                    value={empWorkMode || ''}
+                    onChange={(e) => setEmpWorkMode(e.target.value || undefined)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Все режимы</option>
+                    <option value="office">В офисе</option>
+                    <option value="remote">Удалённо</option>
+                    <option value="hybrid">Гибрид</option>
+                  </select>
+                </div>
+              </div>
+              {(empSearchQuery || empDepartment || empType || empWorkMode) && (
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    Найдено: <strong>{employees.length}</strong> сотрудников
+                  </span>
+                  <button
+                    onClick={() => {
+                      setEmpSearchQuery('');
+                      setEmpDepartment(undefined);
+                      setEmpType(undefined);
+                      setEmpWorkMode(undefined);
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    ✕ Сбросить фильтры
+                  </button>
+                </div>
+              )}
+            </div>
+
             {selectedEmployeeIds.length > 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <div className="flex items-center justify-between">
