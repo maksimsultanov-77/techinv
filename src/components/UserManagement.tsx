@@ -117,6 +117,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
         showToast(result.message, 'success');
         setShowForm(false);
         loadUsers();
+        loadEmployees();
       } else {
         showToast(result.message, 'error');
       }
@@ -132,6 +133,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
         showToast(result.message, 'success');
         setShowForm(false);
         loadUsers();
+        loadEmployees();
       } else {
         showToast(result.message, 'error');
       }
@@ -178,6 +180,7 @@ export function UserManagement({ currentUser, showToast }: UserManagementProps) 
       addLog('delete', 'user', userToDelete.id, userToDelete.username, 'Пользователь удалён', currentUser.id, currentUser.fullName);
       showToast(result.message, 'success');
       loadUsers();
+      loadEmployees();
     } else {
       showToast(result.message, 'error');
     }
