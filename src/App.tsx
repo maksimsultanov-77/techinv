@@ -727,7 +727,7 @@ function App() {
                 </button>
               </>
             )}
-            {currentUser.role === 'superadmin' && (
+            {(currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
               <button
                 onClick={() => setActiveView('logs')}
                 className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
@@ -1319,7 +1319,7 @@ function App() {
         )}
 
         {/* Logs View */}
-        {activeView === 'logs' && currentUser.role === 'superadmin' && (
+        {activeView === 'logs' && (currentUser.role === 'superadmin' || currentUser.role === 'admin') && (
           <LogViewer showToast={showToast} currentUser={currentUser} />
         )}
 

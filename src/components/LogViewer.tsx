@@ -131,7 +131,7 @@ export function LogViewer({ showToast, currentUser }: LogViewerProps) {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Логи</h2>
-        {currentUser?.role === 'superadmin' && logs.length > 0 && (
+        {(currentUser?.role === 'superadmin' || currentUser?.role === 'admin') && logs.length > 0 && (
           <button
             onClick={() => setShowClearConfirm(true)}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
@@ -250,7 +250,7 @@ export function LogViewer({ showToast, currentUser }: LogViewerProps) {
                     </div>
                   )}
                 </div>
-                {currentUser?.role === 'superadmin' && (
+                {(currentUser?.role === 'superadmin' || currentUser?.role === 'admin') && (
                   <button
                     onClick={() => handleDeleteLog(log.id)}
                     className="text-red-600 hover:text-red-800 ml-4"
