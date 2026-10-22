@@ -78,9 +78,10 @@ import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
 import { Sidebar } from './components/Sidebar';
 import { BulkEditEmployee } from './components/BulkEditEmployee';
+import Dashboard from './components/Dashboard';
 import { useSettings } from './contexts/SettingsContext';
 
-type ViewMode = 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings' | 'users';
+type ViewMode = 'dashboard' | 'equipment' | 'employees' | 'structure' | 'locations' | 'statuses' | 'categories' | 'logs' | 'settings' | 'users';
 
 function App() {
   const { settings, isLoaded } = useSettings();
@@ -654,6 +655,14 @@ function App() {
 
               {/* Navigation Tabs */}
               <div className="flex gap-2 mt-4 border-b border-gray-200 -mb-4 overflow-x-auto">
+            <button
+              onClick={() => setActiveView('dashboard')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+                activeView === 'dashboard' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              🏠 Главное
+            </button>
             {currentUser.role !== 'user' && (
               <>
                 <button
@@ -747,6 +756,11 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Dashboard View */}
+        {activeView === 'dashboard' && (
+          <Dashboard currentUser={currentUser} />
+        )}
+
         {/* Structure View */}
         {activeView === 'structure' && currentUser.role !== 'user' && (
           <div>

@@ -432,6 +432,12 @@ export function getStats(): any {
       icon: cat.icon,
       count: db.equipment.filter(eq => eq.category_id === cat.id).length,
     })),
+    byStatus: db.statuses.map(status => ({
+      name: status.name,
+      icon: status.icon,
+      color: status.color,
+      count: db.equipment.filter(eq => eq.status_id === status.id).length,
+    })),
   };
 }
 
@@ -540,10 +546,25 @@ export function generateTestEmployees(): number {
 export function getEmployeeStats(): any {
   return {
     total: db.employees.length,
-    byDepartment: [],
-    byWorkMode: [],
-    byGender: [],
-    byType: [],
+    byDepartment: db.departments.map(dept => ({
+      id: dept.id,
+      name: dept.name,
+      count: db.employees.filter(emp => emp.department_id === dept.id).length,
+    })),
+    byWorkMode: [
+      { mode: 'office', label: 'В офисе', icon: '🏢', count: db.employees.filter(emp => emp.work_mode === 'office').length },
+      { mode: 'remote', label: 'Удалённо', icon: '🏠', count: db.employees.filter(emp => emp.work_mode === 'remote').length },
+      { mode: 'hybrid', label: 'Гибрид', icon: '🔄', count: db.employees.filter(emp => emp.work_mode === 'hybrid').length },
+    ],
+    byGender: [
+      { gender: 'male', label: 'Мужчины', icon: '👨', count: db.employees.filter(emp => emp.gender === 'male').length },
+      { gender: 'female', label: 'Женщины', icon: '👩', count: db.employees.filter(emp => emp.gender === 'female').length },
+    ],
+    byType: [
+      { type: 'staff', label: 'Штатные', icon: '👤', count: db.employees.filter(emp => emp.employee_type === 'staff').length },
+      { type: 'external', label: 'Внешние', icon: '🌐', count: db.employees.filter(emp => emp.employee_type === 'external').length },
+      { type: 'contractor', label: 'Подрядчики', icon: '📝', count: db.employees.filter(emp => emp.employee_type === 'contractor').length },
+    ],
   };
 }
 

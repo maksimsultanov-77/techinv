@@ -30,6 +30,7 @@ export function Sidebar({
   const { settings } = useSettings();
 
   const menuItems = [
+    { id: 'dashboard', label: '🏠 Главное', count: null },
     ...(currentUser.role !== 'user' ? [
       { id: 'structure', label: '🏢 Оргструктура', count: departments.length },
       { id: 'employees', label: '👥 Сотрудники', count: empStats.total },
